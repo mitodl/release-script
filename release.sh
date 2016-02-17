@@ -33,7 +33,6 @@ if [[ -z "$VERSION" ]]; then
     exit 1
 fi
 
-# Check that programs are available
 # Ensures the current working directory doesn't have tracked but uncommitted files in git.
 clean_working_dir () {
     if [[ "$(git status -s | grep -m1 "^ ")" ]]; then
@@ -42,6 +41,7 @@ clean_working_dir () {
     fi
 }
 
+# Check that requisite programs are available
 validate_dependencies () {
     local -i missing=0
     if ! hash hub 2>/dev/null; then
@@ -55,6 +55,11 @@ validate_dependencies () {
     if ! hash perl 2>/dev/null; then
         missing=$missing+1
         error 'Please install perl https://www.perl.org/get.html'
+    fi
+
+    if ! hash git-release-notes 2>/dev/null; then
+        missing=$missing+1
+        error 'Please install git-release-notes https://www.npmjs.com/package/git-release-notes'
     fi
 
     if [[ 0 -ne $missing ]]; then
