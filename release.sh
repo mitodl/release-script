@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 
 # A script to automate the release process
 
@@ -6,6 +6,8 @@
 #   release working_dir version_num
 
 set -euf -o pipefail
+
+[[ "${TRACE:-}" ]] && set -x
 
 error () {  # error that writes to stderr, not stdout.
     >&2 echo $@
