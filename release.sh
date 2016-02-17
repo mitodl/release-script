@@ -21,6 +21,16 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 WORKING_DIR="${1:-}"  # default $1 to empty if it's not supplied 
 VERSION="${2:-}"
 
+if [[ -z "$WORKING_DIR" ]]; then
+    error "You must specify a working directory as the first argument."
+    exit 1
+fi
+
+if [[ -z "$VERSION" ]]; then
+    error "You must specify a version as the second argument."
+    exit 1
+fi
+
 # Check that programs are available
 validate_dependencies () {
     EXIT_TO_INSTALL_APPS=false
