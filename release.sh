@@ -22,6 +22,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # http://redsymbol.net/articles/unofficial-bash-strict-mode/#solution-positional-parameters
 WORKING_DIR="${1:-}"  # default $1 to empty if it's not supplied 
 VERSION="${2:-}"
+OLD_VERSION=   # set later.
 
 if [[ -z "$WORKING_DIR" ]]; then
     error "You must specify a working directory as the first argument."
@@ -67,17 +68,31 @@ validate_dependencies () {
     fi
 }
 
+# Updates the local repo
 update_copy () {
     cd $WORKING_DIR # change to repository working directory
-    git checkout master
-    git pull
-
+    clean_working_dir
+    git checkout  master -q
+    git pull -q
 }
 
+set_old_version () {
+    cd $WORKING_DIR
+    OLD_VERSION="$(find . -maxdepth 2 -name 'settings.py' | xargs grep VERSION | tr "\"" ' ' | awk '{print $3}')"
+    if [[ -z "$OLD_VERSION" ]]; then
+        error "Could not determine the old version."
+        exit 1
+    fi
+}
+
+# Checks out the release-candidate branch
 checkout_release () {
+    cd $WORKING_DIR
+    clean_working_dir
     # Create the branch if it doesn't exist. If it does, just check it out
-    git checkout -b release-candidate || (git checkout release-candidate && git merge master)
+    git checkout -qb release-candidate 2>/dev/null || (git checkout -q release-candidate && git merge -q master)
 }
+
 
 update_versions () {
     # maxdepth, so we don't pull things from .tox, etc
@@ -86,10 +101,11 @@ update_versions () {
 }
 
 update_release_notes () {
+    cd $WORKING_DIR
     # Create/Update RELEASE.rst
     # +4 is to offset the header of the template we don't want yet.
     IFS=$'\n'  # sets separator to only newlines. see http://askubuntu.com/a/344418
-    NEW_RELEASE_NOTES=$(git-release-notes v$OLD_VERSION..master $SCRIPT_DIR/util/release_notes_rst.ejs | tail +4)
+    NEW_RELEASE_NOTES=$(git-release-notes v$OLD_VERSION..master $SCRIPT_DIR/util/release_notes_rst.ejs)
 
     echo 'Release Notes' > releases_rst.new
     echo '=============' >> releases_rst.new
@@ -103,17 +119,17 @@ update_release_notes () {
         echo $line >> releases_rst.new
     done;
     echo '' >> releases_rst.new
-    echo RELEASE.rst | tail +4 >> releases_rst.new
+    echo RELEASE.rst >> releases_rst.new
     mv releases_rst.new RELEASE.rst
     # explicit add, because we know the location & we will need it for the first release
     git add RELEASE.rst
-    git commit --all --message "Release $VERSION"
+    git commit -q --all --message "Release $VERSION"
 }
 
 
 build_release () {
-    # git push origin release-candidate:release-candidate
-    echo "Building release"
+    # git push -q origin release-candidate:release-candidate
+    echo "Building release..."
 }
 
 generate_prs () {
@@ -127,6 +143,7 @@ main () {
     validate_dependencies
     update_copy
     checkout_release
+    set_old_version
     update_versions
     update_release_notes
     build_release
