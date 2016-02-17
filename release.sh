@@ -34,6 +34,14 @@ if [[ -z "$VERSION" ]]; then
 fi
 
 # Check that programs are available
+# Ensures the current working directory doesn't have tracked but uncommitted files in git.
+clean_working_dir () {
+    if [[ "$(git status -s | grep -m1 "^ ")" ]]; then
+        error "Not checking out release. You have uncommitted files in your working directory."
+        exit 1
+    fi
+}
+
 validate_dependencies () {
     local -i missing=0
     if ! hash hub 2>/dev/null; then
