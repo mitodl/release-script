@@ -11,11 +11,15 @@ error () {  # error that writes to stderr, not stdout.
     >&2 echo $@
 }
 
+# Quote nesting works as described here: http://stackoverflow.com/a/6612417/4972
 # SCRIPT_DIR via http://www.ostricher.com/2014/10/the-right-way-to-get-the-directory-of-a-bash-script/
-SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-WORKING_DIR=$1
-VERSION=$2
-OLD_VERSION=$(find . -name 'settings.py' -maxdepth 2 | xargs grep VERSION | tr '"' ' ' | awk '{print $3}')
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Default variables to empty if not present. Necessary due to the -u option specified above.
+# For more information on this, look here:
+# http://redsymbol.net/articles/unofficial-bash-strict-mode/#solution-positional-parameters
+WORKING_DIR="${1:-}"  # default $1 to empty if it's not supplied 
+VERSION="${2:-}"
 
 # Check that programs are available
 validate_dependencies () {
