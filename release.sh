@@ -98,6 +98,7 @@ update_release_notes () {
 
 build_release () {
     # git push origin release-candidate:release-candidate
+    echo "Building release"
 }
 
 generate_prs () {
