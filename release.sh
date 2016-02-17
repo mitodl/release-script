@@ -33,28 +33,22 @@ fi
 
 # Check that programs are available
 validate_dependencies () {
-    EXIT_TO_INSTALL_APPS=false
+    local -i missing=0
+    if ! hash hub 2>/dev/null; then
+        missing=$missing+1
+        error 'Please install hub https://hub.github.com/'
+    fi
+    if ! hash git 2>/dev/null; then
+        missing=$missing+1
+        error 'Please install git https://git-scm.com/downloads'
+    fi
+    if ! hash perl 2>/dev/null; then
+        missing=$missing+1
+        error 'Please install perl https://www.perl.org/get.html'
+    fi
 
-    if hash hub 2>/dev/null; then
-        # continue
-    else
-        EXIT_TO_INSTALL_APPS=true
-        echo 'Please install hub https://hub.github.com/'
-    fi
-    if hash git 2>/dev/null; then
-        @ continue
-    else
-        EXIT_TO_INSTALL_APPS=true
-        echo 'Please install git https://git-scm.com/downloads'
-    fi
-    if hash perl 2>/dev/null; then
-        @ continue
-    else
-        EXIT_TO_INSTALL_APPS=true
-        echo 'Please install perl https://www.perl.org/get.html'
-    fi
-    if EXIT_TO_INSTALL_APPS=true then
-       exit()
+    if [[ 0 -ne $missing ]]; then
+        exit $missing
     fi
 }
 
