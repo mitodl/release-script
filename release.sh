@@ -66,8 +66,8 @@ checkout_release () {
 
 update_versions () {
     # maxdepth, so we don't pull things from .tox, etc
-    find $WORKING_DIR -name 'settings.py' -maxdepth 2 | xargs perl -pi -e "s/VERSION = .*/VERSION = \"$VERSION\"/g"
-    find $WORKING_DIR -name 'setup.py' -maxdepth 2 | xargs perl -pi -e "s/version=.*/version='$VERSION',/g"
+    find $WORKING_DIR -maxdepth 2 -name 'settings.py' | xargs perl -pi -e "s/VERSION = .*/VERSION = \"$VERSION\"/g"
+    find $WORKING_DIR -maxdepth 2 -name 'setup.py' | xargs perl -pi -e "s/version=.*/version='$VERSION',/g"
 }
 
 update_release_notes () {
