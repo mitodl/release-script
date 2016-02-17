@@ -125,3 +125,4 @@ main () {
 # - tag build
 # - push tags
 
+main
