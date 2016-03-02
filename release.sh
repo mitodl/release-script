@@ -90,7 +90,7 @@ checkout_release () {
     cd $WORKING_DIR
     clean_working_dir
     # Create the branch if it doesn't exist. If it does, just check it out
-    git checkout -qb release-candidate 2>/dev/null || (git checkout -q release-candidate && git merge -q master)
+    git checkout -qb release-candidate 2>/dev/null || (git checkout -q release-candidate && git merge -q -m "Release $VERSION" master)
 }
 
 
@@ -128,15 +128,17 @@ update_release_notes () {
 
 
 build_release () {
-    # git push -q origin release-candidate:release-candidate
+    git push -q origin release-candidate:release-candidate
     echo "Building release..."
 }
 
 generate_prs () {
-    # hub pull-request -b master -h "release-candidate" -m "Update version to $VERSION"
+    hub pull-request -b master -h "release-candidate" -m "Update version to $VERSION"
     #
-    git-release-notes v$OLD_VERSION..master $SCRIPT_DIR/util/release_notes.ejs > release-notes-checklist
-    # hub pull-request -b release -h "release-candidate" -F release-notes-checklist
+    echo "Release $VERSION" >> release-notes-checklist
+    echo "" >> release-notes-checklist 
+    git-release-notes v$OLD_VERSION..master $SCRIPT_DIR/util/release_notes.ejs >> release-notes-checklist
+    hub pull-request -b release -h "release-candidate" -F release-notes-checklist
 }
 
 main () {

@@ -1,3 +1,20 @@
-<% commits.forEach(function (commit) { %>- [ ] <%= commit.title %>
-  [<%= commit.authorName %>](<%= commit.authorEmail %>)
-<% }) %>
+<% 
+by_author = {};
+
+commits.forEach(function (commit) {
+  var author = commit.authorName;
+  by_author[author] = by_author[author] || [];
+  by_author[author].push(commit);
+})
+
+Object.keys(by_author).forEach(function (author) {
+  %>## <%= author %>
+<%
+  by_author[author].forEach(function (commit) {
+    %>  - [ ] <%= commit.title %> ([<%= commit.sha1.substring(0,8) %>](../commit/<%= commit.sha1 %>))
+<%
+  });
+  %>
+<%
+});
+%>
