@@ -119,7 +119,7 @@ update_release_notes () {
         echo $line >> releases_rst.new
     done;
     echo '' >> releases_rst.new
-    echo RELEASE.rst >> releases_rst.new
+    cat RELEASE.rst >> releases_rst.new
     mv releases_rst.new RELEASE.rst
     # explicit add, because we know the location & we will need it for the first release
     git add RELEASE.rst
