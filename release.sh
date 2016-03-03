@@ -135,7 +135,7 @@ build_release () {
 generate_prs () {
     hub pull-request -b master -h "release-candidate" -m "Update version to $VERSION"
     #
-    echo "Release $VERSION" >> release-notes-checklist
+    echo "Release $VERSION" > release-notes-checklist
     echo "" >> release-notes-checklist 
     git-release-notes v$OLD_VERSION..master $SCRIPT_DIR/util/release_notes.ejs >> release-notes-checklist
     hub pull-request -b release -h "release-candidate" -F release-notes-checklist
@@ -150,6 +150,7 @@ main () {
     update_release_notes
     build_release
     generate_prs
+    echo "version $OLD_VERSION has been updated to $VERSION"
     echo "Go tell engineers to check their work. PR is on the repo."
     echo "After they are done, run the next script."
 }
@@ -158,5 +159,7 @@ main () {
 # Next script:
 # - tag build
 # - push tags
+# - merge release-candidate to release
+# - merge release to master
 
 main
