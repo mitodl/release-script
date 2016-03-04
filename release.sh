@@ -133,8 +133,6 @@ build_release () {
 }
 
 generate_prs () {
-    hub pull-request -b master -h "release-candidate" -m "Update version to $VERSION"
-    #
     echo "Release $VERSION" > release-notes-checklist
     echo "" >> release-notes-checklist 
     git-release-notes v$OLD_VERSION..master $SCRIPT_DIR/util/release_notes.ejs >> release-notes-checklist
