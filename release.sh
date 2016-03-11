@@ -83,6 +83,11 @@ set_old_version () {
         error "Could not determine the old version."
         exit 1
     fi
+    OLD_VERSION="v$OLD_VERSION"
+    if [[ "$OLD_VERSION" == "v0.0.0" ]]; then
+      # gets initial commit via http://www.commandlinefu.com/commands/view/6345/get-first-git-commit-hash
+      OLD_VERSION="`git log --format=%H | tail -1`"
+    fi
 }
 
 # Checks out the release-candidate branch
@@ -105,7 +110,7 @@ update_release_notes () {
     # Create/Update RELEASE.rst
     # +4 is to offset the header of the template we don't want yet.
     IFS=$'\n'  # sets separator to only newlines. see http://askubuntu.com/a/344418
-    NEW_RELEASE_NOTES=$(git-release-notes v$OLD_VERSION..master $SCRIPT_DIR/util/release_notes_rst.ejs)
+    NEW_RELEASE_NOTES=$(git-release-notes $OLD_VERSION..master $SCRIPT_DIR/util/release_notes_rst.ejs)
 
     echo 'Release Notes' > releases_rst.new
     echo '=============' >> releases_rst.new
@@ -119,7 +124,9 @@ update_release_notes () {
         echo $line >> releases_rst.new
     done;
     echo '' >> releases_rst.new
-    cat RELEASE.rst >> releases_rst.new
+    if [[ -e "RELEASE.rst" ]]; then
+      cat RELEASE.rst >> releases_rst.new
+    fi
     mv releases_rst.new RELEASE.rst
     # explicit add, because we know the location & we will need it for the first release
     git add RELEASE.rst
@@ -135,7 +142,7 @@ build_release () {
 generate_prs () {
     echo "Release $VERSION" > release-notes-checklist
     echo "" >> release-notes-checklist 
-    git-release-notes v$OLD_VERSION..master $SCRIPT_DIR/util/release_notes.ejs >> release-notes-checklist
+    git-release-notes $OLD_VERSION..master $SCRIPT_DIR/util/release_notes.ejs >> release-notes-checklist
     hub pull-request -b release -h "release-candidate" -F release-notes-checklist
 }
 
