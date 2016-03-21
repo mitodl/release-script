@@ -110,8 +110,13 @@ update_release_notes () {
     echo 'Release Notes' > releases_rst.new
     echo '=============' >> releases_rst.new
     echo '' >> releases_rst.new
-    echo "Version $VERSION" >> releases_rst.new
-    echo '-------------' >> releases_rst.new
+    VERSION_LINE="Version $VERSION"
+    echo $VERSION_LINE >> releases_rst.new
+    # start at 2, because we actually want len(versionline)-1, but that's hard to do in bash, so just start from 2.
+    for i in $(seq 2 $(echo $VERSION_LINE | wc -c)); do
+      echo -n '-' >> releases_rst.new
+    done
+    echo '' >> releases_rst.new
     echo '' >> releases_rst.new
 
     # we do this because, without it, bash ignores newlines in between the bullets.
