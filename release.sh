@@ -90,7 +90,8 @@ checkout_release () {
     cd $WORKING_DIR
     clean_working_dir
     # Create the branch if it doesn't exist. If it does, just check it out
-    git checkout -qb release-candidate 2>/dev/null || (git checkout -q release-candidate && git merge -q -m "Release $VERSION" master)
+    # git checkout -qb release-candidate 2>/dev/null || (git checkout -q release-candidate && git merge -q -m "Release $VERSION" master)
+    git checkout -qb release-candidate 2>/dev/null || (git checkout -q release-candidate && git reset --hard master)
 }
 
 
@@ -133,8 +134,8 @@ update_release_notes () {
 
 
 build_release () {
-    git push -q origin release-candidate:release-candidate
     echo "Building release..."
+    git push --force -q origin release-candidate:release-candidate
 }
 
 generate_prs () {
