@@ -1,5 +1,4 @@
 test: shunit2
-	./fixture.sh
 	./test.sh
 
 shunit2:
