@@ -9,7 +9,7 @@ fi
 (
     mkdir test-repo
     cd test-repo
-    git init
+    git init --quiet
     cat ../test-repo.gz | gunzip | git fast-import --quiet
     git checkout --quiet master
 )
