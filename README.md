@@ -1,4 +1,7 @@
 # release-script
+
+[![Build Status](https://travis-ci.org/mitodl/release-script.svg?branch=master)](https://travis-ci.org/mitodl/release-script)
+
 Scripts to automate the release process.
 
 These scripts automate the release process which to-date has been 
