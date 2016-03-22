@@ -18,7 +18,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # Default variables to empty if not present. Necessary due to the -u option specified above.
 # For more information on this, look here:
 # http://redsymbol.net/articles/unofficial-bash-strict-mode/#solution-positional-parameters
-WORKING_DIR="${1:-}"  # default $1 to empty if it's not supplied 
+WORKING_DIR="${1:-}"  # default $1 to empty if it's not supplied
 VERSION="${2:-}"
 OLD_VERSION=   # set later.
 
@@ -81,13 +81,14 @@ checkout_release () {
     git checkout -qb release-candidate 2>/dev/null || (git checkout -q release-candidate && git reset --hard master)
 }
 
-
+# Update the version numbers in canonical locations.
 update_versions () {
     # maxdepth, so we don't pull things from .tox, etc
     find $WORKING_DIR -maxdepth 2 -name 'settings.py' | xargs perl -pi -e "s/VERSION = .*/VERSION = \"$VERSION\"/g"
     find $WORKING_DIR -maxdepth 2 -name 'setup.py' | xargs perl -pi -e "s/version=.*/version='$VERSION',/g"
 }
 
+# Create a section in RELEASE document describing the commits in the release
 update_release_notes () {
     cd $WORKING_DIR
     # Create/Update RELEASE.rst
@@ -127,7 +128,7 @@ build_release () {
 
 generate_prs () {
     echo "Release $VERSION" > release-notes-checklist
-    echo "" >> release-notes-checklist 
+    echo "" >> release-notes-checklist
     git-release-notes v$OLD_VERSION..master $SCRIPT_DIR/util/release_notes.ejs >> release-notes-checklist
     hub pull-request -b release -h "release-candidate" -F release-notes-checklist
 }
