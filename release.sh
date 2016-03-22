@@ -5,8 +5,6 @@
 # Usage
 #   release working_dir version_num
 
-set -euf -o pipefail
-
 [[ "${TRACE:-}" ]] && set -x
 
 error () {  # error that writes to stderr, not stdout.
@@ -23,16 +21,6 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 WORKING_DIR="${1:-}"  # default $1 to empty if it's not supplied 
 VERSION="${2:-}"
 OLD_VERSION=   # set later.
-
-if [[ -z "$WORKING_DIR" ]]; then
-    error "You must specify a working directory as the first argument."
-    exit 1
-fi
-
-if [[ -z "$VERSION" ]]; then
-    error "You must specify a version as the second argument."
-    exit 1
-fi
 
 # Ensures the current working directory doesn't have tracked but uncommitted files in git.
 clean_working_dir () {
@@ -166,4 +154,19 @@ main () {
 # - merge release-candidate to release
 # - merge release to master
 
-main
+# This runs if the script was executed as ./release.sh but not sourced.
+if [[ $(basename $0) = "release.sh" ]]; then
+    set -euf -o pipefail
+
+    if [[ -z "$WORKING_DIR" ]]; then
+        error "You must specify a working directory as the first argument."
+        exit 1
+    fi
+
+    if [[ -z "$VERSION" ]]; then
+        error "You must specify a version as the second argument."
+        exit 1
+    fi
+
+    main
+fi
