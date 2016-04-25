@@ -66,9 +66,18 @@ validate_dependencies () {
 set_old_version () {
     echo "Defining old version..."
     OLD_VERSION="$(find $WORKING_DIR -maxdepth 2 -name 'settings.py' | xargs grep VERSION | tr "\"" ' ' | tr "'" " " | awk 'NR==1{print $3}')"
+    VERSION_FILE="settings.py"
     if [[ -z "$OLD_VERSION" ]]; then
-        error "Could not determine the old version."
-        exit 1
+      OLD_VERSION="$(find $WORKING_DIR -maxdepth 2 -name '__init__.py' | xargs grep __version__ | tr "\"" ' ' | tr "'" " " | awk '{print $3}')"
+      VERSION_FILE="__init__.py"
+    fi
+    if [[ -z "$OLD_VERSION" ]]; then
+      OLD_VERSION="$(find $WORKING_DIR -maxdepth 2 -name 'setup.py' | xargs grep version | tr "\"" ' ' | tr "'" " " | awk '{print $3}')"
+      VERSION_FILE="setup.py"
+    fi
+    if [[ -z "$OLD_VERSION" ]]; then
+      error "Could not determine the old version."
+      exit 1
     fi
 }
 
@@ -84,8 +93,16 @@ checkout_release () {
 # Update the version numbers in canonical locations.
 update_versions () {
     # maxdepth, so we don't pull things from .tox, etc
-    find $WORKING_DIR -maxdepth 2 -name 'settings.py' | xargs perl -pi -e "s/VERSION = .*/VERSION = \"$VERSION\"/g"
-    find $WORKING_DIR -maxdepth 2 -name 'setup.py' | xargs perl -pi -e "s/version=.*/version='$VERSION',/g"
+    if [ $VERSION_FILE="settings.py" ]; then
+      find $WORKING_DIR -maxdepth 2 -name 'settings.py' | xargs perl -pi -e "s/VERSION = .*/VERSION = \"$VERSION\"/g"
+    elif [ $VERSION_FILE="__init__.py" ]; then
+      find $WORKING_DIR -maxdepth 2 -name '__init__.py' | xargs perl -pi -e "s/__version__=.*/__version__='$VERSION',/g"
+    elif [ $VERSION_FILE="setup.py" ]; then
+      find $WORKING_DIR -maxdepth 2 -name 'setup.py' | xargs perl -pi -e "s/version=.*/version='$VERSION',/g"
+    else
+      error "Could not update with new version."
+      exit 1
+    fi
 }
 
 # Create a section in RELEASE document describing the commits in the release
@@ -114,6 +131,10 @@ update_release_notes () {
         echo $line >> releases_rst.new
     done;
     echo '' >> releases_rst.new
+    if [[ ! -f "RELEASE.rst" ]]; then
+      echo "Creating RELEASE.rst"
+      touch RELEASE.rst
+    fi
     cat RELEASE.rst | tail -n +4 >> releases_rst.new
     mv releases_rst.new RELEASE.rst
     # explicit add, because we know the location & we will need it for the first release
