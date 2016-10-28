@@ -65,7 +65,7 @@ update_copy () {
 }
 
 set_old_version () {
-    OLD_VERSION="$(find $WORKING_DIR -maxdepth 2 -name 'settings.py' | xargs grep VERSION | tr "\"" ' ' | tr "'" " " | awk '{print $3}')"
+    OLD_VERSION="$(find $WORKING_DIR -maxdepth 2 -name 'settings.py' | xargs grep VERSION | tr "\"" ' ' | tr "'" " " | awk 'NR==1{print $3}')"
     if [[ -z "$OLD_VERSION" ]]; then
         error "Could not determine the old version."
         exit 1
