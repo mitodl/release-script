@@ -4,26 +4,29 @@
 
 Scripts to automate the release process.
 
-These scripts automate the release process which to-date has been
-a tedious manual process prone to mistakes. The script performs steps 1
-through 8.
+A full release can be performed by following the steps below:
 
-1. Check-out a current ``master`` branch
-2. Create a ``release-candidate`` branch
-3. Hard reset ``release-candidate`` to ``master``
-4. Generate release notes
-5. Update version numbers and ``RELEASE.rst``
-6. Commit updates and push ``release-candidate`` branch
-7. Generate release notes with checkboxes
-8. Open PR to merge ``release-candidate`` branch into ``release`` branch
-9. Merge PRs once developers verify their commits (manual step)
-10. Merge the ``release`` branch into the ``master`` branch,
-    and push ``master`` to ``origin`` (manual step)
-11. Send email notifications (manual step)
+1. Run release.sh to create a PR for the release (see details in the "How to use release.sh" section below)
+1. Inform the team that a release PR is up and that they need to verify their commits
+1. Once developers verify their commits, merge the 'release-candidate' branch into 'release', and push
+    the release branch.
+    *(NOTE: This can be done using the 'Merge Pull Request' button in the Github PR issue. Do not 
+    delete the branch after merging)*
+1. Tag the ``release`` branch with the version number and push the tag to
+    the remote. For example, these commands create an annotated tag for
+    version 0.3.0 and push the tag to the remote. (You don't need to specify
+    the sha of the commit if you're on the branch you want to tag.)
+    ```
+    git tag -a -m "Release 0.3.0" v0.3.0 <sha of commit>
+    git push --follow-tags
+    ```
+1. Merge the ``release`` branch into the ``master`` branch,
+    and push ``master`` to ``origin``.
+1. Send email notifications
 
 ## Dependencies
 
-The script is dependent on these applications.
+release.sh is dependent on these applications.
 
 ### [Hub - https://hub.github.com/](https://hub.github.com/)
 
@@ -51,7 +54,20 @@ through .EJS templates.  It requires Node and can be installed with ``npm``.
 
     npm install -g git-release-notes
 
-## How to Use
+## What does release.sh do?
+
+release.sh automates the following 8 steps:
+
+1. Check-out a current ``master`` branch
+2. Create a ``release-candidate`` branch
+3. Hard reset ``release-candidate`` to ``master``
+4. Generate release notes
+5. Update version numbers and ``RELEASE.rst``
+6. Commit updates and push ``release-candidate`` branch
+7. Generate release notes with checkboxes
+8. Open PR to merge ``release-candidate`` branch into ``release`` branch
+
+## How to use release.sh
 
 Clone this repository to your local machine. Before each use remember to
 update the repository so you use the latest version of the ``master`` branch.
@@ -101,14 +117,6 @@ since you must run the script from the release project's directory.
 
     returns the branch hash for the deployed Micromasters release-candidate.
 6.  There are three deployment servers, ci, rc, and production.
-7.  Tag the ``release`` branch with the version number and push the tag to
-    the remote.  For example, these commands create an annotated tag for
-    version 0.3.0 and push the tag to the remote. (You don't need to specify
-    the sha of the commit if you're on the branch you want to tag.)
-
-
-        git tag -a -m "Release 0.3.0" v0.3.0 <sha of commit>
-        git push --follow-tags
 
 ## Troubleshooting
 
