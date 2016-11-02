@@ -7,7 +7,7 @@ Scripts to automate the release process.
 A full release can be performed by following the steps below:
 
 1. Run release.sh to create a PR for the release (see details in the 
-    ["How to use release.sh"](#how-to-use-release-sh) section below)
+    ["How to use release.sh"](#how-to-use-releasesh) section below)
 1. Inform the team that a release PR is up and that they need to verify their commits
 1. Once developers verify their commits, merge the 'release-candidate' branch into 'release', and push
     the release branch.
