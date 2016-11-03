@@ -9,8 +9,8 @@ A full release can be performed by following the steps below:
 1. Run release.sh to create a PR for the release (see details in the 
     ["How to use release.sh"](#how-to-use-releasesh) section below)
 1. Inform the team that a release PR is up and that they need to verify their commits
-1. Once developers verify their commits, merge the 'release-candidate' branch into 'release', and push
-    the release branch.
+1. Once developers verify their commits, merge the ``release-candidate`` branch into ``release``, and push
+    the ``release`` branch.
     *(NOTE: This can be done using the 'Merge Pull Request' button in the Github PR issue. Do not 
     delete the branch after merging)*
 1. Tag the ``release`` branch with the version number and push the tag to
@@ -21,6 +21,7 @@ A full release can be performed by following the steps below:
     git tag -a -m "Release 0.3.0" v0.3.0 <sha of commit>
     git push --follow-tags
     ```
+    
 1. Merge the ``release`` branch into the ``master`` branch,
     and push ``master`` to ``origin``.
 1. Send email notifications
