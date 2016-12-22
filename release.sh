@@ -22,7 +22,7 @@ create_working_dir() {
     cd $WORKING_DIR
 
     # doing this instead of a git clone so we don't create another directory
-    REPO_URL=$(git -C "$REPO_DIR" remote get-url origin)
+    REPO_URL=$(git --git-dir "$REPO_DIR"/.git remote get-url origin)
 
     # from http://stackoverflow.com/questions/2411031/how-do-i-clone-into-a-non-empty-directory
     git init
@@ -179,6 +179,9 @@ if [[ $(basename $0) = "release.sh" ]]; then
         error "You must specify a version as the second argument."
         exit 1
     fi
+
+    # make into absolute path
+    REPO_DIR="$(cd "$REPO_DIR"; pwd)"
 
     main
 fi
