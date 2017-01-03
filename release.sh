@@ -15,23 +15,25 @@ error () {  # error that writes to stderr, not stdout.
 # SCRIPT_DIR via http://www.ostricher.com/2014/10/the-right-way-to-get-the-directory-of-a-bash-script/
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# Default variables to empty if not present. Necessary due to the -u option specified above.
-# For more information on this, look here:
-# http://redsymbol.net/articles/unofficial-bash-strict-mode/#solution-positional-parameters
-WORKING_DIR="${1:-}"  # default $1 to empty if it's not supplied
-VERSION="${2:-}"
-OLD_VERSION=   # set later.
+# Clone repository into temporary directory
+create_working_dir() {
+    WORKING_DIR=$(mktemp -d)
+    echo "Cloning into working directory at $WORKING_DIR..."
+    cd $WORKING_DIR
 
-# Ensures the current working directory doesn't have tracked but uncommitted files in git.
-clean_working_dir () {
-    if [[ "$(git status -s | grep -m1 "^ ")" ]]; then
-        error "Not checking out release. You have uncommitted files in your working directory."
-        exit 1
-    fi
+    # doing this instead of a git clone so we don't create another directory
+    REPO_URL=$(git --git-dir "$REPO_DIR"/.git remote get-url origin)
+
+    # from http://stackoverflow.com/questions/2411031/how-do-i-clone-into-a-non-empty-directory
+    git init
+    git remote add origin "$REPO_URL"
+    git fetch
+    git checkout -t origin/master
 }
 
 # Check that requisite programs are available
 validate_dependencies () {
+    echo "Validating dependencies..."
     local -i missing=0
     if ! hash hub 2>/dev/null; then
         missing=$missing+1
@@ -56,15 +58,8 @@ validate_dependencies () {
     fi
 }
 
-# Updates the local repo
-update_copy () {
-    cd $WORKING_DIR # change to repository working directory
-    clean_working_dir
-    git checkout  master -q
-    git pull -q
-}
-
 set_old_version () {
+    echo "Defining old version..."
     OLD_VERSION="$(find $WORKING_DIR -maxdepth 2 -name 'settings.py' | xargs grep VERSION | tr "\"" ' ' | tr "'" " " | awk 'NR==1{print $3}')"
     if [[ -z "$OLD_VERSION" ]]; then
         error "Could not determine the old version."
@@ -74,8 +69,8 @@ set_old_version () {
 
 # Checks out the release-candidate branch
 checkout_release () {
+    echo "Checking out release candidate..."
     cd $WORKING_DIR
-    clean_working_dir
     # Create the branch if it doesn't exist. If it does, just check it out
     # git checkout -qb release-candidate 2>/dev/null || (git checkout -q release-candidate && git merge -q -m "Release $VERSION" master)
     git checkout -qb release-candidate 2>/dev/null || (git checkout -q release-candidate && git reset --hard master)
@@ -90,6 +85,7 @@ update_versions () {
 
 # Create a section in RELEASE document describing the commits in the release
 update_release_notes () {
+    echo "Updating release notes..."
     cd $WORKING_DIR
     # Create/Update RELEASE.rst
     # +4 is to offset the header of the template we don't want yet.
@@ -127,21 +123,29 @@ build_release () {
 }
 
 generate_prs () {
+    echo "Generating PR..."
     echo "Release $VERSION" > release-notes-checklist
     echo "" >> release-notes-checklist
     git-release-notes v$OLD_VERSION..master $SCRIPT_DIR/util/release_notes.ejs >> release-notes-checklist
     hub pull-request -b release -h "release-candidate" -F release-notes-checklist
 }
 
+delete_working_dir () {
+    cd
+    echo "Finished, deleting $WORKING_DIR..."
+    rm -rf "$WORKING_DIR"
+}
+
 main () {
     validate_dependencies
-    update_copy
+    create_working_dir
     checkout_release
     set_old_version
     update_versions
     update_release_notes
     build_release
     generate_prs
+    delete_working_dir
     echo "version $OLD_VERSION has been updated to $VERSION"
     echo "Go tell engineers to check their work. PR is on the repo."
     echo "After they are done, run the next script."
@@ -158,8 +162,16 @@ main () {
 if [[ $(basename $0) = "release.sh" ]]; then
     set -euf -o pipefail
 
-    if [[ -z "$WORKING_DIR" ]]; then
-        error "You must specify a working directory as the first argument."
+    # Default variables to empty if not present. Necessary due to the -u option specified above.
+    # For more information on this, look here:
+    # http://redsymbol.net/articles/unofficial-bash-strict-mode/#solution-positional-parameters
+
+    # These need to be defined to something to be referenced, but ${1:-} will be empty if it's not supplied
+    REPO_DIR="${1:-}"
+    VERSION="${2:-}"
+
+    if [[ -z "$REPO_DIR" ]]; then
+        error "You must specify your git repo directory as the first argument."
         exit 1
     fi
 
@@ -167,6 +179,9 @@ if [[ $(basename $0) = "release.sh" ]]; then
         error "You must specify a version as the second argument."
         exit 1
     fi
+
+    # make into absolute path
+    REPO_DIR="$(cd "$REPO_DIR"; pwd)"
 
     main
 fi
