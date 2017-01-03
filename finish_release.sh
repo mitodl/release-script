@@ -28,6 +28,7 @@ main () {
     create_working_dir
     merge_release_candidate
     tag_release
+    merge_release
     delete_working_dir
 }
 
