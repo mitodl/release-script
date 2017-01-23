@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
-. ./release.sh
+# Quote nesting works as described here: http://stackoverflow.com/a/6612417/4972
+# SCRIPT_DIR via http://www.ostricher.com/2014/10/the-right-way-to-get-the-directory-of-a-bash-script/
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+. $SCRIPT_DIR/release.sh
 
 merge_release_candidate (){
     echo "Merge release-candidate into release"
