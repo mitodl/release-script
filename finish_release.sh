@@ -15,8 +15,15 @@ merge_release_candidate (){
 
 tag_release () {
     echo "Tag release..."
-    git tag -a -m "Release $VERSION" v$VERSION
-    git push --follow-tags
+    COMMIT_NAME="$(git log -1 --pretty=%B)"
+    if [ "$COMMIT_NAME" == "Release $VERSION" ]; then
+        echo 'correct'
+        git tag -a -m "Release $VERSION" v$VERSION
+        git push --follow-tags
+    else
+        error "ERROR: Commit name $COMMIT_NAME does not match tag number $VERSION"
+        exit 1
+    fi
 }
 
 merge_release () {
