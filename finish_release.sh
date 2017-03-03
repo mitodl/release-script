@@ -17,7 +17,6 @@ tag_release () {
     echo "Tag release..."
     COMMIT_NAME="$(git log -1 --pretty=%B)"
     if [ "$COMMIT_NAME" == "Release $VERSION" ]; then
-        echo 'correct'
         git tag -a -m "Release $VERSION" v$VERSION
         git push --follow-tags
     else
