@@ -13,6 +13,17 @@ merge_release_candidate (){
     git push
 }
 
+check_release_tag () {
+    echo "Check release version number..."
+    git checkout -t origin/release-candidate
+    COMMIT_NAME="$(git log -1 --pretty=%B)"
+    if [ "$COMMIT_NAME" != "Release $VERSION" ];
+    then
+        error "ERROR: Commit name $COMMIT_NAME does not match tag number $VERSION"
+        exit 1
+    fi
+}
+
 tag_release () {
     echo "Tag release..."
     git tag -a -m "Release $VERSION" v$VERSION
@@ -30,6 +41,7 @@ merge_release () {
 main () {
     validate_dependencies
     create_working_dir
+    check_release_tag
     merge_release_candidate
     tag_release
     merge_release
