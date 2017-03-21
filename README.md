@@ -7,24 +7,14 @@ Scripts to automate the release process.
 A full release can be performed by following the steps below:
 
 1. Run release.sh to create a PR for the release (see details in the 
-    ["How to use release.sh"](#how-to-use-releasesh) section below)
+    ["release.sh"](#releasesh) section below)
 1. Inform the team that a release PR is up and that they need to verify their commits
-1. Once developers verify their commits, merge the ``release-candidate`` branch into ``release``, and push
-    the ``release`` branch.
-    *(NOTE: This can be done using the 'Merge Pull Request' button in the Github PR issue. Do not 
-    delete the branch after merging)*
-1. Tag the ``release`` branch with the version number and push the tag to
-    the remote. For example, these commands create an annotated tag for
-    version 0.3.0 and push the tag to the remote. (You don't need to specify
-    the sha of the commit if you're on the branch you want to tag.)
-    ```
-    git tag -a -m "Release 0.3.0" v0.3.0 <sha of commit>
-    git push --follow-tags
-    ```
-    
-1. Merge the ``release`` branch into the ``master`` branch,
-    and push ``master`` to ``origin``.
+1. Once developers verify their commits, run the finish_release.sh script
+(see details in the ["finish_release.sh"](#finish_releasesh) section).
 1. Send email notifications
+
+Note that these scripts use temporary directories so none of your
+work in progress will be affected or will affect the release.
 
 ## Dependencies
 
@@ -56,53 +46,78 @@ through .EJS templates.  It requires Node and can be installed with ``npm``.
 
     npm install -g git-release-notes
 
-## What does release.sh do?
+### [curl - https://curl.haxx.se/](https://curl.haxx.se/)
+curl is a command line tool to download files from the web.
+It should be already installed in OS X and most Linux distributions.
 
-release.sh automates the following 8 steps:
+## release.sh
 
-1. Check-out a current ``master`` branch
-2. Create a ``release-candidate`` branch
-3. Hard reset ``release-candidate`` to ``master``
-4. Generate release notes
-5. Update version numbers and ``RELEASE.rst``
-6. Commit updates and push ``release-candidate`` branch
-7. Generate release notes with checkboxes
-8. Open PR to merge ``release-candidate`` branch into ``release`` branch
+release.sh automates these steps:
 
-## How to use release.sh
+1. Clone and checkout a current ``master`` branch
+1. Create a new ``release-candidate`` branch based off of master
+1. Generate release notes
+1. Update version numbers and ``RELEASE.rst``
+1. Commit updates and push ``release-candidate`` branch
+1. Generate release notes with checkboxes
+1. Open PR to merge ``release-candidate`` branch into ``release`` branch
 
-Clone this repository to your local machine. Before each use remember to
-update the repository so you use the latest version of the ``master`` branch.
+Run the command with these arguments:
 
-You must run the script from directory of the release project.  
+    ./release.sh <path-to-release-project> <release number>
 
-    <path-to-release.sh>/release.sh <path-to-release-project> <release number>
-
-For example, if your ``release-script`` repository is located at
-
-    ~/projects/release-script
-
-the project you want to release is located at
+For example if the project you want to release is located at
 
     ~/projects/lore
 
-and the release version is ``0.1.0``, your command line would be
+and the release version is ``0.1.0``, your command would be
 
-    ~/projects/release-script/release.sh  ~/projects/lore  0.1.0
+    ./release.sh  ~/projects/lore  0.1.0
 
-or just this
+## finish_release.sh
 
-    ~/projects/release-script/release.sh  .  0.1.0
+finish_release.sh automates these steps:
 
-since you must run the script from the release project's directory.
+1. Clone and checkout the current ``release`` branch
+1. Merge ``release-candidate`` into ``release`` and push it to ``origin``.
+This causes a deployment which will end up on production.
+1. Tag the new release with the release version and push the tag to ``origin``
+1. Merge ``release`` to ``master`` to update release notes.
+
+Run the command with these arguments:
+
+    ./finish_release.sh <path-to-release-project> <release number>
+
+## wait_for_deploy.sh
+
+wait_for_deploy.sh will check the ``hash.txt`` file every 30 seconds.
+When the hash matches up the script will exit successfully.
+
+Run the command with these arguments:
+
+    ./wait_for_deploy.sh <path-to-release-project> <hash-url> <watch-branch>
+
+- ``path-to-release-project`` - The path to the project which is being deployed
+- ``hash-url`` - The URL to be polled. This should point to a text file with only
+the git hash as its contents.
+- ``watch-branch`` - The branch being deployed. The latest commit on this branch
+will be compared with the deployment server's hash.
+
+For example, to wait for successful deployment on micromasters to RC:
+ 
+    ./wait_for_deploy.sh ~/Projects/micromasters https://micromasters-rc.herokuapp.com/static/hash.txt release-candidate
+    
+To wait for successful deployment of micromasters to production:
+
+    ./wait_for_deploy.sh ~/Projects/micromasters https://micromasters.mit.edu/static/hash.txt release
 
 ## Notes
 
 1.  The main development branch is ``master``, the branch of the version in
     production is ``release``.
 2.  We use [Semantic Versioning](http://semver.org/) for our release numbers.
-3.  The ``utils`` directory contains the templates to format the release notes
-    and the Github descriptions.
+3.  The ``util`` directory contains the templates to format the release notes
+    and the GitHub descriptions.
 4.  The script expects to find the current release number in either the Django
     ``settings.py`` file or in the ``setup.py`` file in the project root
     directory. If your project has neither of these files, the script will
