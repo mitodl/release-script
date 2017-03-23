@@ -34,7 +34,7 @@ merge_release () {
     echo "Merge release to master"
     git checkout -q master
     git pull
-    git merge release
+    git merge release --no-edit
     git push
 }
 
