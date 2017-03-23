@@ -88,6 +88,7 @@ def main():
 
             time.sleep(60)
             print(".", end='')
+            sys.stdout.flush()
         print("All checkboxes are now checked")
     else:
         body = get_release_pr(args.org, args.repo, args.version)
