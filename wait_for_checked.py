@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 import argparse
+import asyncio
+from datetime import (
+    datetime,
+    timedelta,
+)
 import requests
 import time
 import sys
@@ -69,6 +74,41 @@ def get_release_pr(org, repo, version):
     return release_pulls[0]['body']
 
 
+def get_unchecked_authors(org, repo, version):
+    """
+    Returns list of authors who have not yet checked off their checkboxes
+
+    Args:
+        org (str): The github organization (eg mitodl)
+        repo (str): The github repository (eg micromasters)
+        version (str): A version string used to match the PR title
+    """
+    body = get_release_pr(org, repo, version)
+    commits = parse_checkmarks(body)
+    return {commit['author_name'] for commit in commits if not commit['checked']}
+
+
+async def wait_for_checkboxes(org, repo, version):
+    """
+    Wait for checkboxes, polling every 60 seconds
+
+    Args:
+        org (str): The github organization (eg mitodl)
+        repo (str): The github repository (eg micromasters)
+        version (str): A version string used to match the PR title
+    """
+    print("Waiting for checkboxes to be checked. Polling every 60 seconds...")
+    while True:
+        unchecked_authors = get_unchecked_authors(org, repo, version)
+        if len(unchecked_authors) == 0:
+            break
+
+        await asyncio.sleep(60)
+        print(".", end='')
+        sys.stdout.flush()
+    print("All checkboxes are now checked")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("repo")
@@ -78,22 +118,11 @@ def main():
     args = parser.parse_args()
 
     if args.wait:
-        print("Waiting for checkboxes to be checked. Polling every 60 seconds...")
-        while True:
-            body = get_release_pr(args.org, args.repo, args.version)
-            commits = parse_checkmarks(body)
-            all_checked = all(commit['checked'] for commit in commits)
-            if all_checked:
-                break
-
-            time.sleep(60)
-            print(".", end='')
-            sys.stdout.flush()
-        print("All checkboxes are now checked")
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(wait_for_checkboxes(args.org, args.repo, args.version))
+        loop.close()
     else:
-        body = get_release_pr(args.org, args.repo, args.version)
-        commits = parse_checkmarks(body)
-        unchecked_authors = {commit['author_name'] for commit in commits if not commit['checked']}
+        unchecked_authors = get_unchecked_authors(args.org, args.repo, args.version)
         if unchecked_authors:
             print("Unchecked authors: {}".format(", ".join(unchecked_authors)))
             sys.exit(1)
