@@ -44,18 +44,22 @@ def parse_checkmarks(body):
     return commits
 
 
-def get_release_pr(repo, version):
+def get_release_pr(org, repo, version):
     """
     Look up the release pull request
 
     Args:
-         repo (str): The github repository (eg micromasters)
-         version (str): A version string used to match the PR title
+        org (str): The github organization (eg mitodl)
+        repo (str): The github repository (eg micromasters)
+        version (str): A version string used to match the PR title
 
     Returns:
         str: The text of the pull request
     """
-    pulls = requests.get("https://api.github.com/repos/mitodl/{}/pulls".format(repo)).json()
+    pulls = requests.get("https://api.github.com/repos/{org}/{repo}/pulls".format(
+        org=org,
+        repo=repo,
+    )).json()
     release_pulls = [pull for pull in pulls if pull['title'] == "Release {}".format(version)]
     if len(release_pulls) == 0:
         raise Exception("No release pull request on server")
@@ -75,7 +79,7 @@ def main():
 
     if args.wait:
         while True:
-            body = get_release_pr(args.repo, args.version)
+            body = get_release_pr(args.org, args.repo, args.version)
             commits = parse_checkmarks(body)
             all_checked = all(commit['checked'] for commit in commits)
             if all_checked:
@@ -84,7 +88,7 @@ def main():
             time.sleep(60)
         print("All checkboxes are now checked")
     else:
-        body = get_release_pr(args.repo, args.version)
+        body = get_release_pr(args.org, args.repo, args.version)
         commits = parse_checkmarks(body)
         unchecked_authors = {commit['author_name'] for commit in commits if not commit['checked']}
         if unchecked_authors:
