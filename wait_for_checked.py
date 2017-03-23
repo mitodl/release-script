@@ -78,6 +78,7 @@ def main():
     args = parser.parse_args()
 
     if args.wait:
+        print("Waiting for checkboxes to be checked. Polling every 60 seconds...")
         while True:
             body = get_release_pr(args.org, args.repo, args.version)
             commits = parse_checkmarks(body)
@@ -86,6 +87,7 @@ def main():
                 break
 
             time.sleep(60)
+            print(".", end='')
         print("All checkboxes are now checked")
     else:
         body = get_release_pr(args.org, args.repo, args.version)
