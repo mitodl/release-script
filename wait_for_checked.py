@@ -98,10 +98,18 @@ async def wait_for_checkboxes(org, repo, version):
         version (str): A version string used to match the PR title
     """
     print("Waiting for checkboxes to be checked. Polling every 60 seconds...")
+    error_count = 0
     while True:
-        unchecked_authors = get_unchecked_authors(org, repo, version)
-        if len(unchecked_authors) == 0:
-            break
+        try:
+            unchecked_authors = get_unchecked_authors(org, repo, version)
+            if len(unchecked_authors) == 0:
+                break
+
+        except Exception as exception:
+            sys.stderr.write("Error: {}".format(exception))
+            error_count += 1
+            if error_count >= 5:
+                raise
 
         await asyncio.sleep(60)
         print(".", end='')
