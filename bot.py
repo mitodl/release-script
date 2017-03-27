@@ -137,7 +137,7 @@ class Bot:
         unchecked_authors = get_unchecked_authors(self.org, self.repo, self.version)
         if unchecked_authors:
             self.say("Good morning! The following authors have not yet checked off their boxes: {}".format(
-                unchecked_authors
+                ", ".join(unchecked_authors)
             ))
 
 
