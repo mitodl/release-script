@@ -11,6 +11,7 @@ from subprocess import (
 )
 import re
 import asyncio
+import sys
 
 import requests
 
@@ -66,26 +67,78 @@ def next_workday_at_10(now):
     return datetime(next_weekday.year, next_weekday.month, next_weekday.day, 10)
 
 
+def reformatted_full_name(full_name):
+    """
+    Make the full name lowercase and split it so we use
+    """
+    pieces = full_name.lower().split()
+    if len(pieces) >= 2:
+        return "{} {}".format(pieces[0], pieces[-1])
+    elif len(pieces) == 1:
+        return pieces[0]
+    else:
+        return ''
+
+
 class Bot:
     """Slack bot used to manage the release"""
 
-    def __init__(self, slack_webhook_url, repo_dir, version, rc_hash_url, prod_hash_url):
+    def __init__(self, slack_webhook_url, access_token, repo_dir, version, rc_hash_url, prod_hash_url):
         """
         Create the slack bot
 
         Args:
             slack_webhook_url (str): A Slack webhook URL used to post in a Slack channel
+            access_token (str): The OAuth access token used to interact with Slack
             repo_dir (str): The directory of a git repository which will be cloned and used for the release
             version (str): The version of the release
             rc_hash_url (str): The URL used to poll the RC server to confirm deployment of the release candidate
             prod_hash_url (str): The URL used to poll the production server to confirm deployment of production
         """
         self.slack_webhook_url = slack_webhook_url
+        self.access_token = access_token
         self.repo_dir = repo_dir
         self.org, self.repo = get_org_and_repo(repo_dir)
         self.version = version
         self.rc_hash_url = rc_hash_url
         self.prod_hash_url = prod_hash_url
+
+    def lookup_users(self):
+        """
+        Get users list from slack
+        """
+        resp = requests.post("https://slack.com/api/users.list", data={
+            "token": self.access_token
+        })
+        resp.raise_for_status()
+        return resp.json()['members']
+
+    def translate_slack_usernames(self, unchecked_authors):
+        """
+        Try to match each full name with a slack username.
+
+        Args:
+            unchecked_authors (iterable of str): An iterable of full names
+
+        Returns:
+            iterable of str:
+                A iterable of either the slack name or a full name if a slack name was not found
+        """
+        try:
+            slack_users = self.lookup_users()
+            user_map = {
+                reformatted_full_name(user['profile']['real_name']): "@{}".format(user['name'])
+                for user in slack_users
+            }
+
+            return [
+                user_map.get(reformatted_full_name(author), author)
+                for author in unchecked_authors
+            ]
+
+        except Exception as exception:
+            sys.stderr.write("Error: {}".format(exception))
+            return unchecked_authors
 
     def say(self, text):
         """
@@ -108,9 +161,10 @@ class Bot:
 
         check_call([in_script_dir("wait_for_deploy.sh"), self.repo_dir, self.rc_hash_url, "release-candidate"])
         unchecked_authors = get_unchecked_authors(self.org, self.repo, self.version)
+        slack_usernames = self.translate_slack_usernames(unchecked_authors)
         self.say("Release {version} was deployed! These people have commits in this release: {authors}".format(
             version=self.version,
-            authors=", ".join(unchecked_authors)
+            authors=", ".join(slack_usernames)
         ))
 
     async def wait_for_checkboxes(self):
@@ -136,8 +190,9 @@ class Bot:
         """
         unchecked_authors = get_unchecked_authors(self.org, self.repo, self.version)
         if unchecked_authors:
+            slack_usernames = self.translate_slack_usernames(unchecked_authors)
             self.say("Good morning! The following authors have not yet checked off their boxes: {}".format(
-                ", ".join(unchecked_authors)
+                ", ".join(slack_usernames)
             ))
 
 
@@ -155,7 +210,11 @@ def main():
     if not slack_webhook_url:
         raise Exception("Missing SLACK_WEBHOOK_URL")
 
-    bot = Bot(slack_webhook_url, args.repo_dir, args.version, args.rc_hash_url, args.prod_hash_url)
+    slack_access_token = os.environ.get('SLACK_ACCESS_TOKEN')
+    if not slack_access_token:
+        raise Exception("Missing SLACK_ACCESS_TOKEN")
+
+    bot = Bot(slack_webhook_url, slack_access_token, args.repo_dir, args.version, args.rc_hash_url, args.prod_hash_url)
 
     now = datetime.now()
     tomorrow_at_10 = next_workday_at_10(now)
