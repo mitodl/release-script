@@ -53,6 +53,11 @@ validate_dependencies () {
         error 'Please install git-release-notes https://www.npmjs.com/package/git-release-notes'
     fi
 
+    if ! hash curl 2>/dev/null; then
+        missing=$missing+1
+        error 'Please install curl'
+    fi
+
     if [[ 0 -ne $missing ]]; then
         exit $missing
     fi
