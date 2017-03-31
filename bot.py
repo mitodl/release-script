@@ -1,41 +1,21 @@
 #!/usr/bin/env python3
 import argparse
 import asyncio
-from datetime import (
-    datetime,
-    timedelta,
-)
-from difflib import SequenceMatcher
+from datetime import datetime
 import os
-from subprocess import (
-    check_call,
-    check_output,
-)
-import re
+from subprocess import check_call
 import sys
 
 import requests
 
-from wait_for_checked import (
+from lib import (
+    get_org_and_repo,
     get_release_pr,
     get_unchecked_authors,
+    match_user,
+    next_workday_at_10,
     wait_for_checkboxes,
 )
-
-
-def get_org_and_repo(repo_dir):
-    """
-    Get the org and repo from a git repository cloned from github.
-
-    Args:
-        repo_dir (str): The repository directory
-
-    Returns:
-        tuple: (org, repo)
-    """
-    url = check_output(["git", "remote", "get-url", "origin"], cwd=repo_dir).decode().strip()
-    org, repo = re.match("git@github\\.com:(.+)/(.+)\\.git", url).groups()
-    return org, repo
 
 
 def in_script_dir(file_path):
@@ -49,68 +29,6 @@ def in_script_dir(file_path):
         str: The absolute path to that file
     """
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), file_path)
-
-
-def next_workday_at_10(now):
-    """
-    Return time which is 10am the next day, or the following Monday if it lands on the weekend
-
-    Args:
-        now (datetime): The current time
-    Returns:
-        datetime:
-            10am the next day or on the following Monday of a weekend
-    """
-    tomorrow = now + timedelta(days=1)
-    next_weekday = tomorrow
-    while next_weekday.isoweekday() > 5:
-        # If Saturday or Sunday, go to next day
-        next_weekday += timedelta(days=1)
-    return datetime(next_weekday.year, next_weekday.month, next_weekday.day, 10)
-
-
-def reformatted_full_name(full_name):
-    """
-    Make the full name lowercase and split it so we use
-    """
-    pieces = full_name.lower().split()
-    if len(pieces) >= 2:
-        return "{} {}".format(pieces[0], pieces[-1])
-    elif len(pieces) == 1:
-        return pieces[0]
-    else:
-        return ''
-
-
-def match_user(slack_users, author_name, threshold=0.6):
-    """
-    Do a fuzzy match of author name to full name. If it matches, return a formatted Slack handle. Else return original
-    full name.
-    
-    Args:
-        slack_users (list of dict): A list of slack users from their API
-        author_name (str): The commit author's full name
-        threshold (float): All matches must be at least this high to pass.
-    """
-
-    lower_author_name = reformatted_full_name(author_name)
-
-    def match_for_user(slack_user):
-        lower_name = reformatted_full_name(slack_user['profile']['real_name'])
-        ratio = SequenceMatcher(a=lower_author_name, b=lower_name).ratio()
-        if ratio >= threshold:
-            return ratio
-        else:
-            return 0
-
-    slack_matches = [(slack_user, match_for_user(slack_user)) for slack_user in slack_users]
-    slack_matches = [(slack_user, match) for (slack_user, match) in slack_matches if match >= threshold]
-
-    if len(slack_matches) > 0:
-        matched_user = max(slack_matches, key=lambda pair: pair[1])[0]
-        return "<@{user}|{user}>".format(user=matched_user['name'])
-    else:
-        return author_name
 
 
 class Bot:
