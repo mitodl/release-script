@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 import argparse
+import asyncio
 from datetime import (
     datetime,
     timedelta,
 )
+from difflib import SequenceMatcher
 import os
 from subprocess import (
     check_call,
     check_output,
 )
 import re
-import asyncio
 import sys
 
 import requests
@@ -81,6 +82,37 @@ def reformatted_full_name(full_name):
         return ''
 
 
+def match_user(slack_users, author_name, threshold=0.6):
+    """
+    Do a fuzzy match of author name to full name. If it matches, return a formatted Slack handle. Else return original
+    full name.
+    
+    Args:
+        slack_users (list of dict): A list of slack users from their API
+        author_name (str): The commit author's full name
+        threshold (float): All matches must be at least this high to pass.
+    """
+
+    lower_author_name = reformatted_full_name(author_name)
+
+    def match_for_user(slack_user):
+        lower_name = reformatted_full_name(slack_user['profile']['real_name'])
+        ratio = SequenceMatcher(a=lower_author_name, b=lower_name).ratio()
+        if ratio >= threshold:
+            return ratio
+        else:
+            return 0
+
+    slack_matches = [(slack_user, match_for_user(slack_user)) for slack_user in slack_users]
+    slack_matches = [(slack_user, match) for (slack_user, match) in slack_matches if match >= threshold]
+
+    if len(slack_matches) > 0:
+        matched_user = max(slack_matches, key=lambda pair: pair[1])[0]
+        return "<@{user}|{user}>".format(user=matched_user['name'])
+    else:
+        return author_name
+
+
 class Bot:
     """Slack bot used to manage the release"""
 
@@ -127,15 +159,7 @@ class Bot:
         """
         try:
             slack_users = self.lookup_users()
-            user_map = {
-                reformatted_full_name(user['profile']['real_name']): "<@{name}|{name}>".format(name=user['name'])
-                for user in slack_users
-            }
-
-            return [
-                user_map.get(reformatted_full_name(author), author)
-                for author in unchecked_authors
-            ]
+            return [match_user(slack_users, author) for author in unchecked_authors]
 
         except Exception as exception:
             sys.stderr.write("Error: {}".format(exception))
