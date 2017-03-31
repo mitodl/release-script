@@ -59,7 +59,7 @@ def get_release_pr(org, repo, version):
         version (str): A version string used to match the PR title
 
     Returns:
-        str: The text of the pull request
+        dict: The information about the release pull request
     """
     pulls = requests.get("https://api.github.com/repos/{org}/{repo}/pulls".format(
         org=org,
@@ -71,7 +71,7 @@ def get_release_pr(org, repo, version):
     elif len(release_pulls) > 1:
         raise Exception("Too many release pull requests")
 
-    return release_pulls[0]['body']
+    return release_pulls[0]
 
 
 def get_unchecked_authors(org, repo, version):
@@ -83,7 +83,7 @@ def get_unchecked_authors(org, repo, version):
         repo (str): The github repository (eg micromasters)
         version (str): A version string used to match the PR title
     """
-    body = get_release_pr(org, repo, version)
+    body = get_release_pr(org, repo, version)['body']
     commits = parse_checkmarks(body)
     return {commit['author_name'] for commit in commits if not commit['checked']}
 

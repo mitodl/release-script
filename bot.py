@@ -16,6 +16,7 @@ import sys
 import requests
 
 from wait_for_checked import (
+    get_release_pr,
     get_unchecked_authors,
     wait_for_checkboxes,
 )
@@ -162,10 +163,19 @@ class Bot:
         check_call([in_script_dir("wait_for_deploy.sh"), self.repo_dir, self.rc_hash_url, "release-candidate"])
         unchecked_authors = get_unchecked_authors(self.org, self.repo, self.version)
         slack_usernames = self.translate_slack_usernames(unchecked_authors)
-        self.say("Release {version} was deployed! These people have commits in this release: {authors}".format(
-            version=self.version,
-            authors=", ".join(slack_usernames)
-        ))
+        self.say(
+            "Release {version} was deployed! PR is up at <{pr_url}|Release {version}>."
+            " These people have commits in this release: {authors}".format(
+                version=self.version,
+                authors=", ".join(slack_usernames),
+                pr_url=self.pr_url,
+            )
+        )
+
+    @property
+    def pr_url(self):
+        """Get URL for Release PR"""
+        return get_release_pr(self.org, self.repo, self.version)['html_url']
 
     async def wait_for_checkboxes(self):
         """
