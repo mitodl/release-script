@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Slack bot for managing releases"""
+
 import argparse
 import asyncio
 from datetime import datetime
@@ -31,6 +33,7 @@ def in_script_dir(file_path):
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), file_path)
 
 
+# pylint: disable=too-many-instance-attributes,too-many-arguments
 class Bot:
     """Slack bot used to manage the release"""
 
@@ -79,7 +82,7 @@ class Bot:
             slack_users = self.lookup_users()
             return [match_user(slack_users, author) for author in unchecked_authors]
 
-        except Exception as exception:
+        except Exception as exception:  # pylint: disable=broad-except
             sys.stderr.write("Error: {}".format(exception))
             return unchecked_authors
 
@@ -149,6 +152,7 @@ class Bot:
 
 
 def main():
+    """main function for bot command"""
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=['release', 'wait_for_checkboxes', 'finish_release'])
     parser.add_argument("repo_dir")

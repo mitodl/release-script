@@ -1,2 +1,5 @@
-install: make shunit2
-script: make test
+language: python
+python:
+  - "3.5"
+install: make shunit2 && pip install -r test_requirements.txt
+script: make test && tox

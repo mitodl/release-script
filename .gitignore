@@ -1,3 +1,9 @@
 /test-repo/
 /shunit2/
 .idea
+.cache
+.coverage
+.tox
+__pycache__/
+htmlcov/
+

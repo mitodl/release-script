@@ -2,7 +2,6 @@
 import asyncio
 from datetime import datetime, timedelta
 from difflib import SequenceMatcher
-import os
 import re
 from subprocess import check_output
 import sys
@@ -39,7 +38,7 @@ def parse_checkmarks(body):
             start = line.find("]")
             end = line.rfind("([")
             if start != -1 and end != -1:
-                title = line[start:end].strip()
+                title = line[start + 1:end].strip()
 
                 commits.append({
                     "checked": checked,
@@ -148,6 +147,7 @@ def match_user(slack_users, author_name, threshold=0.6):
     lower_author_name = reformatted_full_name(author_name)
 
     def match_for_user(slack_user):
+        """Get match ratio for slack user, or 0 if below threshold"""
         lower_name = reformatted_full_name(slack_user['profile']['real_name'])
         ratio = SequenceMatcher(a=lower_author_name, b=lower_name).ratio()
         if ratio >= threshold:
@@ -182,7 +182,7 @@ async def wait_for_checkboxes(org, repo, version):
             if len(unchecked_authors) == 0:
                 break
 
-        except Exception as exception:
+        except Exception as exception:  # pylint: disable=broad-except
             sys.stderr.write("Error: {}".format(exception))
             error_count += 1
             if error_count >= 5:
