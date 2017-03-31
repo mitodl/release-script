@@ -127,7 +127,7 @@ class Bot:
         try:
             slack_users = self.lookup_users()
             user_map = {
-                reformatted_full_name(user['profile']['real_name']): "@{}".format(user['name'])
+                reformatted_full_name(user['profile']['real_name']): "<@{name}|{name}>".format(name=user['name'])
                 for user in slack_users
             }
 
