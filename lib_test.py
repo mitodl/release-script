@@ -120,11 +120,11 @@ def test_get_org_and_repo():
     """get_org_and_repo should get the GitHub organization and repo from the directory"""
     # I would be fine with testing this on cwd but Travis has a really old version of git that doesn't support
     # get-url
-    git_url = b"git@github.com:mitodl/release-script.git"
-    cwd = os.path.dirname(__file__)
-    with patch('lib.check_output', autospec=True, return_value=git_url) as check_output_stub:
-        assert get_org_and_repo(cwd) == ("mitodl", "release-script")
-    check_output_stub.assert_called_once_with(["git", "remote", "get-url", "origin"], cwd=cwd)
+    for git_url in [b"git@github.com:mitodl/release-script.git", b"https://github.com/mitodl/release-script.git"]:
+        cwd = os.path.dirname(__file__)
+        with patch('lib.check_output', autospec=True, return_value=git_url) as check_output_stub:
+            assert get_org_and_repo(cwd) == ("mitodl", "release-script")
+        check_output_stub.assert_called_once_with(["git", "remote", "get-url", "origin"], cwd=cwd)
 
 
 def test_next_workday_at_10():

@@ -98,7 +98,7 @@ def get_org_and_repo(repo_dir):
         tuple: (org, repo)
     """
     url = check_output(["git", "remote", "get-url", "origin"], cwd=repo_dir).decode().strip()
-    org, repo = re.match("git@github\\.com:(.+)/(.+)\\.git", url).groups()
+    org, repo = re.match(r'^.*github\.com[:|/](.+)/(.+)\.git', url).groups()
     return org, repo
 
 
