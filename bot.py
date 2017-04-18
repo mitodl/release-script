@@ -103,7 +103,7 @@ class Bot:
         Start a new release and wait for deployment
         """
         check_call([in_script_dir("release.sh"), self.repo_dir, self.version])
-        self.say("Started release {}! Now deploying to RC...".format(self.version))
+        self.say("Behold, my new evil scheme - release {}! Now deploying to RC...".format(self.version))
 
         check_call([in_script_dir("wait_for_deploy.sh"), self.repo_dir, self.rc_hash_url, "release-candidate"])
         unchecked_authors = get_unchecked_authors(self.org, self.repo, self.version)
@@ -126,18 +126,21 @@ class Bot:
         """
         Poll the Release PR and wait until all checkboxes are checked off
         """
-        self.say("Waiting for checkboxes to be marked off...")
+        self.say("Wait, wait. Time out. My evil plan isn't evil enough until all the checkboxes are checked...")
         await wait_for_checkboxes(self.org, self.repo, self.version)
-        self.say("All checkboxes checked off. Release {} can be merged.".format(self.version))
+        self.say("All checkboxes checked off. Release {} is ready for the Merginator!".format(self.version))
 
     async def finish_release(self):
         """
         Merge the release candidate into the release branch, tag it, merge to master, and wait for deployment
         """
         check_call([in_script_dir("finish_release.sh"), self.repo_dir, self.version])
-        self.say("Merged release {}! Now deploying to production...".format(self.version))
+        self.say("Merged evil scheme {}! Now deploying to production...".format(self.version))
         check_call([in_script_dir("wait_for_deploy.sh"), self.repo_dir, self.prod_hash_url, "release"])
-        self.say("Release {} is now in production.".format(self.version))
+        self.say(
+            "My evil scheme {} has been released to production. "
+            "And by 'released', I mean completely...um...leased.".format(self.version)
+        )
 
     def message_if_unchecked(self):
         """
@@ -146,9 +149,12 @@ class Bot:
         unchecked_authors = get_unchecked_authors(self.org, self.repo, self.version)
         if unchecked_authors:
             slack_usernames = self.translate_slack_usernames(unchecked_authors)
-            self.say("Good morning! The following authors have not yet checked off their boxes: {}".format(
-                ", ".join(slack_usernames)
-            ))
+            self.say(
+                "What an unexpected surprise! "
+                "The following authors have not yet checked off their boxes: {}".format(
+                    ", ".join(slack_usernames)
+                )
+            )
 
 
 def main():

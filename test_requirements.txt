@@ -1,5 +1,5 @@
 codecov
-pylint
+pylint==1.6.5
 pytest
 pytest-cov
 pytest-pep8
