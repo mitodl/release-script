@@ -58,6 +58,12 @@ validate_dependencies () {
         error 'Please install curl'
     fi
 
+    if ! hash node 2>/dev/null; then
+	missing=$missing+1
+	error 'Please install node.js https://nodejs.org/'
+    fi
+       
+
     if [[ 0 -ne $missing ]]; then
         exit $missing
     fi
