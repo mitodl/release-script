@@ -159,7 +159,8 @@ def match_user(slack_users, author_name, threshold=0.6):
         threshold (float): All matches must be at least this high to pass.
 
     Returns:
-        The slack markup for the handle of that author. If one can't be found, the author's name is returned unaltered
+        str: The slack markup for the handle of that author.
+             If one can't be found, the author's name is returned unaltered.
     """
 
     lower_author_name = reformatted_full_name(author_name)
