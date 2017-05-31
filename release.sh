@@ -66,6 +66,9 @@ validate_dependencies () {
 set_old_version () {
     echo "Defining old version..."
     OLD_VERSION="$(find $WORKING_DIR -maxdepth 2 -name 'settings.py' | xargs grep VERSION | tr "\"" ' ' | tr "'" " " | awk 'NR==1{print $3}')"
+    if [ -z "$OLD_VERSION" ]; then
+        OLD_VERSION="$(find $WORKING_DIR -maxdepth 2 -name 'setup.py' | xargs grep version | tr " =" " " | tr "\"" ' ' | tr "'" " " | awk 'NR==1{print $2}')"
+    fi
     if [[ -z "$OLD_VERSION" ]]; then
         error "Could not determine the old version."
         exit 1
