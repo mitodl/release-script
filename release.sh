@@ -65,16 +65,19 @@ validate_dependencies () {
 
 set_old_version () {
     echo "Defining old version..."
-    OLD_VERSION="$(find $WORKING_DIR -maxdepth 2 -name 'settings.py' | xargs grep VERSION | tr "\"" ' ' | tr "'" " " | awk 'NR==1{print $3}')"
-    VERSION_FILE="settings.py"
-    if [[ -z "$OLD_VERSION" ]]; then
-      OLD_VERSION="$(find $WORKING_DIR -maxdepth 2 -name '__init__.py' | xargs grep __version__ | tr "\"" ' ' | tr "'" " " | awk '{print $3}')"
-      VERSION_FILE="__init__.py"
-    fi
-    if [[ -z "$OLD_VERSION" ]]; then
-      OLD_VERSION="$(find $WORKING_DIR -maxdepth 2 -name 'setup.py' | xargs grep version | tr "\"" ' ' | tr "'" " " | awk '{print $3}')"
-      VERSION_FILE="setup.py"
-    fi
+    OLD_VERSION=""
+    version_files=( 'settings.py' '__init__.py' 'setup.py' )
+    for file_name in "${version_files[@]}"
+    do
+        OLD_VERSION="$(find $WORKING_DIR -maxdepth 2 -name "$file_name" | xargs grep -i version | tr " =" " " | tr "\"" ' ' | tr "'" " " | awk 'NR==1{print $2}')"
+        VERSION_FILE="$file_name"
+
+        if [[ ! -z "$OLD_VERSION" ]]; then
+            break
+        fi
+
+    done
+
     if [[ -z "$OLD_VERSION" ]]; then
       error "Could not determine the old version."
       exit 1
