@@ -16,6 +16,7 @@ from lib import (
     get_unchecked_authors,
     match_user,
     next_workday_at_10,
+    release_manager_name,
     wait_for_checkboxes,
 )
 
@@ -128,7 +129,11 @@ class Bot:
         """
         self.say("Wait, wait. Time out. My evil plan isn't evil enough until all the checkboxes are checked...")
         await wait_for_checkboxes(self.org, self.repo, self.version)
-        self.say("All checkboxes checked off. Release {} is ready for the Merginator!".format(self.version))
+        release_manager = release_manager_name()
+        self.say("All checkboxes checked off. Release {version} is ready for the Merginator{name}!".format(
+            version=self.version,
+            name=' {}'.format(self.translate_slack_usernames([release_manager])[0]) if release_manager else '',
+        ))
 
     async def finish_release(self):
         """

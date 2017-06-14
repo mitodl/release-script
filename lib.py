@@ -9,6 +9,21 @@ import sys
 import requests
 
 
+def release_manager_name():
+    """
+    Get the release manager's name, or None if it can't be found
+
+    Returns:
+        str: The release manager's name, or None if it can't be found
+    """
+    lines = check_output(["git", "config", "--global", "-l"]).decode().split("\n")
+    for line in lines:
+        pieces = line.split("=")
+        if len(pieces) == 2:
+            return pieces[1]
+    return None
+
+
 def parse_checkmarks(body):
     """
     Parse PR message with checkboxes
@@ -142,6 +157,10 @@ def match_user(slack_users, author_name, threshold=0.6):
         slack_users (list of dict): A list of slack users from their API
         author_name (str): The commit author's full name
         threshold (float): All matches must be at least this high to pass.
+
+    Returns:
+        str: The slack markup for the handle of that author.
+             If one can't be found, the author's name is returned unaltered.
     """
 
     lower_author_name = reformatted_full_name(author_name)

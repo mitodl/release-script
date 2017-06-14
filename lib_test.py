@@ -16,6 +16,7 @@ from lib import (
     next_workday_at_10,
     parse_checkmarks,
     reformatted_full_name,
+    release_manager_name,
 )
 
 
@@ -159,3 +160,15 @@ def test_match_users():
     assert match_user(FAKE_SLACK_USERS, "George Schneeloch") == "<@gschneel|gschneel>"
     assert match_user(FAKE_SLACK_USERS, "George Schneelock") == "<@gschneel|gschneel>"
     assert match_user(FAKE_SLACK_USERS, "George") == "George"
+
+
+def test_release_manager_name():
+    """release_manager_name should return the name of the release manager"""
+    git_config_text = b'user.name=George Schneeloch\nuser.email=gschneel@mit.edu\npush.default=simple\n'
+    with patch('lib.check_output', autospec=True, return_value=git_config_text) as check_output_stub:
+        assert release_manager_name() == 'George Schneeloch'
+    check_output_stub.assert_called_with(['git', 'config', '--global', '-l'])
+
+    # If the name is missing we should return None
+    with patch('lib.check_output', autospec=True, return_value=b''):
+        assert release_manager_name() is None
