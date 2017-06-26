@@ -123,7 +123,7 @@ Most repos should already be set up with proper metadata. If not, consult the do
 https://docs.python.org/3.6/distutils/setupscript.html#meta-data
 1. Check the version number in ``setup.py``. It should be the same as the release number. 
 
-Do a test run with the pypittest repository:
+Do a test run with the pypitest repository:
 
     python setup.py sdist upload -r pypitest 
 
