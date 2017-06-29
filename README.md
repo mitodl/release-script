@@ -110,6 +110,31 @@ For example, to wait for successful deployment on micromasters to RC:
 To wait for successful deployment of micromasters to production:
 
     ./wait_for_deploy.sh ~/Projects/micromasters https://micromasters.mit.edu/static/hash.txt release
+    
+## Releasing to PyPI 
+
+For python libraries and XBlocks, once the the release is finished, it needs to be uploaded to PyPI.
+
+1. Get the PyPI credentials from DevOps.
+If you haven't already, you should set up a ``.pypirc`` file as described in 
+http://peterdowns.com/posts/first-time-with-pypi.html
+1. Review the metadata in ``setup.py``
+Most repos should already be set up with proper metadata. If not, consult the documentation at 
+https://docs.python.org/3.6/distutils/setupscript.html#meta-data
+1. Check the version number in ``setup.py``. It should be the same as the release number. 
+
+Do a test run with the pypitest repository:
+
+    python setup.py sdist upload -r pypitest 
+
+If this works, you should get the (final) response:
+
+    Server response (200): OK
+
+If the test works, upload to the real deal:
+
+    python setup.py sdist upload -r pypi
+
 
 ## Notes
 
