@@ -6,4 +6,4 @@
 .tox
 __pycache__/
 htmlcov/
-
+.env_vars
