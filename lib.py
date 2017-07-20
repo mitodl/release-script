@@ -19,7 +19,7 @@ def release_manager_name():
     lines = check_output(["git", "config", "--global", "-l"]).decode().split("\n")
     for line in lines:
         pieces = line.split("=")
-        if len(pieces) == 2:
+        if len(pieces) == 2 and pieces[0] == 'user.name':
             return pieces[1]
     return None
 
