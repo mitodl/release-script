@@ -58,6 +58,18 @@ validate_dependencies () {
         error 'Please install curl'
     fi
 
+    if ! hash node 2>/dev/null; then
+        missing=$missing+1
+        error 'Please install node.js https://nodejs.org/'
+    fi
+
+    NODE_MAJOR_VERSION=$(node --version | cut -c2- | awk -F. '{print $1}')
+    if [[ $NODE_MAJOR_VERSION -lt 6 ]]
+    then
+        missing=$missing+1
+        error 'node.js must be version 6.x or higher'
+    fi
+
     if [[ 0 -ne $missing ]]; then
         exit $missing
     fi
