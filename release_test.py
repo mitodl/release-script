@@ -1,0 +1,110 @@
+"""Tests for release script"""
+import gzip
+import os
+from shutil import copyfileobj
+from subprocess import check_call
+from tempfile import (
+    TemporaryDirectory,
+    TemporaryFile,
+)
+from unittest.mock import patch
+
+import pytest
+
+from release import (
+    dependency_exists,
+    DependencyException,
+    init_working_dir,
+    update_version,
+    validate_dependencies,
+)
+
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+# pylint: disable=redefined-outer-name, unused-argument
+@pytest.fixture
+def test_repo():
+    """Initialize the testing repo from the gzipped file"""
+    pwd = os.getcwd()
+
+    try:
+        with TemporaryDirectory() as directory:
+            os.chdir(directory)
+            check_call(["git", "init", "--quiet"])
+            with gzip.open(os.path.join(SCRIPT_DIR, "test-repo.gz"), "rb") as test_repo_file:
+                # Passing this handle directly to check_call(...) below doesn't work, the data remains
+                # compressed. Why read() decompresses the data but passing the file object doesn't:
+                # https://bugs.python.org/issue24358
+                with TemporaryFile("wb") as temp_file:
+                    copyfileobj(test_repo_file, temp_file)
+                    temp_file.seek(0)
+
+                    check_call(["git", "fast-import", "--quiet"], stdin=temp_file)
+            check_call(["git", "checkout", "--quiet", "master"])
+            yield
+    finally:
+        os.chdir(pwd)
+
+
+def test_update_version(test_repo):
+    """update_version should return the old version and replace the appropriate file's text with the new version"""
+    new_version = "9.9.99"
+    old_version = update_version(new_version)
+    assert old_version == "0.2.0"
+
+    found_new_version = False
+    with open("ccxcon/settings.py") as f:
+        for line in f.readlines():
+            if line.startswith("VERSION = \"{}\"".format(new_version)):
+                found_new_version = True
+                break
+    assert found_new_version, "Unable to find updated version"
+
+
+def test_dependency_exists():
+    """dependency_exists should check that the command exists on the system"""
+    assert dependency_exists("ls")
+    assert not dependency_exists("xyzzy")
+
+
+def test_validate_dependencies():
+    """validate_dependencies should raise an exception if a dependency is missing or invalid"""
+    with patch('release.dependency_exists', return_value=True) as dependency_exists_stub:
+        validate_dependencies()
+    for dependency in ('node', 'hub', 'git', 'git-release-notes'):
+        dependency_exists_stub.assert_any_call(dependency)
+
+        with patch(
+            'release.dependency_exists',
+            # the cell-var-from-loop warning can be ignored because this function is executed
+            # immediately after its definition
+            side_effect=lambda _dependency: _dependency != dependency,  # pylint: disable=cell-var-from-loop
+        ), pytest.raises(DependencyException):
+            validate_dependencies()
+
+
+@pytest.mark.parametrize("major", [3, 4, 5, 6, 7, 8])
+def test_validate_node_version(major):
+    """validate_dependencies should check that the major node.js version is new enough"""
+    node_version = "v{}.2.1".format(major).encode()
+
+    with patch(
+        'release.dependency_exists', return_value=True,
+    ), patch(
+        'release.check_output', return_value=node_version,
+    ):
+        if major >= 6:
+            validate_dependencies()
+        else:
+            with pytest.raises(DependencyException):
+                validate_dependencies()
+
+
+def test_init_working_dir(test_repo):
+    """init_working_dir should initialize a valid git repo, and clean up after itself"""
+    with init_working_dir(os.path.abspath(".git")) as other_directory:
+        os.chdir(other_directory)
+        check_call(["git", "status"])
+    assert not os.path.exists(other_directory)
