@@ -79,6 +79,8 @@ set_old_version () {
     echo "Defining old version..."
     OLD_VERSION=""
     version_files=( 'settings.py' '__init__.py' 'setup.py' )
+    # temporarily allow commands to not fail the entire script so we can check all the above files
+    set +e
     for file_name in "${version_files[@]}"
     do
         OLD_VERSION="$(find $WORKING_DIR -maxdepth 2 -name "$file_name" | xargs grep -i version | tr " =" " " | tr "\"" ' ' | tr "'" " " | awk 'NR==1{print $2}')"
@@ -89,6 +91,8 @@ set_old_version () {
         fi
 
     done
+    # reinstate hard failure
+    set -e
 
     if [[ -z "$OLD_VERSION" ]]; then
       error "Could not determine the old version."
