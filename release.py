@@ -26,6 +26,10 @@ class OldVersionException(Exception):
     """Error if the old version is invalid or cannot be found"""
 
 
+class VersionMismatchException(Exception):
+    """Error if the version is unexpected"""
+
+
 def dependency_exists(command):
     """Returns true if a command exists on the system"""
     return call(["which", command], stdout=PIPE) == 0
