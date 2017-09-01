@@ -5,5 +5,5 @@ node_js:
   - "6.2"
 install:
  - pip install -r test_requirements.txt
- - npm install git-release-notes
+ - npm install -g git-release-notes
 script: tox
