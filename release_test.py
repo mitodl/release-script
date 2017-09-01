@@ -12,6 +12,7 @@ from unittest.mock import patch
 import pytest
 
 from release import (
+    create_release_notes,
     dependency_exists,
     DependencyException,
     init_working_dir,
@@ -108,3 +109,38 @@ def test_init_working_dir(test_repo):
         os.chdir(other_directory)
         check_call(["git", "status"])
     assert not os.path.exists(other_directory)
+
+
+def make_empty_commit(user, message):
+    """Helper function to create an empty commit as a particular user"""
+    check_call(["git", "config", "user.email", "{}@example.com".format(user)])
+    check_call(["git", "config", "user.name", user])
+    check_call(["git", "commit", "--allow-empty", "-m", message])
+
+
+@pytest.mark.parametrize("with_checkboxes", [True, False])
+def test_create_release_notes(test_repo, with_checkboxes):
+    """create_release_notes should create release notes for a particular release, possibly with checkboxes"""
+    with init_working_dir(os.path.abspath(".git")) as other_directory:
+        os.chdir(other_directory)
+
+        make_empty_commit("initial", "initial commit")
+        check_call(["git", "tag", "v0.0.1"])
+        make_empty_commit("User 1", "Commit #1")
+        make_empty_commit("User 2", "Commit #2")
+        make_empty_commit("User 2", "Commit #3")
+
+        lines = create_release_notes("0.0.1", with_checkboxes=with_checkboxes).split("\n")
+        lines = [line for line in lines if line]
+        if with_checkboxes:
+            assert "## User 2" in lines[0]
+            assert "- [ ] Commit #3" in lines[1]
+            assert "- [ ] Commit #2" in lines[2]
+            assert "## User 1" in lines[3]
+            assert "- [ ] Commit #1" in lines[4]
+        else:
+            assert lines == [
+                '- Commit #3',
+                '- Commit #2',
+                '- Commit #1',
+            ]

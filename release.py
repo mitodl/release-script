@@ -150,12 +150,17 @@ def update_version(new_version):
     raise OldVersionException("Unable to find previous version number")
 
 
-def create_release_notes(old_version):
+def create_release_notes(old_version, with_checkboxes):
     """Returns the release note text for the commits made for this version"""
+    if with_checkboxes:
+        filename = "release_notes.ejs"
+    else:
+        filename = "release_notes_rst.ejs"
+
     return check_output([
         "git-release-notes",
         "v{}..master".format(old_version),
-        os.path.join(SCRIPT_DIR, "util/release_notes_rst.ejs"),
+        os.path.join(SCRIPT_DIR, "util", filename),
     ]).decode()
 
 
@@ -169,7 +174,7 @@ def update_release_notes(old_version, new_version):
     """Updates RELEASE.rst and commits it"""
     print("Updating release notes...")
 
-    release_notes = create_release_notes(old_version)
+    release_notes = create_release_notes(old_version, with_checkboxes=False)
 
     release_filename = "RELEASE.rst"
     try:
@@ -213,7 +218,7 @@ def generate_release_pr(old_version, new_version):
         f.write("Release {}\n".format(new_version))
         f.write("\n")
 
-        f.write(create_release_notes(old_version))
+        f.write(create_release_notes(old_version, with_checkboxes=True))
 
     check_call(["hub", "pull-request", "-b", "release", "-h", "release-candidate", "-F", checklist_file])
 
