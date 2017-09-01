@@ -120,7 +120,7 @@ def update_version_in_file(root, filename, new_version):
                     )
                 else:
                     # Shouldn't get here
-                    raise OldVersionException("Unexpected file")
+                    raise OldVersionException("Unexpected file {}".format(filename))
                 file_lines.append(updated_line)
             else:
                 file_lines.append(line)

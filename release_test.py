@@ -16,7 +16,9 @@ from release import (
     dependency_exists,
     DependencyException,
     init_working_dir,
+    parse_version_from_line,
     update_version,
+    update_version_in_file,
     validate_dependencies,
 )
 
@@ -88,6 +90,32 @@ def test_validate_dependencies():
             side_effect=lambda _dependency: _dependency != dependency,  # pylint: disable=cell-var-from-loop
         ), pytest.raises(DependencyException):
             validate_dependencies()
+
+
+def test_parse_version_from_line():
+    """parse_version_from_line should parse version from the line in the file"""
+    assert parse_version_from_line("version = '0.34.56'") == "0.34.56"
+    assert parse_version_from_line("VERSION=\"0.34.56\"") == "0.34.56"
+
+
+@pytest.mark.parametrize("filename,line", [
+    ('settings.py', 'VERSION = \"0.34.56\"'),
+    ('__init__.py', '__version__ = \'0.34.56\''),
+    ('setup.py', 'version=\'0.34.56\',')
+])
+def test_update_version_in_file(filename, line):
+    """update_version_in_file should update the version in the file and return the old version, if found"""
+    with TemporaryDirectory() as base:
+        with open(os.path.join(base, filename), "w") as f:
+            f.write("text")
+        retrieved_version = update_version_in_file(base, filename, "0.123.456")
+        assert retrieved_version is None
+
+        with open(os.path.join(base, filename), "w") as f:
+            f.write(line)
+
+        retrieved_version = update_version_in_file(base, filename, "0.123.456")
+        assert retrieved_version == "0.34.56"
 
 
 @pytest.mark.parametrize("major", [3, 4, 5, 6, 7, 8])
