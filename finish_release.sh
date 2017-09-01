@@ -5,7 +5,7 @@ set -e -o pipefail
 # SCRIPT_DIR via http://www.ostricher.com/2014/10/the-right-way-to-get-the-directory-of-a-bash-script/
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-if [[ $(basename $0) = "release.sh" ]]; then
+if [[ $(basename $0) = "finish_release.sh" ]]; then
     set -euf -o pipefail
 
     # Default variables to empty if not present. Necessary due to the -u option specified above.
