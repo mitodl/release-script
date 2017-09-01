@@ -1,19 +1,19 @@
 """Tests for finish_release.py"""
-import os
 from subprocess import check_call
 
 import pytest
 
-from release import (
-    init_working_dir,
-    VersionMismatchException,
+from release import VersionMismatchException
+from release_test import (  # pylint: disable=unused-import
+    make_empty_commit,
+    test_repo,
 )
-from release_test import make_empty_commit
 from finish_release import (
     check_release_tag,
 )
 
 
+# pylint: disable=unused-argument, redefined-outer-name
 def test_check_release_tag(test_repo):
     """check_release_tag should error if the most recent release commit doesn't match the version given"""
     check_call(["git", "checkout", "-b", "release-candidate"])
