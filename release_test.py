@@ -20,6 +20,7 @@ from release import (
     update_version,
     update_version_in_file,
     validate_dependencies,
+    verify_new_commits,
 )
 
 
@@ -173,3 +174,16 @@ def test_create_release_notes(test_repo, with_checkboxes):
             '- Commit #2',
             '- Commit #1',
         ]
+
+
+def test_verify_new_commits(test_repo):
+    """verify_new_commits should error if there is no commit to put in the release"""
+    check_call(["git", "tag", "v0.0.1"])
+    check_call(["git", "checkout", "master"])
+
+    with pytest.raises(Exception) as ex:
+        verify_new_commits("0.0.1")
+    assert ex.value.args[0] == 'No new commits to put in release'
+    make_empty_commit("User 1", "  Release 0.0.1  ")
+    # No exception
+    verify_new_commits("0.0.1")
