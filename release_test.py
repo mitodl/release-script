@@ -121,26 +121,23 @@ def make_empty_commit(user, message):
 @pytest.mark.parametrize("with_checkboxes", [True, False])
 def test_create_release_notes(test_repo, with_checkboxes):
     """create_release_notes should create release notes for a particular release, possibly with checkboxes"""
-    with init_working_dir(os.path.abspath(".git")) as other_directory:
-        os.chdir(other_directory)
+    make_empty_commit("initial", "initial commit")
+    check_call(["git", "tag", "v0.0.1"])
+    make_empty_commit("User 1", "Commit #1")
+    make_empty_commit("User 2", "Commit #2")
+    make_empty_commit("User 2", "Commit #3")
 
-        make_empty_commit("initial", "initial commit")
-        check_call(["git", "tag", "v0.0.1"])
-        make_empty_commit("User 1", "Commit #1")
-        make_empty_commit("User 2", "Commit #2")
-        make_empty_commit("User 2", "Commit #3")
-
-        lines = create_release_notes("0.0.1", with_checkboxes=with_checkboxes).split("\n")
-        lines = [line for line in lines if line]
-        if with_checkboxes:
-            assert "## User 2" in lines[0]
-            assert "- [ ] Commit #3" in lines[1]
-            assert "- [ ] Commit #2" in lines[2]
-            assert "## User 1" in lines[3]
-            assert "- [ ] Commit #1" in lines[4]
-        else:
-            assert lines == [
-                '- Commit #3',
-                '- Commit #2',
-                '- Commit #1',
-            ]
+    lines = create_release_notes("0.0.1", with_checkboxes=with_checkboxes).split("\n")
+    lines = [line for line in lines if line]
+    if with_checkboxes:
+        assert "## User 2" in lines[0]
+        assert "- [ ] Commit #3" in lines[1]
+        assert "- [ ] Commit #2" in lines[2]
+        assert "## User 1" in lines[3]
+        assert "- [ ] Commit #1" in lines[4]
+    else:
+        assert lines == [
+            '- Commit #3',
+            '- Commit #2',
+            '- Commit #1',
+        ]
