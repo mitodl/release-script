@@ -70,6 +70,10 @@ def test_dependency_exists():
     assert not dependency_exists("xyzzy")
 
 
+def test_checkout():
+    """checkout should change the """
+
+
 def test_validate_dependencies():
     """validate_dependencies should raise an exception if a dependency is missing or invalid"""
     with patch('release.dependency_exists', return_value=True) as dependency_exists_stub:

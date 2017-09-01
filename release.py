@@ -52,11 +52,6 @@ def init_working_dir(repo_url):
         os.chdir(pwd)
 
 
-def checkout(branch):
-    """Checkout a git branch"""
-    check_call(["git", "checkout", "-qb", branch])
-
-
 def validate_dependencies():
     """Error if a dependency is missing or invalid"""
     print("Validating dependencies...")
@@ -233,7 +228,7 @@ def release(repo_url, new_version):
     validate_dependencies()
 
     with init_working_dir(repo_url):
-        checkout("release-candidate")
+        check_call(["git", "checkout", "-qb", "release-candidate"])
         old_version = update_version(new_version)
         if parse_version(old_version) >= parse_version(new_version):
             raise Exception("old version is {old} but the new version {new} is not newer".format(
