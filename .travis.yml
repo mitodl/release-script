@@ -1,5 +1,8 @@
 language: python
 python:
   - "3.5"
-install: pip install -r test_requirements.txt
+node_js:
+  - "6.2"
+install:
+ - pip install -r test_requirements.txt
 script: tox
