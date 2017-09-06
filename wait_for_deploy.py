@@ -1,8 +1,9 @@
 """Wait for hash on server to match with deployed code"""
 import argparse
-import requests
 from subprocess import check_output
 import time
+
+import requests
 
 from release import (
     init_working_dir,
