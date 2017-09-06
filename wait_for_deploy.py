@@ -27,8 +27,8 @@ def wait_for_deploy(repo_url, hash_url, watch_branch):
     validate_dependencies()
 
     with init_working_dir(repo_url):
-        latest_hash = check_output(["git", "rev-parse", watch_branch]).decode().strip()
-    print("Looking for {}...".format(latest_hash))
+        latest_hash = check_output(["git", "rev-parse", "origin/{}".format(watch_branch)]).decode().strip()
+    print("Polling {url} for {hash}...".format(url=hash_url, hash=latest_hash))
     while fetch_release_hash(hash_url) != latest_hash:
         time.sleep(30)
         print(".", end='')
