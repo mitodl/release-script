@@ -183,7 +183,7 @@ def update_release_notes(old_version, new_version):
         existing_note_lines = []
 
     with open(release_filename, "w") as f:
-        f.write("Release notes\n")
+        f.write("Release Notes\n")
         f.write("=============\n")
         f.write("\n")
         version_line = "Version {}".format(new_version)
@@ -195,7 +195,7 @@ def update_release_notes(old_version, new_version):
         f.write("\n")
 
         # skip first four lines which contain the header we are replacing
-        for old_line in existing_note_lines[-4:]:
+        for old_line in existing_note_lines[4:]:
             f.write(old_line)
 
     check_call(["git", "add", release_filename])
