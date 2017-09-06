@@ -17,6 +17,7 @@ from release import (
     DependencyException,
     init_working_dir,
     parse_version_from_line,
+    update_release_notes,
     update_version,
     update_version_in_file,
     validate_dependencies,
@@ -151,6 +152,13 @@ def make_empty_commit(user, message):
     check_call(["git", "commit", "--allow-empty", "-m", message])
 
 
+def assert_starts_with(lines, expected):
+    """Helper method to assert that each line starts with the line in the expected list"""
+    assert len(lines) == len(expected)
+    for i, line in enumerate(lines):
+        assert line.startswith(expected[i])
+
+
 @pytest.mark.parametrize("with_checkboxes", [True, False])
 def test_create_release_notes(test_repo, with_checkboxes):
     """create_release_notes should create release notes for a particular release, possibly with checkboxes"""
@@ -160,20 +168,83 @@ def test_create_release_notes(test_repo, with_checkboxes):
     make_empty_commit("User 2", "Commit #2")
     make_empty_commit("User 2", "Commit #3")
 
-    lines = create_release_notes("0.0.1", with_checkboxes=with_checkboxes).split("\n")
-    lines = [line for line in lines if line]
+    notes = create_release_notes("0.0.1", with_checkboxes=with_checkboxes)
+    lines = notes.split("\n")
     if with_checkboxes:
-        assert "## User 2" in lines[0]
-        assert "- [ ] Commit #3" in lines[1]
-        assert "- [ ] Commit #2" in lines[2]
-        assert "## User 1" in lines[3]
-        assert "- [ ] Commit #1" in lines[4]
+        assert_starts_with(lines, [
+            "## User 2",
+            "  - [ ] Commit #3",
+            "  - [ ] Commit #2",
+            "",
+            "## User 1",
+            "  - [ ] Commit #1",
+            "",
+        ])
     else:
-        assert lines == [
+        assert_starts_with(lines, [
             '- Commit #3',
             '- Commit #2',
             '- Commit #1',
-        ]
+            "",
+        ])
+
+
+def test_update_release_notes(test_repo):
+    """update_release_notes should update the existing release notes and add new notes for the new commits"""
+    check_call(["git", "checkout", "master"])
+    check_call(["git", "tag", "v0.2.0"])
+
+    make_empty_commit("User 1", "Before")
+    check_call(["git", "tag", "v0.3.0"])
+    update_release_notes("0.2.0", "0.3.0")
+
+    make_empty_commit("User 2", "After 1")
+    make_empty_commit("User 2", "After 2")
+    make_empty_commit("User 3", "After 3")
+    update_release_notes("0.3.0", "0.4.0")
+
+    assert open("RELEASE.rst").read() == """Release Notes
+=============
+
+Version 0.4.0
+-------------
+
+- After 3
+- After 2
+- After 1
+- Release 0.3.0
+
+Version 0.3.0
+-------------
+
+- Before
+
+Version 0.2.0
+-------------
+
+- Added missing release_notes template files.
+- Changed to ``django-server-status``.
+- Added logging message for webhooks with non-200 responses.
+- Removed ``dredd``, removed unused HTTP methods from API, added unit tests.
+- Added generator script for life-like data.
+- Implemented receiving JSON on ``create-ccx`` endpoint.
+- Added support for course modules.
+- Fixed ``requests`` installation.
+- Added additional logging.
+- Incoming requests send uuids, not course ids.
+- Included the course/module's instance in webhook.
+- disabled SSL being necessary for celery.
+- Added status.
+- Enabled ``redis`` in the web container.
+- Made webhook fixes.
+- Added API endpoint to create ccxs on edX.
+- Now fetching module listing through course structure api.
+
+Version 0.1.0
+-------------
+
+- Initial release
+"""
 
 
 def test_verify_new_commits(test_repo):

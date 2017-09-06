@@ -156,11 +156,11 @@ def create_release_notes(old_version, with_checkboxes):
     else:
         filename = "release_notes_rst.ejs"
 
-    return check_output([
+    return "{}\n".format(check_output([
         "git-release-notes",
         "v{}..master".format(old_version),
         os.path.join(SCRIPT_DIR, "util", filename),
-    ]).decode()
+    ]).decode().strip())
 
 
 def verify_new_commits(old_version):
@@ -190,12 +190,11 @@ def update_release_notes(old_version, new_version):
         f.write("{}\n".format(version_line))
         f.write("{}\n".format("-" * len(version_line)))
         f.write("\n")
-        f.write("\n")
         f.write(release_notes)
         f.write("\n")
 
         # skip first four lines which contain the header we are replacing
-        for old_line in existing_note_lines[4:]:
+        for old_line in existing_note_lines[3:]:
             f.write(old_line)
 
     check_call(["git", "add", release_filename])
