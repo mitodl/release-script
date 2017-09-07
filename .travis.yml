@@ -1,5 +1,9 @@
 language: python
 python:
   - "3.5"
-install: make shunit2 && pip install -r test_requirements.txt
-script: make test && tox
+node_js:
+  - "6.2"
+install:
+ - pip install -r test_requirements.txt
+ - npm install -g git-release-notes
+script: tox
