@@ -5,11 +5,13 @@ import argparse
 import asyncio
 from datetime import datetime
 import os
-from subprocess import check_call
+from subprocess import check_output
 import sys
 
 import requests
 
+from finish_release import finish_release
+from release import release
 from lib import (
     get_org_and_repo,
     get_release_pr,
@@ -19,6 +21,7 @@ from lib import (
     release_manager_name,
     wait_for_checkboxes,
 )
+from wait_for_deploy import wait_for_deploy
 
 
 def in_script_dir(file_path):
@@ -38,22 +41,22 @@ def in_script_dir(file_path):
 class Bot:
     """Slack bot used to manage the release"""
 
-    def __init__(self, slack_webhook_url, access_token, repo_dir, version, rc_hash_url, prod_hash_url):
+    def __init__(self, slack_webhook_url, access_token, repo_url, version, rc_hash_url, prod_hash_url):
         """
         Create the slack bot
 
         Args:
             slack_webhook_url (str): A Slack webhook URL used to post in a Slack channel
             access_token (str): The OAuth access token used to interact with Slack
-            repo_dir (str): The directory of a git repository which will be cloned and used for the release
+            repo_url (str): The directory of a git repository which will be cloned and used for the release
             version (str): The version of the release
             rc_hash_url (str): The URL used to poll the RC server to confirm deployment of the release candidate
             prod_hash_url (str): The URL used to poll the production server to confirm deployment of production
         """
         self.slack_webhook_url = slack_webhook_url
         self.access_token = access_token
-        self.repo_dir = repo_dir
-        self.org, self.repo = get_org_and_repo(repo_dir)
+        self.repo_url = repo_url
+        self.org, self.repo = get_org_and_repo(repo_url)
         self.version = version
         self.rc_hash_url = rc_hash_url
         self.prod_hash_url = prod_hash_url
@@ -103,10 +106,11 @@ class Bot:
         """
         Start a new release and wait for deployment
         """
-        check_call([in_script_dir("release.sh"), self.repo_dir, self.version])
+        release(self.repo_url, self.version)
+
         self.say("Behold, my new evil scheme - release {}! Now deploying to RC...".format(self.version))
 
-        check_call([in_script_dir("wait_for_deploy.sh"), self.repo_dir, self.rc_hash_url, "release-candidate"])
+        await wait_for_deploy(self.repo_url, self.rc_hash_url, "release-candidate")
         unchecked_authors = get_unchecked_authors(self.org, self.repo, self.version)
         slack_usernames = self.translate_slack_usernames(unchecked_authors)
         self.say(
@@ -139,9 +143,10 @@ class Bot:
         """
         Merge the release candidate into the release branch, tag it, merge to master, and wait for deployment
         """
-        check_call([in_script_dir("finish_release.sh"), self.repo_dir, self.version])
+        finish_release(self.repo_url, self.version)
+
         self.say("Merged evil scheme {}! Now deploying to production...".format(self.version))
-        check_call([in_script_dir("wait_for_deploy.sh"), self.repo_dir, self.prod_hash_url, "release"])
+        await wait_for_deploy(self.repo_url, self.prod_hash_url, "release")
         self.say(
             "My evil scheme {} has been released to production. "
             "And by 'released', I mean completely...um...leased.".format(self.version)
@@ -181,7 +186,8 @@ def main():
     if not slack_access_token:
         raise Exception("Missing SLACK_ACCESS_TOKEN")
 
-    bot = Bot(slack_webhook_url, slack_access_token, args.repo_dir, args.version, args.rc_hash_url, args.prod_hash_url)
+    repo_url = check_output(["git", "remote", "get-url", "origin"], cwd=args.repo_dir).decode().strip()
+    bot = Bot(slack_webhook_url, slack_access_token, repo_url, args.version, args.rc_hash_url, args.prod_hash_url)
 
     now = datetime.now()
     tomorrow_at_10 = next_workday_at_10(now)
