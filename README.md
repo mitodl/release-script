@@ -39,8 +39,7 @@ Git is available as a precompiled binary as well as from Homebrew on OSX:
 
     brew install git
 
-### [git-release-notes - https://www.npmjs.com/package/git-release-notes]
-(https://www.npmjs.com/package/git-release-notes)
+### [git-release-notes - https://www.npmjs.com/package/git-release-notes](https://www.npmjs.com/package/git-release-notes)
 git-release-notes is a Node package that processes Git commit history
 through .EJS templates.  It requires Node and can be installed with ``npm``.
 
