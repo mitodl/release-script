@@ -102,18 +102,17 @@ def get_unchecked_authors(org, repo, version):
     return {commit['author_name'] for commit in commits if not commit['checked']}
 
 
-def get_org_and_repo(repo_dir):
+def get_org_and_repo(repo_url):
     """
     Get the org and repo from a git repository cloned from github.
 
     Args:
-        repo_dir (str): The repository directory
+        repo_url (str): The repository URL
 
     Returns:
         tuple: (org, repo)
     """
-    url = check_output(["git", "remote", "get-url", "origin"], cwd=repo_dir).decode().strip()
-    org, repo = re.match(r'^.*github\.com[:|/](.+)/(.+)\.git', url).groups()
+    org, repo = re.match(r'^.*github\.com[:|/](.+)/(.+)\.git', repo_url).groups()
     return org, repo
 
 

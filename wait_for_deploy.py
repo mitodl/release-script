@@ -1,7 +1,7 @@
 """Wait for hash on server to match with deployed code"""
 import argparse
+import asyncio
 from subprocess import check_output
-import time
 
 import requests
 
@@ -22,7 +22,7 @@ def fetch_release_hash(hash_url):
     return release_hash
 
 
-def wait_for_deploy(repo_url, hash_url, watch_branch):
+async def wait_for_deploy(repo_url, hash_url, watch_branch):
     """Wait until server is finished with the deploy"""
     validate_dependencies()
 
@@ -30,7 +30,7 @@ def wait_for_deploy(repo_url, hash_url, watch_branch):
         latest_hash = check_output(["git", "rev-parse", "origin/{}".format(watch_branch)]).decode().strip()
     print("Polling {url} for {hash}...".format(url=hash_url, hash=latest_hash))
     while fetch_release_hash(hash_url) != latest_hash:
-        time.sleep(30)
+        await asyncio.sleep(30)
         print(".", end='')
     print("Hashes match, deployment was successful!")
 
@@ -52,7 +52,11 @@ def main():
     if not args.hash_url.startswith("https"):
         raise Exception("You must specify a hash URL to compare the deployed git hash version")
 
-    wait_for_deploy(repo_url=args.repo_url, hash_url=args.hash_url, watch_branch=args.watch_branch)
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(
+        wait_for_deploy(repo_url=args.repo_url, hash_url=args.hash_url, watch_branch=args.watch_branch)
+    )
+    loop.close()
 
 
 if __name__ == "__main__":
