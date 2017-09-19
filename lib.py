@@ -178,7 +178,7 @@ def match_user(slack_users, author_name, threshold=0.6):
 
     if len(slack_matches) > 0:
         matched_user = max(slack_matches, key=lambda pair: pair[1])[0]
-        return "<@{user}|{user}>".format(user=matched_user['name'])
+        return "<@{id}>".format(id=matched_user['id'])
     else:
         return author_name
 
