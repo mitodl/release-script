@@ -116,7 +116,7 @@ class Bot:
         """
         Start a new release and wait for deployment
         """
-        #release(self.repo_url, version)
+        release(self.repo_url, version)
 
         await self.say("Behold, my new evil scheme - release {}! Now deploying to RC...".format(version))
 
@@ -284,8 +284,7 @@ def main():
         'repo_url': "git@github.com:mitodl/micromasters.git",
         'rc_hash_url': "https://micromasters-rc.herokuapp.com/static/hash.txt",
         'prod_hash_url': "https://micromasters.mit.edu/static/hash.txt",
-        'channel_id': 'C67SGCU9H',
-        #G1VK0EDGA
+        'channel_id': 'G1VK0EDGA',
     }
     channel_mapping = [mm_urls]
 
