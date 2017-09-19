@@ -2,6 +2,7 @@
 """Slack bot for managing releases"""
 
 import asyncio
+from collections import namedtuple
 from datetime import datetime
 import os
 import sys
@@ -26,6 +27,14 @@ from lib import (
 from wait_for_deploy import wait_for_deploy
 
 
+RepoInfo = namedtuple('RepoInfo', [
+    'repo_url',
+    'rc_hash_url',
+    'prod_hash_url',
+    'channel_id',
+])
+
+
 log = logging.getLogger(__name__)
 
 
@@ -46,27 +55,16 @@ def in_script_dir(file_path):
 class Bot:
     """Slack bot used to manage the release"""
 
-    def __init__(self, websocket, access_token, channel_mapping):
+    def __init__(self, websocket, access_token):
         """
         Create the slack bot
 
         Args:
             websocket (websockets.client.WebSocketClientProtocol): websocket for sending/receiving messages
             access_token (str): The OAuth access token used to interact with Slack
-            channel_mapping (list of dict): Details for repos by channel_id
         """
         self.websocket = websocket
         self.access_token = access_token
-        self.channel_mapping = channel_mapping
-
-        # Temporary hack
-        channel_details = channel_mapping[0]
-        self.channel_id = channel_details['channel_id']
-        self.repo_url = channel_details['repo_url']
-
-        self.org, self.repo = get_org_and_repo(self.repo_url)
-        self.rc_hash_url = channel_details['rc_hash_url']
-        self.prod_hash_url = channel_details['prod_hash_url']
         self.message_count = 0
 
     def lookup_users(self):
@@ -98,141 +96,176 @@ class Bot:
             sys.stderr.write("Error: {}".format(exception))
             return unchecked_authors
 
-    async def say(self, text):
+    async def say(self, channel_id, text):
         """
         Post a message in the Slack channel
 
         Args:
+            channel_id (str): A channel id
             text (str): A message
         """
         await self.websocket.send(json.dumps({
             "id": self.message_count,
             "type": "message",
-            "channel": self.channel_id,
+            "channel": channel_id,
             "text": text}))
         self.message_count += 1
 
-    async def do_release(self, version):
+    async def do_release(self, repo_info, version):
         """
         Start a new release and wait for deployment
+
+        Args:
+            repo_info (RepoInfo): Information for a repo
+            version (str): The version
         """
-        release(self.repo_url, version)
+        repo_url = repo_info.repo_url
+        channel_id = repo_info.channel_id
+        release(repo_url, version)
 
-        await self.say("Behold, my new evil scheme - release {}! Now deploying to RC...".format(version))
+        await self.say(channel_id, "Behold, my new evil scheme - release {}! Now deploying to RC...".format(version))
 
-        await wait_for_deploy(self.repo_url, self.rc_hash_url, "release-candidate")
-        unchecked_authors = get_unchecked_authors(self.org, self.repo, version)
+        await wait_for_deploy(repo_url, repo_info.rc_hash_url, "release-candidate")
+        org, repo = get_org_and_repo(repo_url)
+        unchecked_authors = get_unchecked_authors(org, repo, version)
         slack_usernames = self.translate_slack_usernames(unchecked_authors)
         await self.say(
+            channel_id,
             "Release {version} was deployed! PR is up at <{pr_url}|Release {version}>."
             " These people have commits in this release: {authors}".format(
                 version=version,
                 authors=", ".join(slack_usernames),
-                pr_url=self.pr_url(version),
+                pr_url=get_release_pr(org, repo, version)['html_url'],
             )
         )
 
-    def pr_url(self, version):
-        """Get URL for Release PR"""
-        return get_release_pr(self.org, self.repo, version)['html_url']
-
-    async def wait_for_checkboxes(self, version):
+    async def wait_for_checkboxes(self, repo_info, version):
         """
         Poll the Release PR and wait until all checkboxes are checked off
-        """
-        await self.say("Wait, wait. Time out. My evil plan isn't evil enough until all the checkboxes are checked...")
-        await wait_for_checkboxes(self.org, self.repo, version)
-        release_manager = release_manager_name()
-        await self.say("All checkboxes checked off. Release {version} is ready for the Merginator{name}!".format(
-            version=version,
-            name=' {}'.format(self.translate_slack_usernames([release_manager])[0]) if release_manager else '',
-        ))
 
-    async def finish_release(self, version):
+        Args:
+            repo_info (RepoInfo): Information for a repo
+            version (str): The version
+        """
+        channel_id = repo_info.channel_id
+        await self.say(
+            channel_id,
+            "Wait, wait. Time out. My evil plan isn't evil enough until all the checkboxes are checked..."
+        )
+        org, repo = get_org_and_repo(repo_info.repo_url)
+        await wait_for_checkboxes(org, repo, version)
+        release_manager = release_manager_name()
+        await self.say(
+            channel_id,
+            "All checkboxes checked off. Release {version} is ready for the Merginator{name}!".format(
+                version=version,
+                name=' {}'.format(self.translate_slack_usernames([release_manager])[0]) if release_manager else '',
+            )
+        )
+
+    async def finish_release(self, repo_info, version):
         """
         Merge the release candidate into the release branch, tag it, merge to master, and wait for deployment
-        """
-        finish_release(self.repo_url, version)
 
-        await self.say("Merged evil scheme {}! Now deploying to production...".format(version))
-        await wait_for_deploy(self.repo_url, self.prod_hash_url, "release")
+        Args:
+            repo_info (RepoInfo): The info for a repo
+            version (str): The version
+        """
+        channel_id = repo_info.channel_id
+        repo_url = repo_info.repo_url
+        finish_release(repo_url, version)
+
+        await self.say(channel_id, "Merged evil scheme {}! Now deploying to production...".format(version))
+        await wait_for_deploy(repo_url, repo_info.prod_hash_url, "release")
         await self.say(
+            channel_id,
             "My evil scheme {} has been released to production. "
             "And by 'released', I mean completely...um...leased.".format(version)
         )
 
-    async def message_if_unchecked(self, version):
+    async def message_if_unchecked(self, repo_info, version):
         """
         Send a message next morning if any boxes are not yet checked off
+
+        Args:
+            repo_info (RepoInfo): Information for a repo
+            version (str): The version of the release to check
         """
-        unchecked_authors = get_unchecked_authors(self.org, self.repo, version)
+        org, repo = get_org_and_repo(repo_info.repo_url)
+        unchecked_authors = get_unchecked_authors(org, repo, version)
         if unchecked_authors:
             slack_usernames = self.translate_slack_usernames(unchecked_authors)
             await self.say(
+                repo_info.channel_id,
                 "What an unexpected surprise! "
                 "The following authors have not yet checked off their boxes: {}".format(
                     ", ".join(slack_usernames)
                 )
             )
 
-    async def delay_message(self, version):
+    async def delay_message(self, repo_info, version):
         """
         sleep until 10am next day, then message
 
         Args:
+            repo_info (RepoInfo): The info for a repo
             version (str): The version number for the release
         """
         now = datetime.now()
         tomorrow_at_10 = next_workday_at_10(now)
         await asyncio.sleep((tomorrow_at_10 - now).total_seconds())
-        await self.message_if_unchecked(version)
+        await self.message_if_unchecked(repo_info, version)
 
-    async def handle_message(self, words, loop):
+    async def handle_message(self, repo_info, words, loop):
         """
         Handle the message
 
         Args:
+            repo_info (RepoInfo): The RepoInfo corresponding to the channel where this message was received
             words (list of str): the words making up a command
             loop (asyncio.events.AbstractEventLoop): The asyncio event loop
         """
+        channel_id = repo_info.channel_id
         try:
             if has_command(['release'], words) or has_command(['start', 'release'], words):
                 version = get_version_number(words[-1])
 
-                loop.create_task(self.delay_message(version))
-                await self.do_release(version)
-                await self.wait_for_checkboxes(version)
+                loop.create_task(self.delay_message(repo_info, version))
+                await self.do_release(repo_info, version)
+                await self.wait_for_checkboxes(repo_info, version)
             elif has_command(['finish', 'release'], words):
                 version = get_version_number(words[-1])
 
-                await self.finish_release(version)
+                await self.finish_release(repo_info, version)
             elif has_command(['wait', 'for', 'checkboxes'], words):
                 version = get_version_number(words[-1])
-                await self.wait_for_checkboxes(version)
+                await self.wait_for_checkboxes(repo_info, version)
             elif has_command(['hi'], words):
                 await self.say(
+                    channel_id,
                     "A Mongol army? Really? Uh, I must have had the dial set for"
                     " 'Hun.' Oh, well, you don't look a gift horde in the mouth, so... hello! "
                 )
             elif has_command(['what', 'are', 'you', 'doing'], words):
-                await self.say("Tasks: {}".format(asyncio.Task.all_tasks()))
+                await self.say(channel_id, "Tasks: {}".format(asyncio.Task.all_tasks()))
             else:
-                await self.say("Oooopps! Invalid command format")
+                await self.say(channel_id, "Oooopps! Invalid command format")
         except BotException as ex:
             log.exception("A BotException was raised:")
-            await self.say("Oops, something went wrong: {}".format(ex))
+            await self.say(channel_id, "Oops, something went wrong: {}".format(ex))
         except:
             log.exception("Exception found when handling a message")
-            await self.say("Oops, something went wrong...")
+            await self.say(channel_id, "Oops, something went wrong...")
 
 
 class BotException(Exception):
     """Exception raised for invalid input.
 
     Args:
-        message: explanation of the error
+        message (str): explanation of the error
     """
     def __init__(self, message):
+        super().__init__(message)
         self.message = message
 
 
@@ -242,6 +275,9 @@ def get_version_number(text):
 
     Args:
         text (str): The word containing the version number
+
+    Returns:
+        str: The version if it parsed correctly
     """
     pattern = re.compile('^[0-9.]+$')
     if pattern.match(text):
@@ -280,13 +316,14 @@ def main():
         raise Exception("Missing BOT_ACCESS_TOKEN")
 
     # these are temporary values for now
-    mm_urls = {
-        'repo_url': "git@github.com:mitodl/micromasters.git",
-        'rc_hash_url': "https://micromasters-rc.herokuapp.com/static/hash.txt",
-        'prod_hash_url': "https://micromasters.mit.edu/static/hash.txt",
-        'channel_id': 'G1VK0EDGA',
-    }
-    channel_mapping = [mm_urls]
+    repos_info = [
+        RepoInfo(
+            "git@github.com:mitodl/micromasters.git",
+            "https://micromasters-rc.herokuapp.com/static/hash.txt",
+            "https://micromasters.mit.edu/static/hash.txt",
+            'G1VK0EDGA',
+        )
+    ]
 
     resp = requests.post("https://slack.com/api/rtm.connect", data={
         "token": bot_access_token,
@@ -296,19 +333,30 @@ def main():
     async def connect_to_message_server(loop):
         """Setup connection with websocket server"""
         async with websockets.connect(resp.json()['url']) as websocket:
-            bot = Bot(websocket, slack_access_token, channel_mapping)
+            bot = Bot(websocket, slack_access_token)
             while True:
                 message = await websocket.recv()
                 print(message)
                 message = json.loads(message)
-                if message.get('type') == 'message':
-                    content = message.get('text')
-                    if content is not None:
-                        all_words = content.strip().split()
-                        if len(all_words) > 0:
-                            message_handle, *words = all_words
-                            if message_handle in ("<@{}>".format(doof_id), "@doof"):
-                                loop.create_task(bot.handle_message(words, loop))
+                if message.get('type') != 'message':
+                    continue
+
+                content = message.get('text')
+                if content is None:
+                    continue
+
+                channel_id = message.get('channel')
+                for repo_info in repos_info:
+                    if repo_info.channel_id == channel_id:
+                        break
+                else:
+                    continue
+
+                all_words = content.strip().split()
+                if len(all_words) > 0:
+                    message_handle, *words = all_words
+                    if message_handle in ("<@{}>".format(doof_id), "@doof"):
+                        loop.create_task(bot.handle_message(repo_info, words, loop))
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(connect_to_message_server(loop))
