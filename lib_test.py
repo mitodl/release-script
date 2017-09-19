@@ -147,14 +147,15 @@ FAKE_SLACK_USERS = [
             'real_name': 'George Schneeloch',
         },
         'name': 'gschneel',
+        'id': 'U12345',
     }
 ]
 
 
 def test_match_users():
     """match_users should use the Levensthein distance to compare usernames"""
-    assert match_user(FAKE_SLACK_USERS, "George Schneeloch") == "<@gschneel|gschneel>"
-    assert match_user(FAKE_SLACK_USERS, "George Schneelock") == "<@gschneel|gschneel>"
+    assert match_user(FAKE_SLACK_USERS, "George Schneeloch") == "<@U12345>"
+    assert match_user(FAKE_SLACK_USERS, "George Schneelock") == "<@U12345>"
     assert match_user(FAKE_SLACK_USERS, "George") == "George"
 
 
