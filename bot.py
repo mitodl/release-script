@@ -4,8 +4,8 @@
 import asyncio
 from datetime import datetime
 import os
-from subprocess import check_output
 import sys
+import logging
 import json
 import re
 import websockets
@@ -24,7 +24,9 @@ from lib import (
     wait_for_checkboxes,
 )
 from wait_for_deploy import wait_for_deploy
-CHANNEL_ID = 'C67SGCU9H'
+
+
+log = logging.getLogger(__name__)
 
 
 def in_script_dir(file_path):
@@ -51,16 +53,18 @@ class Bot:
         Args:
             websocket (websockets.client.WebSocketClientProtocol): websocket for sending/receiving messages
             access_token (str): The OAuth access token used to interact with Slack
-            channel_mapping (dict): Details for repos by channel_id
+            channel_mapping (list of dict): Details for repos by channel_id
         """
         self.websocket = websocket
         self.access_token = access_token
-        self.channel_id = CHANNEL_ID
         self.channel_mapping = channel_mapping
-        channel_details = channel_mapping[self.channel_id]
-        self.repo_dir = channel_details['repo_dir']
 
-        self.org, self.repo = get_org_and_repo(self.repo_dir)
+        # Temporary hack
+        channel_details = channel_mapping[0]
+        self.channel_id = channel_details['channel_id']
+        self.repo_url = channel_details['repo_url']
+
+        self.org, self.repo = get_org_and_repo(self.repo_url)
         self.rc_hash_url = channel_details['rc_hash_url']
         self.prod_hash_url = channel_details['prod_hash_url']
         self.message_count = 0
@@ -112,12 +116,12 @@ class Bot:
         """
         Start a new release and wait for deployment
         """
-        release(self.repo_url, self.version)
+        #release(self.repo_url, version)
 
-        await self.say("Behold, my new evil scheme - release {}! Now deploying to RC...".format(self.version))
+        await self.say("Behold, my new evil scheme - release {}! Now deploying to RC...".format(version))
 
         await wait_for_deploy(self.repo_url, self.rc_hash_url, "release-candidate")
-        unchecked_authors = get_unchecked_authors(self.org, self.repo, self.version)
+        unchecked_authors = get_unchecked_authors(self.org, self.repo, version)
         slack_usernames = self.translate_slack_usernames(unchecked_authors)
         await self.say(
             "Release {version} was deployed! PR is up at <{pr_url}|Release {version}>."
@@ -148,9 +152,9 @@ class Bot:
         """
         Merge the release candidate into the release branch, tag it, merge to master, and wait for deployment
         """
-        finish_release(self.repo_url, self.version)
+        finish_release(self.repo_url, version)
 
-        await self.say("Merged evil scheme {}! Now deploying to production...".format(self.version))
+        await self.say("Merged evil scheme {}! Now deploying to production...".format(version))
         await wait_for_deploy(self.repo_url, self.prod_hash_url, "release")
         await self.say(
             "My evil scheme {} has been released to production. "
@@ -172,30 +176,54 @@ class Bot:
             )
 
     async def delay_message(self, version):
-        """sleep until 10am next day, then message"""
+        """
+        sleep until 10am next day, then message
+
+        Args:
+            version (str): The version number for the release
+        """
         now = datetime.now()
         tomorrow_at_10 = next_workday_at_10(now)
         await asyncio.sleep((tomorrow_at_10 - now).total_seconds())
         await self.message_if_unchecked(version)
 
-    async def handle_message(self, content, loop):
-        """handle the message"""
-        if has_command(['release'], content):
-            try:
-                version = get_version_number(content)
-            except BotException as exception:
-                await self.say("{}".format(exception))
+    async def handle_message(self, words, loop):
+        """
+        Handle the message
+
+        Args:
+            words (list of str): the words making up a command
+            loop (asyncio.events.AbstractEventLoop): The asyncio event loop
+        """
+        try:
+            if has_command(['release'], words) or has_command(['start', 'release'], words):
+                version = get_version_number(words[-1])
+
+                loop.create_task(self.delay_message(version))
+                await self.do_release(version)
+                await self.wait_for_checkboxes(version)
+            elif has_command(['finish', 'release'], words):
+                version = get_version_number(words[-1])
+
+                await self.finish_release(version)
+            elif has_command(['wait', 'for', 'checkboxes'], words):
+                version = get_version_number(words[-1])
+                await self.wait_for_checkboxes(version)
+            elif has_command(['hi'], words):
+                await self.say(
+                    "A Mongol army? Really? Uh, I must have had the dial set for"
+                    " 'Hun.' Oh, well, you don't look a gift horde in the mouth, so... hello! "
+                )
+            elif has_command(['what', 'are', 'you', 'doing'], words):
+                await self.say("Tasks: {}".format(asyncio.Task.all_tasks()))
             else:
-                if has_command(['start', 'release'], content):
-                    loop.create_task(self.delay_message(version))
-                    await self.do_release(version)
-                    await self.wait_for_checkboxes(version)
-                elif has_command(['finish', 'release'], content):
-                    await self.finish_release(version)
-                else:
-                    await self.say("Oooopps! Invalid command format")
-        else:
-            await self.say("Want to start a release? hhhmmmmm")
+                await self.say("Oooopps! Invalid command format")
+        except BotException as ex:
+            log.exception("A BotException was raised:")
+            await self.say("Oops, something went wrong: {}".format(ex))
+        except:
+            log.exception("Exception found when handling a message")
+            await self.say("Oops, something went wrong...")
 
 
 class BotException(Exception):
@@ -208,21 +236,37 @@ class BotException(Exception):
         self.message = message
 
 
-def get_version_number(content):
-    """return version number at the end of the message"""
+def get_version_number(text):
+    """
+    return version number at the end of the message
+
+    Args:
+        text (str): The word containing the version number
+    """
     pattern = re.compile('^[0-9.]+$')
-    if pattern.match(content[-1]):
-        return content[-1]
+    if pattern.match(text):
+        return text
     else:
         raise BotException("Invalid version number")
 
 
-def has_command(words, content):
-    """Check if words are in the message"""
-    for word in words:
-        if word not in content:
-            return False
-    return True
+def has_command(command_words, input_words):
+    """
+    Check if words start the message
+
+    Args:
+        command_words (list of str):
+            words making up the command we are looking for
+        input_words (list of str):
+            words making up the content of the message
+
+    Returns:
+        bool:
+            True if this message is the given command
+    """
+    command_words = [word.lower() for word in command_words]
+    input_words = [word.lower() for word in input_words]
+    return command_words == input_words[:len(command_words)]
 
 
 def main():
@@ -237,13 +281,13 @@ def main():
 
     # these are temporary values for now
     mm_urls = {
-        'repo_dir': os.environ.get('REPO_DIR'),
+        'repo_url': "git@github.com:mitodl/micromasters.git",
         'rc_hash_url': "https://micromasters-rc.herokuapp.com/static/hash.txt",
-        'prod_hash_url': "https://micromasters.mit.edu/static/hash.txt"
+        'prod_hash_url': "https://micromasters.mit.edu/static/hash.txt",
+        'channel_id': 'C67SGCU9H',
+        #G1VK0EDGA
     }
-    channel_mapping = {
-        CHANNEL_ID: mm_urls
-    }
+    channel_mapping = [mm_urls]
 
     resp = requests.post("https://slack.com/api/rtm.connect", data={
         "token": bot_access_token,
@@ -260,9 +304,12 @@ def main():
                 message = json.loads(message)
                 if message.get('type') == 'message':
                     content = message.get('text')
-                    if content.startswith("<@{}>".format(doof_id)):
-                        content = content.lower().split()[1:]
-                        await bot.handle_message(content, loop)
+                    if content is not None:
+                        all_words = content.strip().split()
+                        if len(all_words) > 0:
+                            message_handle, *words = all_words
+                            if message_handle in ("<@{}>".format(doof_id), "@doof"):
+                                loop.create_task(bot.handle_message(words, loop))
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(connect_to_message_server(loop))
