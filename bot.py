@@ -14,7 +14,12 @@ import websockets
 import requests
 
 from finish_release import finish_release
-from release import release
+from release import (
+    create_release_notes,
+    init_working_dir,
+    release,
+    update_version,
+)
 from lib import (
     get_org_and_repo,
     get_release_pr,
@@ -183,6 +188,25 @@ class Bot:
             "And by 'released', I mean completely...um...leased.".format(version)
         )
 
+    async def commits_since_last_release(self, repo_info):
+        """
+        Have doof show the release notes since the last release
+
+        Args:
+            repo_info (RepoInfo): The info for a repo
+        """
+        with init_working_dir(repo_info.repo_url):
+            last_version = update_version("9.9.9")
+
+            release_notes = create_release_notes(last_version, with_checkboxes=False)
+        await self.say(
+            repo_info.channel_id,
+            "Release notes since {version}...\n\n{notes}".format(
+                version=last_version,
+                notes=release_notes,
+            ),
+        )
+
     async def message_if_unchecked(self, repo_info, version):
         """
         Send a message next morning if any boxes are not yet checked off
@@ -216,18 +240,21 @@ class Bot:
         await asyncio.sleep((tomorrow_at_10 - now).total_seconds())
         await self.message_if_unchecked(repo_info, version)
 
-    async def handle_message(self, repo_info, words, loop):
+    async def handle_message(self, channel_id, repo_info, words, loop):
         """
         Handle the message
 
         Args:
-            repo_info (RepoInfo): The RepoInfo corresponding to the channel where this message was received
+            channel_id (str): The channel id
+            repo_info (RepoInfo): The repo info, if the channel id can be found for that repo
             words (list of str): the words making up a command
             loop (asyncio.events.AbstractEventLoop): The asyncio event loop
         """
-        channel_id = repo_info.channel_id
+
         try:
-            if has_command(['release'], words) or has_command(['start', 'release'], words):
+            if has_command(['release', 'notes'], words):
+                await self.commits_since_last_release(repo_info)
+            elif has_command(['release'], words) or has_command(['start', 'release'], words):
                 version = get_version_number(words[-1])
 
                 loop.create_task(self.delay_message(repo_info, version))
@@ -246,8 +273,6 @@ class Bot:
                     "A Mongol army? Really? Uh, I must have had the dial set for"
                     " 'Hun.' Oh, well, you don't look a gift horde in the mouth, so... hello! "
                 )
-            elif has_command(['what', 'are', 'you', 'doing'], words):
-                await self.say(channel_id, "Tasks: {}".format(asyncio.Task.all_tasks()))
             else:
                 await self.say(channel_id, "Oooopps! Invalid command format")
         except BotException as ex:
@@ -346,17 +371,18 @@ def main():
                     continue
 
                 channel_id = message.get('channel')
+                channel_repo_info = None
                 for repo_info in repos_info:
                     if repo_info.channel_id == channel_id:
-                        break
-                else:
-                    continue
+                        channel_repo_info = repo_info
 
                 all_words = content.strip().split()
                 if len(all_words) > 0:
                     message_handle, *words = all_words
                     if message_handle in ("<@{}>".format(doof_id), "@doof"):
-                        loop.create_task(bot.handle_message(repo_info, words, loop))
+                        loop.create_task(
+                            bot.handle_message(channel_id, channel_repo_info, words, loop)
+                        )
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(connect_to_message_server(loop))
