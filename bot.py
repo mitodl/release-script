@@ -390,7 +390,6 @@ def main():
         try:
             loop.run_until_complete(connect_to_message_server(loop))
         except ConnectionClosed:
-            # TODO: better reconnect code
             # wait 15 seconds then try again
             loop.run_until_complete(asyncio.sleep(15))
 
