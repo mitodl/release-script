@@ -9,9 +9,10 @@ import sys
 import logging
 import json
 import re
-import websockets
 
 import requests
+from websockets.exceptions import ConnectionClosed
+import websockets
 
 from finish_release import finish_release
 from release import (
@@ -385,7 +386,13 @@ def main():
                         )
 
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(connect_to_message_server(loop))
+    while True:
+        try:
+            loop.run_until_complete(connect_to_message_server(loop))
+        except ConnectionClosed:
+            # TODO: better reconnect code
+            # wait 15 seconds then try again
+            loop.run_until_complete(asyncio.sleep(15))
 
 
 if __name__ == "__main__":
