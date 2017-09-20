@@ -278,7 +278,7 @@ class Bot:
         except BotException as ex:
             log.exception("A BotException was raised:")
             await self.say(channel_id, "Oops, something went wrong: {}".format(ex))
-        except:
+        except:  # pylint: disable=bare-except
             log.exception("Exception found when handling a message")
             await self.say(channel_id, "Oops, something went wrong...")
 
