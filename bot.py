@@ -348,6 +348,18 @@ def main():
             "https://micromasters-rc.herokuapp.com/static/hash.txt",
             "https://micromasters.mit.edu/static/hash.txt",
             'G1VK0EDGA',
+        ),
+        RepoInfo(
+            "git@github.com:mitodl/bootcamp-ecommerce.git",
+            "https://bootcamp-ecommerce-rc.herokuapp.com/static/hash.txt",
+            "https://bootcamp-ecommerce.mit.edu/static/hash.txt",
+            'G49GL0CVA',
+        ),
+        RepoInfo(
+            "git@github.com:mitodl/open-discussions.git",
+            "https://odl-open-discussions-rc.herokuapp.com/static/hash.txt",
+            "https://odl-open-discussions.herokuapp.com/static/hash.txt",
+            'G5RHT8GDD',
         )
     ]
 
