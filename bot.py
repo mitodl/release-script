@@ -352,7 +352,7 @@ def main():
         RepoInfo(
             "git@github.com:mitodl/bootcamp-ecommerce.git",
             "https://bootcamp-ecommerce-rc.herokuapp.com/static/hash.txt",
-            "https://bootcamp-ecommerce.mit.edu/static/hash.txt",
+            "https://bootcamp-ecommerce.herokuapp.com/static/hash.txt",
             'G49GL0CVA',
         ),
         RepoInfo(
