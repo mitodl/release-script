@@ -14,9 +14,13 @@ def main():
     parser.add_argument("--org", default="mitodl")
     args = parser.parse_args()
 
+    if "." in args.repo or "/" in args.repo:
+        raise Exception("repo is just the repo name, not a URL or directory (ie 'micromasters')")
+
     loop = asyncio.get_event_loop()
     loop.run_until_complete(wait_for_checkboxes(args.org, args.repo, args.version))
     loop.close()
+
 
 if __name__ == "__main__":
     main()
