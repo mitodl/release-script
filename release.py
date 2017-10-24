@@ -138,9 +138,11 @@ def update_version_in_file(root, filename, new_version):
 def update_version(new_version):
     """Update the version from the project and return the old one, or raise an exception if none is found"""
     print("Updating version...")
+    exclude_dirs = ('.cache', '.git', '.settings', )
     version_files = ('settings.py', '__init__.py', 'setup.py')
     for version_filename in version_files:
-        for root, _, filenames in os.walk("."):
+        for root, dirs, filenames in os.walk(".", topdown=True):
+            dirs[:] = [d for d in dirs if d not in exclude_dirs]
             if version_filename in filenames:
                 result = update_version_in_file(root, version_filename, new_version)
                 if result:
