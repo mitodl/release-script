@@ -137,7 +137,7 @@ class Bot:
         slack_usernames = self.translate_slack_usernames(unchecked_authors)
         await self.say(
             channel_id,
-            "Release {version} was deployed! PR is up at <{pr_url}|Release {version}>."
+            "Release {version} was deployed! PR is up at {pr_url}."
             " These people have commits in this release: {authors}".format(
                 version=version,
                 authors=", ".join(slack_usernames),
