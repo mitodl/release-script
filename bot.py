@@ -345,7 +345,7 @@ def main():
     repos_info = [
         RepoInfo(
             "git@github.com:mitodl/micromasters.git",
-            "https://micromasters-rc.herokuapp.com/static/hash.txt",
+            "https://micromasters-rc.odl.mit.edu/static/hash.txt",
             "https://micromasters.mit.edu/static/hash.txt",
             'G1VK0EDGA',
         ),
@@ -360,7 +360,13 @@ def main():
             "https://odl-open-discussions-rc.herokuapp.com/static/hash.txt",
             "https://odl-open-discussions.herokuapp.com/static/hash.txt",
             'G5RHT8GDD',
-        )
+        ),
+        RepoInfo(
+            "git@github.com:mitodl/odl-video-service.git",
+            "https://video-rc.odl.mit.edu/static/hash.txt",
+            "https://video.odl.mit.edu/static/hash.txt",
+            "G5T80SA7L",
+        ),
     ]
 
     resp = requests.post("https://slack.com/api/rtm.connect", data={
