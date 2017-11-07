@@ -16,7 +16,6 @@ from release import (
     dependency_exists,
     DependencyException,
     init_working_dir,
-    parse_version_from_line,
     update_release_notes,
     update_version,
     update_version_in_file,
@@ -53,7 +52,7 @@ def test_repo():
         os.chdir(pwd)
 
 
-def test_update_version(test_repo):
+def test_update_version_settings(test_repo):
     """update_version should return the old version and replace the appropriate file's text with the new version"""
     new_version = "9.9.99"
     old_version = update_version(new_version)
@@ -63,6 +62,24 @@ def test_update_version(test_repo):
     with open("ccxcon/settings.py") as f:
         for line in f.readlines():
             if line.startswith("VERSION = \"{}\"".format(new_version)):
+                found_new_version = True
+                break
+    assert found_new_version, "Unable to find updated version"
+
+
+def test_update_version_init(test_repo):
+    """If we detect a version in a __init__.py file we should update it properly"""
+    old_version = '1.2.3'
+    os.unlink("ccxcon/settings.py")
+    with open("ccxcon/__init__.py", "w") as f:
+        f.write("__version__ = '{}'".format(old_version))
+    new_version = "4.5.6"
+    assert update_version(new_version) == old_version
+
+    found_new_version = False
+    with open("ccxcon/__init__.py") as f:
+        for line in f.readlines():
+            if line.startswith("__version__ = '{}'".format(new_version)):
                 found_new_version = True
                 break
     assert found_new_version, "Unable to find updated version"
@@ -94,16 +111,9 @@ def test_validate_dependencies():
             validate_dependencies()
 
 
-def test_parse_version_from_line():
-    """parse_version_from_line should parse version from the line in the file"""
-    assert parse_version_from_line("version = '0.34.56'") == "0.34.56"
-    assert parse_version_from_line("VERSION=\"0.34.56\"") == "0.34.56"
-
-
 @pytest.mark.parametrize("filename,line", [
     ('settings.py', 'VERSION = \"0.34.56\"'),
     ('__init__.py', '__version__ = \'0.34.56\''),
-    ('setup.py', 'version=\'0.34.56\',')
 ])
 def test_update_version_in_file(filename, line):
     """update_version_in_file should update the version in the file and return the old version, if found"""
