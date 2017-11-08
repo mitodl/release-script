@@ -108,8 +108,8 @@ def update_version_in_file(root, filename, new_version):
                     )
                 elif filename == "__init__.py":
                     updated_line = re.sub(
-                        "__version__ ?=.*# pragma: no cover",
-                        "__version__ = '{version}'  # pragma: no cover".format(version=new_version),
+                        "__version__ ?=.*",
+                        "__version__ = '{version}'".format(version=new_version),
                         line,
                     )
                 elif filename == "setup.py":
