@@ -35,12 +35,18 @@ OTHER_PR = {
     "html_url": "https://github.com/mitodl/micromasters/pull/2985",
     "body": "not a release",
     "title": "not a release",
+    "head": {
+        "ref": "other-branch"
+    },
 }
 RELEASE_PR = {
     "url": "https://api.github.com/repos/mitodl/micromasters/pulls/2993",
     "html_url": "https://github.com/mitodl/micromasters/pull/2993",
     "body": FAKE_RELEASE_PR_BODY,
     "title": "Release 0.53.3",
+    "head": {
+        "ref": "release-candidate"
+    },
 }
 FAKE_PULLS = [OTHER_PR, RELEASE_PR]
 
@@ -70,25 +76,22 @@ def test_get_release_pr():
     """get_release_pr should grab a release from GitHub's API"""
     org = 'org'
     repo = 'repo'
-    version = '0.53.3'
 
     with patch('lib.requests.get', return_value=Mock(json=Mock(return_value=FAKE_PULLS))) as get_mock:
-        pulls = get_release_pr(org, repo, version)
+        pr = get_release_pr(org, repo)
     get_mock.assert_called_once_with("https://api.github.com/repos/{org}/{repo}/pulls".format(
         org=org,
         repo=repo,
     ))
-    assert pulls == RELEASE_PR
+    assert pr == RELEASE_PR
 
 
 def test_get_release_pr_no_pulls():
-    """If there is no release PR, an exception should be raised"""
-    with pytest.raises(Exception) as ex, patch(
-        'lib.requests.get', return_value=Mock(json=Mock(return_value=FAKE_PULLS))
+    """If there is no release PR it should return None"""
+    with patch(
+        'lib.requests.get', return_value=Mock(json=Mock(return_value=[OTHER_PR]))
     ):
-        get_release_pr('org', 'repo', 'version')
-
-    assert ex.value.args[0] == "No release pull request on server"
+        assert get_release_pr('org', 'repo-missing') is None
 
 
 def test_too_many_releases():
@@ -97,7 +100,7 @@ def test_too_many_releases():
     with pytest.raises(Exception) as ex, patch(
         'lib.requests.get', return_value=Mock(json=Mock(return_value=pulls))
     ):
-        get_release_pr('org', 'repo', '0.53.3')
+        get_release_pr('org', 'repo')
 
     assert ex.value.args[0] == "More than one release pull request open at the same time"
 
@@ -109,11 +112,10 @@ def test_get_unchecked_authors():
     """
     org = 'org'
     repo = 'repo'
-    version = 'version'
     with patch('lib.get_release_pr', autospec=True, return_value=RELEASE_PR) as get_release_pr_mock:
-        unchecked = get_unchecked_authors(org, repo, version)
+        unchecked = get_unchecked_authors(org, repo)
     assert unchecked == {"Alice Pote"}
-    get_release_pr_mock.assert_called_once_with(org, repo, version)
+    get_release_pr_mock.assert_called_once_with(org, repo)
 
 
 def test_get_org_and_repo():

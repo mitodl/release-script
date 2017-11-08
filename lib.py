@@ -65,14 +65,13 @@ def parse_checkmarks(body):
     return commits
 
 
-def get_release_pr(org, repo, version):
+def get_release_pr(org, repo):
     """
     Look up the release pull request
 
     Args:
         org (str): The github organization (eg mitodl)
         repo (str): The github repository (eg micromasters)
-        version (str): A version string used to match the PR title
 
     Returns:
         dict: The information about the release pull request
@@ -81,25 +80,58 @@ def get_release_pr(org, repo, version):
         org=org,
         repo=repo,
     )).json()
-    release_pulls = [pull for pull in pulls if pull['title'] == "Release {}".format(version)]
+    release_pulls = [pull for pull in pulls if pull['head']['ref'] == "release-candidate"]
     if len(release_pulls) == 0:
-        raise ReleaseException("No release pull request on server")
+        return None
     elif len(release_pulls) > 1:
-        raise ReleaseException("More than one release pull request open at the same time")
+        # Shouldn't happen since we look up by branch
+        raise Exception("More than one release pull request open at the same time")
 
     return release_pulls[0]
 
 
-def get_unchecked_authors(org, repo, version):
+def get_release_pr_url(release_pr):
+    """
+    Look up the URL for the release pull request
+
+    Args:
+        release_pr (dict): The release PR info
+
+    Returns:
+        str: The URL for the release
+    """
+    return release_pr['html_url']
+
+
+def get_release_pr_version(release_pr):
+    """
+    Get the version for the release PR
+
+    Args:
+        release_pr (dict): The release PR info
+
+    Returns:
+        str: The version for the release
+    """
+    title = release_pr['title']
+    match = re.match(r'^Release (?P<version>\d+\.\d+\.\d+)$', title)
+    if not match:
+        raise ReleaseException("Release PR title has an unexpected format")
+    return match.group('version')
+
+
+def get_unchecked_authors(org, repo):
     """
     Returns list of authors who have not yet checked off their checkboxes
 
     Args:
         org (str): The github organization (eg mitodl)
         repo (str): The github repository (eg micromasters)
-        version (str): A version string used to match the PR title
     """
-    body = get_release_pr(org, repo, version)['body']
+    release_pr = get_release_pr(org, repo)
+    if not release_pr:
+        raise ReleaseException("No release PR found")
+    body = release_pr['body']
     commits = parse_checkmarks(body)
     return {commit['author_name'] for commit in commits if not commit['checked']}
 
@@ -185,20 +217,19 @@ def match_user(slack_users, author_name, threshold=0.6):
         return author_name
 
 
-async def wait_for_checkboxes(org, repo, version):
+async def wait_for_checkboxes(org, repo):
     """
     Wait for checkboxes, polling every 60 seconds
 
     Args:
         org (str): The github organization (eg mitodl)
         repo (str): The github repository (eg micromasters)
-        version (str): A version string used to match the PR title
     """
     print("Waiting for checkboxes to be checked. Polling every 60 seconds...")
     error_count = 0
     while True:
         try:
-            unchecked_authors = get_unchecked_authors(org, repo, version)
+            unchecked_authors = get_unchecked_authors(org, repo)
             if len(unchecked_authors) == 0:
                 break
 
