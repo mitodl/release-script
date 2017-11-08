@@ -108,7 +108,6 @@ def update_version_in_file(root, filename, new_version):
                     update_count += 1
                     old_version = ast.literal_eval(match.group('version').strip())
                     updated_line = re.sub(regex, "version='{}'".format(new_version), line)
-                    print(line, old_version, updated_line)
 
             file_lines.append("{}\n".format(updated_line))
 
