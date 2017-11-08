@@ -6,4 +6,5 @@ node_js:
 install:
  - pip install -r test_requirements.txt
  - npm install -g git-release-notes
-script: tox
+
+script: tox && coverage xml && codecov
