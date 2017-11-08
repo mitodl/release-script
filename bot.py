@@ -20,6 +20,7 @@ from release import (
     init_working_dir,
     release,
     update_version,
+    SCRIPT_DIR,
 )
 from lib import (
     get_org_and_repo,
@@ -34,6 +35,7 @@ from wait_for_deploy import wait_for_deploy
 
 
 RepoInfo = namedtuple('RepoInfo', [
+    'name',
     'repo_url',
     'rc_hash_url',
     'prod_hash_url',
@@ -42,6 +44,26 @@ RepoInfo = namedtuple('RepoInfo', [
 
 
 log = logging.getLogger(__name__)
+
+
+def load_repos_info():
+    """
+    Load repo information from JSON
+
+    Returns:
+        list of RepoInfo: Information about the repositories
+    """
+    with open(os.path.join(SCRIPT_DIR, "repos_info.json")) as f:
+        repos_info = json.load(f)
+        return [
+            RepoInfo(
+                name=repo_info['name'],
+                repo_url=repo_info['repo_url'],
+                rc_hash_url=repo_info['rc_hash_url'],
+                prod_hash_url=repo_info['prod_hash_url'],
+                channel_id=repo_info['channel_id'],
+            ) for repo_info in repos_info['repos']
+        ]
 
 
 def in_script_dir(file_path):
@@ -341,27 +363,7 @@ def main():
     if not bot_access_token:
         raise Exception("Missing BOT_ACCESS_TOKEN")
 
-    # these are temporary values for now
-    repos_info = [
-        RepoInfo(
-            "git@github.com:mitodl/micromasters.git",
-            "https://micromasters-rc.herokuapp.com/static/hash.txt",
-            "https://micromasters.mit.edu/static/hash.txt",
-            'G1VK0EDGA',
-        ),
-        RepoInfo(
-            "git@github.com:mitodl/bootcamp-ecommerce.git",
-            "https://bootcamp-ecommerce-rc.herokuapp.com/static/hash.txt",
-            "https://bootcamp-ecommerce.herokuapp.com/static/hash.txt",
-            'G49GL0CVA',
-        ),
-        RepoInfo(
-            "git@github.com:mitodl/open-discussions.git",
-            "https://odl-open-discussions-rc.herokuapp.com/static/hash.txt",
-            "https://odl-open-discussions.herokuapp.com/static/hash.txt",
-            'G5RHT8GDD',
-        )
-    ]
+    repos_info = load_repos_info()
 
     resp = requests.post("https://slack.com/api/rtm.connect", data={
         "token": bot_access_token,

@@ -1,0 +1,32 @@
+{
+  "repos": [
+    {
+      "name": "micromasters",
+      "repo_url": "git@github.com:mitodl/micromasters.git",
+      "rc_hash_url": "https://micromasters-rc.herokuapp.com/static/hash.txt",
+      "prod_hash_url": "https://micromasters.mit.edu/static/hash.txt",
+      "channel_id": "G1VK0EDGA"
+    },
+    {
+      "name": "bootcamp-ecommerce",
+      "repo_url": "git@github.com:mitodl/bootcamp-ecommerce.git",
+      "rc_hash_url": "https://bootcamp-ecommerce-rc.herokuapp.com/static/hash.txt",
+      "prod_hash_url": "https://bootcamp-ecommerce.herokuapp.com/static/hash.txt",
+      "channel_id": "G49GL0CVA"
+    },
+    {
+      "name": "open-discussions",
+      "repo_url": "git@github.com:mitodl/open-discussions.git",
+      "rc_hash_url": "https://odl-open-discussions-rc.herokuapp.com/static/hash.txt",
+      "prod_hash_url": "https://odl-open-discussions.herokuapp.com/static/hash.txt",
+      "channel_id": "G5RHT8GDD"
+    },
+    {
+      "name": "odl-video-service",
+      "repo_url": "git@github.com:mitodl/odl-video-service.git",
+      "rc_hash_url": "https://video-rc.odl.mit.edu/static/hash.txt",
+      "prod_hash_url": "https://video.odl.mit.edu/static/hash.txt",
+      "channel_id": "G5T80SA7L"
+    }
+  ]
+}
