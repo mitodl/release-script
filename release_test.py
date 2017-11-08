@@ -61,7 +61,7 @@ def test_update_version_settings(test_repo):
     found_new_version = False
     with open("ccxcon/settings.py") as f:
         for line in f.readlines():
-            if line.startswith("VERSION = \"{}\"".format(new_version)):
+            if line.strip() == "VERSION = \"{}\"".format(new_version):
                 found_new_version = True
                 break
     assert found_new_version, "Unable to find updated version"
@@ -79,7 +79,32 @@ def test_update_version_init(test_repo):
     found_new_version = False
     with open("ccxcon/__init__.py") as f:
         for line in f.readlines():
-            if line.startswith("__version__ = '{}'".format(new_version)):
+            if line.strip() == "__version__ = '{}'".format(new_version):
+                found_new_version = True
+                break
+    assert found_new_version, "Unable to find updated version"
+
+
+def test_update_version_setup(test_repo):
+    """If we detect a version in setup.py we should update it properly"""
+    old_version = '0.2.0'
+    os.unlink("ccxcon/settings.py")
+    with open("setup.py", "w") as f:
+        f.write("""
+setup(
+    name='pylmod',
+    version='0.2.0',
+    license='BSD',
+    author='MIT ODL Engineering',
+    zip_safe=True,
+)        """)
+    new_version = '4.5.6'
+    assert update_version(new_version) == old_version
+
+    found_new_version = False
+    with open("setup.py") as f:
+        for line in f.readlines():
+            if line.strip() == "version='{}',".format(new_version):
                 found_new_version = True
                 break
     assert found_new_version, "Unable to find updated version"

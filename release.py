@@ -93,14 +93,22 @@ def update_version_in_file(root, filename, new_version):
                 if match:
                     update_count += 1
                     old_version = ast.literal_eval(match.group('version').strip())
-                    updated_line = re.sub(regex, "VERSION = \"{version}\"".format(version=new_version), line)
+                    updated_line = re.sub(regex, "VERSION = \"{}\"".format(new_version), line)
             elif filename == "__init__.py":
                 regex = "^__version__ ?=(?P<version>[^#]*)"
                 match = re.match(regex, line)
                 if match:
                     update_count += 1
                     old_version = ast.literal_eval(match.group('version').strip())
-                    updated_line = re.sub(regex, "__version__ = '{version}'".format(version=new_version), line)
+                    updated_line = re.sub(regex, "__version__ = '{}'".format(new_version), line)
+            elif filename == "setup.py":
+                regex = "version=(?P<version>[^,#]*)"
+                match = re.match(regex, line)
+                if match:
+                    update_count += 1
+                    old_version = ast.literal_eval(match.group('version').strip())
+                    updated_line = re.sub(regex, "version='{}'".format(new_version), line)
+                    print(line, old_version, updated_line)
 
             file_lines.append("{}\n".format(updated_line))
 
@@ -124,7 +132,7 @@ def update_version(new_version):
     """Update the version from the project and return the old one, or raise an exception if none is found"""
     print("Updating version...")
     exclude_dirs = ('.cache', '.git', '.settings', )
-    version_files = ('settings.py', '__init__.py')
+    version_files = ('settings.py', '__init__.py', 'setup.py')
     found_version_filename = None
     old_version = None
     for version_filename in version_files:
