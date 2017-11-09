@@ -10,6 +10,7 @@ import logging
 import json
 import re
 
+from dateutil.parser import parse
 import requests
 from websockets.exceptions import ConnectionClosed
 import websockets
@@ -19,6 +20,7 @@ from exception import (
     ReleaseException,
 )
 from finish_release import finish_release
+from github import calculate_karma
 from release import (
     create_release_notes,
     init_working_dir,
@@ -31,6 +33,7 @@ from lib import (
     get_release_pr,
     get_unchecked_authors,
     match_user,
+    now_in_utc,
     next_workday_at_10,
     release_manager_name,
     wait_for_checkboxes,
@@ -83,20 +86,35 @@ def in_script_dir(file_path):
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), file_path)
 
 
+def get_envs():
+    """Get required environment variables"""
+    required = ('SLACK_ACCESS_TOKEN', 'BOT_ACCESS_TOKEN', 'GITHUB_ACCESS_TOKEN')
+
+    for key in required:
+        value = os.environ.get(key)
+        if not value:
+            raise Exception("Missing {}".format(key))
+    return {
+        key: os.environ.get(key) for key in required
+    }
+
+
 # pylint: disable=too-many-instance-attributes,too-many-arguments
 class Bot:
     """Slack bot used to manage the release"""
 
-    def __init__(self, websocket, access_token):
+    def __init__(self, websocket, slack_access_token, github_access_token):
         """
         Create the slack bot
 
         Args:
             websocket (websockets.client.WebSocketClientProtocol): websocket for sending/receiving messages
-            access_token (str): The OAuth access token used to interact with Slack
+            slack_access_token (str): The OAuth access token used to interact with Slack
+            github_access_token (str): The Github access token used to interact with Github
         """
         self.websocket = websocket
-        self.access_token = access_token
+        self.slack_access_token = slack_access_token
+        self.github_access_token = github_access_token
         self.message_count = 0
 
     def lookup_users(self):
@@ -104,7 +122,7 @@ class Bot:
         Get users list from slack
         """
         resp = requests.post("https://slack.com/api/users.list", data={
-            "token": self.access_token
+            "token": self.slack_access_token
         })
         resp.raise_for_status()
         return resp.json()['members']
@@ -293,6 +311,20 @@ class Bot:
         await asyncio.sleep((tomorrow_at_10 - now).total_seconds())
         await self.message_if_unchecked(repo_info)
 
+    async def karma(self, repo_info, start_date):
+        """
+        Print out PR karma for each user
+        """
+        await self.say(
+            repo_info.channel_id,
+            "Pull request karma:\n{}".format(
+                "\n".join(
+                    "{name}: {karma}".format(name=name, karma=karma) for name, karma in
+                    calculate_karma(self.github_access_token, start_date, now_in_utc().date())
+                )
+            )
+        )
+
     async def handle_message(self, channel_id, repo_info, words, loop):
         """
         Handle the message
@@ -323,6 +355,9 @@ class Bot:
                     "A Mongol army? Really? Uh, I must have had the dial set for"
                     " 'Hun.' Oh, well, you don't look a gift horde in the mouth, so... hello! "
                 )
+            elif has_command(['karma'], words):
+                start_date = parse(words[1]).date()
+                await self.karma(repo_info, start_date)
             else:
                 await self.say(channel_id, "Oooopps! Invalid command format")
         except (InputException, ReleaseException) as ex:
@@ -374,18 +409,12 @@ def has_command(command_words, input_words):
 
 def main():
     """main function for bot command"""
-    slack_access_token = os.environ.get('SLACK_ACCESS_TOKEN')
-    if not slack_access_token:
-        raise Exception("Missing SLACK_ACCESS_TOKEN")
-
-    bot_access_token = os.environ.get('BOT_ACCESS_TOKEN')
-    if not bot_access_token:
-        raise Exception("Missing BOT_ACCESS_TOKEN")
+    envs = get_envs()
 
     repos_info = load_repos_info()
 
     resp = requests.post("https://slack.com/api/rtm.connect", data={
-        "token": bot_access_token,
+        "token": envs['BOT_ACCESS_TOKEN'],
     })
     resp.raise_for_status()
     doof_id = resp.json()['self']['id']
@@ -393,7 +422,7 @@ def main():
     async def connect_to_message_server(loop):
         """Setup connection with websocket server"""
         async with websockets.connect(resp.json()['url']) as websocket:
-            bot = Bot(websocket, slack_access_token)
+            bot = Bot(websocket, envs['SLACK_ACCESS_TOKEN'], envs['GITHUB_ACCESS_TOKEN'])
             while True:
                 message = await websocket.recv()
                 print(message)

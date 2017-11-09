@@ -1,7 +1,7 @@
 """Shared functions for release script Python files"""
 import asyncio
 from collections import namedtuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
 import re
 from subprocess import check_output
@@ -248,3 +248,11 @@ async def wait_for_checkboxes(org, repo):
         print(".", end='')
         sys.stdout.flush()
     print("All checkboxes are now checked")
+
+
+def now_in_utc():
+    """
+    Returns:
+        Returns current datetime in UTC
+    """
+    return datetime.now().replace(tzinfo=timezone.utc)

@@ -13,6 +13,9 @@
     },
     "SLACK_ACCESS_TOKEN": {
       "description": "Slack access token"
+    },
+    "GITHUB_ACCESS_TOKEN": {
+      "description": "Github access token"
     }
   },
   "keywords": [
