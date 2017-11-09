@@ -1,0 +1,26 @@
+{
+  "addons": [
+  ],
+  "buildpacks": [
+    {
+      "url": "https://github.com/heroku/heroku-buildpack-python"
+    }
+  ],
+  "description": "Release script for MIT ODL engineering projects",
+  "env": {
+    "BOT_ACCESS_TOKEN": {
+      "description": "Slack Bot access token"
+    },
+    "SLACK_ACCESS_TOKEN": {
+      "description": "Slack access token"
+    }
+  },
+  "keywords": [
+    "Python",
+    "MIT",
+    "Office of Digital Learning"
+  ],
+  "name": "odl-release-script",
+  "repository": "https://github.com/mitodl/release-script",
+  "website": "https://github.com/mitodl/release-script"
+}
