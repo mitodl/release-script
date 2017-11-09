@@ -20,7 +20,7 @@ from exception import (
     ReleaseException,
 )
 from finish_release import finish_release
-from github import calculate_karma
+from github import calculate_karma, needs_review
 from release import (
     create_release_notes,
     init_working_dir,
@@ -354,6 +354,24 @@ class Bot:
             )
         )
 
+    async def needs_review(self, repo_info):
+        """
+        Print out what PRs need review
+        """
+        await self.say(
+            repo_info.channel_id,
+            "These PRs need review and are unassigned:\n{}".format(
+                "\n".join(
+                    "{repo}: {title} {url}".format(
+                        repo=repo,
+                        title=title,
+                        url=url,
+                    ) for repo, title, url in
+                    needs_review(self.github_access_token)
+                )
+            )
+        )
+
     async def handle_message(self, channel_id, repo_info, words, loop):
         """
         Handle the message
@@ -387,6 +405,8 @@ class Bot:
             elif has_command(['karma'], words):
                 start_date = parse(words[1]).date()
                 await self.karma(repo_info, start_date)
+            elif has_command(['what', 'needs', 'review'], words):
+                await self.needs_review(repo_info)
             else:
                 await self.say(channel_id, "Oooopps! Invalid command format")
         except (InputException, ReleaseException) as ex:
