@@ -189,7 +189,7 @@ class Bot:
         channel_id = repo_info.channel_id
         await self.say(
             channel_id,
-            "Wait, wait. Time out. My evil plan {project} isn't evil enough "
+            "Wait, wait. Time out. My evil plan for {project} isn't evil enough "
             "until all the checkboxes are checked...".format(
                 project=repo_info.name,
             )
