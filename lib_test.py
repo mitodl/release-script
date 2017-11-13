@@ -99,7 +99,7 @@ def test_too_many_releases():
     ):
         get_release_pr('org', 'repo', '0.53.3')
 
-    assert ex.value.args[0] == "Too many release pull requests"
+    assert ex.value.args[0] == "More than one release pull request open at the same time"
 
 
 def test_get_unchecked_authors():

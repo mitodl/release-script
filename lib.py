@@ -8,6 +8,8 @@ import sys
 
 import requests
 
+from exception import ReleaseException
+
 
 def release_manager_name():
     """
@@ -81,9 +83,9 @@ def get_release_pr(org, repo, version):
     )).json()
     release_pulls = [pull for pull in pulls if pull['title'] == "Release {}".format(version)]
     if len(release_pulls) == 0:
-        raise Exception("No release pull request on server")
+        raise ReleaseException("No release pull request on server")
     elif len(release_pulls) > 1:
-        raise Exception("Too many release pull requests")
+        raise ReleaseException("More than one release pull request open at the same time")
 
     return release_pulls[0]
 

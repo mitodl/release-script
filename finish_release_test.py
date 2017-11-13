@@ -22,7 +22,7 @@ def test_check_release_tag(test_repo):
     make_empty_commit("User 1", "  Release 0.0.1  ")
     with pytest.raises(VersionMismatchException) as exception:
         check_release_tag("0.0.2")
-    assert exception.value.args[0] == "ERROR: Commit name Release 0.0.1 does not match tag number 0.0.2"
+    assert exception.value.args[0] == "Commit name Release 0.0.1 does not match tag number 0.0.2"
 
     # No exception here
     check_release_tag("0.0.1")

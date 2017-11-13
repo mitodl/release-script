@@ -14,6 +14,10 @@ import requests
 from websockets.exceptions import ConnectionClosed
 import websockets
 
+from exception import (
+    InputException,
+    ReleaseException,
+)
 from finish_release import finish_release
 from release import (
     create_release_notes,
@@ -151,7 +155,13 @@ class Bot:
         channel_id = repo_info.channel_id
         release(repo_url, version)
 
-        await self.say(channel_id, "Behold, my new evil scheme - release {}! Now deploying to RC...".format(version))
+        await self.say(
+            channel_id,
+            "Behold, my new evil scheme - release {version} for {project}! Now deploying to RC...".format(
+                version=version,
+                project=repo_info.name,
+            ),
+        )
 
         await wait_for_deploy(repo_url, repo_info.rc_hash_url, "release-candidate")
         org, repo = get_org_and_repo(repo_url)
@@ -159,11 +169,12 @@ class Bot:
         slack_usernames = self.translate_slack_usernames(unchecked_authors)
         await self.say(
             channel_id,
-            "Release {version} was deployed! PR is up at {pr_url}."
+            "Release {version} for {project} was deployed! PR is up at {pr_url}."
             " These people have commits in this release: {authors}".format(
                 version=version,
                 authors=", ".join(slack_usernames),
                 pr_url=get_release_pr(org, repo, version)['html_url'],
+                project=repo_info.name,
             )
         )
 
@@ -178,7 +189,10 @@ class Bot:
         channel_id = repo_info.channel_id
         await self.say(
             channel_id,
-            "Wait, wait. Time out. My evil plan isn't evil enough until all the checkboxes are checked..."
+            "Wait, wait. Time out. My evil plan for {project} isn't evil enough "
+            "until all the checkboxes are checked...".format(
+                project=repo_info.name,
+            )
         )
         org, repo = get_org_and_repo(repo_info.repo_url)
         await wait_for_checkboxes(org, repo, version)
@@ -203,12 +217,21 @@ class Bot:
         repo_url = repo_info.repo_url
         finish_release(repo_url, version)
 
-        await self.say(channel_id, "Merged evil scheme {}! Now deploying to production...".format(version))
+        await self.say(
+            channel_id,
+            "Merged evil scheme {version} for {project}! Now deploying to production...".format(
+                version=version,
+                project=repo_info.name,
+            ),
+        )
         await wait_for_deploy(repo_url, repo_info.prod_hash_url, "release")
         await self.say(
             channel_id,
-            "My evil scheme {} has been released to production. "
-            "And by 'released', I mean completely...um...leased.".format(version)
+            "My evil scheme {version} for {project} has been released to production. "
+            "And by 'released', I mean completely...um...leased.".format(
+                version=version,
+                project=repo_info.name,
+            )
         )
 
     async def commits_since_last_release(self, repo_info):
@@ -245,8 +268,9 @@ class Bot:
             await self.say(
                 repo_info.channel_id,
                 "What an unexpected surprise! "
-                "The following authors have not yet checked off their boxes: {}".format(
-                    ", ".join(slack_usernames)
+                "The following authors have not yet checked off their boxes for {project}: {names}".format(
+                    names=", ".join(slack_usernames),
+                    project=repo_info.name,
                 )
             )
 
@@ -298,23 +322,15 @@ class Bot:
                 )
             else:
                 await self.say(channel_id, "Oooopps! Invalid command format")
-        except BotException as ex:
+        except (InputException, ReleaseException) as ex:
             log.exception("A BotException was raised:")
             await self.say(channel_id, "Oops, something went wrong: {}".format(ex))
         except:  # pylint: disable=bare-except
             log.exception("Exception found when handling a message")
-            await self.say(channel_id, "Oops, something went wrong...")
-
-
-class BotException(Exception):
-    """Exception raised for invalid input.
-
-    Args:
-        message (str): explanation of the error
-    """
-    def __init__(self, message):
-        super().__init__(message)
-        self.message = message
+            await self.say(
+                channel_id,
+                "No! Perry the Platypus, don't do it! Don't push the self-destruct button. This one right here.",
+            )
 
 
 def get_version_number(text):
@@ -331,7 +347,7 @@ def get_version_number(text):
     if pattern.match(text):
         return text
     else:
-        raise BotException("Invalid version number")
+        raise InputException("Invalid version number")
 
 
 def has_command(command_words, input_words):

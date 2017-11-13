@@ -26,7 +26,7 @@ def check_release_tag(version):
     check_call(['git', 'checkout', 'release-candidate'])
     commit_name = check_output(['git', 'log', '-1', '--pretty=%B']).decode().strip()
     if commit_name != "Release {}".format(version):
-        raise VersionMismatchException("ERROR: Commit name {commit_name} does not match tag number {version}".format(
+        raise VersionMismatchException("Commit name {commit_name} does not match tag number {version}".format(
             commit_name=commit_name,
             version=version,
         ))

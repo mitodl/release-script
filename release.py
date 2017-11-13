@@ -14,6 +14,8 @@ import os
 
 from pkg_resources import parse_version
 
+from exception import ReleaseException
+
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -168,7 +170,7 @@ def create_release_notes(old_version, with_checkboxes):
 def verify_new_commits(old_version):
     """Check if there are new commits to release"""
     if int(check_output(["git", "rev-list", "--count", "v{}..master".format(old_version)])) == 0:
-        raise Exception("No new commits to put in release")
+        raise ReleaseException("No new commits to put in release")
 
 
 def update_release_notes(old_version, new_version):
@@ -232,7 +234,7 @@ def release(repo_url, new_version):
         check_call(["git", "checkout", "-qb", "release-candidate"])
         old_version = update_version(new_version)
         if parse_version(old_version) >= parse_version(new_version):
-            raise Exception("old version is {old} but the new version {new} is not newer".format(
+            raise ReleaseException("old version is {old} but the new version {new} is not newer".format(
                 old=old_version,
                 new=new_version,
             ))
