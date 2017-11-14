@@ -387,6 +387,7 @@ def main():
     resp = requests.post("https://slack.com/api/rtm.connect", data={
         "token": bot_access_token,
     })
+    resp.raise_for_status()
     doof_id = resp.json()['self']['id']
 
     async def connect_to_message_server(loop):
