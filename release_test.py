@@ -16,8 +16,8 @@ from release import (
     dependency_exists,
     DependencyException,
     init_working_dir,
-    parse_version_from_line,
     update_release_notes,
+    UpdateVersionException,
     update_version,
     update_version_in_file,
     validate_dependencies,
@@ -53,7 +53,7 @@ def test_repo():
         os.chdir(pwd)
 
 
-def test_update_version(test_repo):
+def test_update_version_settings(test_repo):
     """update_version should return the old version and replace the appropriate file's text with the new version"""
     new_version = "9.9.99"
     old_version = update_version(new_version)
@@ -62,10 +62,96 @@ def test_update_version(test_repo):
     found_new_version = False
     with open("ccxcon/settings.py") as f:
         for line in f.readlines():
-            if line.startswith("VERSION = \"{}\"".format(new_version)):
+            if line.strip() == "VERSION = \"{}\"".format(new_version):
                 found_new_version = True
                 break
     assert found_new_version, "Unable to find updated version"
+
+
+def test_update_version_init(test_repo):
+    """If we detect a version in a __init__.py file we should update it properly"""
+    old_version = '1.2.3'
+    os.unlink("ccxcon/settings.py")
+    with open("ccxcon/__init__.py", "w") as f:
+        f.write("__version__ = '{}'".format(old_version))
+    new_version = "4.5.6"
+    assert update_version(new_version) == old_version
+
+    found_new_version = False
+    with open("ccxcon/__init__.py") as f:
+        for line in f.readlines():
+            if line.strip() == "__version__ = '{}'".format(new_version):
+                found_new_version = True
+                break
+    assert found_new_version, "Unable to find updated version"
+
+
+def test_update_version_setup(test_repo):
+    """If we detect a version in setup.py we should update it properly"""
+    old_version = '0.2.0'
+    os.unlink("ccxcon/settings.py")
+    with open("setup.py", "w") as f:
+        f.write("""
+setup(
+    name='pylmod',
+    version='0.2.0',
+    license='BSD',
+    author='MIT ODL Engineering',
+    zip_safe=True,
+)        """)
+    new_version = '4.5.6'
+    assert update_version(new_version) == old_version
+
+    found_new_version = False
+    with open("setup.py") as f:
+        for line in f.readlines():
+            if line.strip() == "version='{}',".format(new_version):
+                found_new_version = True
+                break
+    assert found_new_version, "Unable to find updated version"
+
+
+def test_update_version_missing(test_repo):
+    """If there is no version we should return None"""
+    os.unlink("ccxcon/settings.py")
+    contents = """
+setup(
+    name='pylmod',
+)        """
+    with open("setup.py", "w") as f:
+        f.write(contents)
+    with pytest.raises(UpdateVersionException) as ex:
+        update_version("4.5.6")
+    assert ex.value.args[0] == "Unable to find previous version number"
+
+
+def test_update_version_duplicate(test_repo):
+    """If there are two detected versions in different files we should raise an exception"""
+    contents = """
+setup(
+    name='pylmod',
+    version='1.2.3',
+)        """
+    with open("setup.py", "w") as f:
+        f.write(contents)
+    with pytest.raises(UpdateVersionException) as ex:
+        update_version("4.5.6")
+    assert ex.value.args[0] == "Found at least two files with updatable versions: settings.py and setup.py"
+
+
+def test_update_version_duplicate_same_file(test_repo):
+    """If there are two detected versions in the same file we should raise an exception"""
+    contents = """
+setup(
+    name='pylmod',
+    version='1.2.3',
+    version='4.5.6',
+)        """
+    with open("setup.py", "w") as f:
+        f.write(contents)
+    with pytest.raises(UpdateVersionException) as ex:
+        update_version("4.5.6")
+    assert ex.value.args[0] == "Expected only one version for setup.py but found 2"
 
 
 def test_dependency_exists():
@@ -94,16 +180,9 @@ def test_validate_dependencies():
             validate_dependencies()
 
 
-def test_parse_version_from_line():
-    """parse_version_from_line should parse version from the line in the file"""
-    assert parse_version_from_line("version = '0.34.56'") == "0.34.56"
-    assert parse_version_from_line("VERSION=\"0.34.56\"") == "0.34.56"
-
-
 @pytest.mark.parametrize("filename,line", [
     ('settings.py', 'VERSION = \"0.34.56\"'),
     ('__init__.py', '__version__ = \'0.34.56\''),
-    ('setup.py', 'version=\'0.34.56\',')
 ])
 def test_update_version_in_file(filename, line):
     """update_version_in_file should update the version in the file and return the old version, if found"""
@@ -244,6 +323,27 @@ Version 0.1.0
 -------------
 
 - Initial release
+"""
+
+
+def test_update_release_notes_initial(test_repo):
+    """If RELEASE.rst doesn't exist update_release_notes should create it"""
+    check_call(["git", "checkout", "master"])
+    check_call(["git", "tag", "v0.2.0"])
+
+    make_empty_commit("User 1", "A commit between 2 and 3")
+    check_call(["git", "tag", "v0.3.0"])
+    os.unlink("RELEASE.rst")
+    update_release_notes("0.2.0", "0.3.0")
+
+    assert open("RELEASE.rst").read() == """Release Notes
+=============
+
+Version 0.3.0
+-------------
+
+- A commit between 2 and 3
+
 """
 
 

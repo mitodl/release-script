@@ -24,8 +24,8 @@ class DependencyException(Exception):
     """Error if dependency is missing"""
 
 
-class OldVersionException(Exception):
-    """Error if the old version is invalid or cannot be found"""
+class UpdateVersionException(Exception):
+    """Error if the old version is invalid or cannot be found, or if there's a duplicate version"""
 
 
 class VersionMismatchException(Exception):
@@ -73,68 +73,57 @@ def validate_dependencies():
         raise DependencyException("node.js must be version 6.x or higher")
 
 
-def parse_version_from_line(line):
-    """Parse version number from line and return it, or return None if it can't be parsed"""
-    # copied from release.sh, this should be cleaned up
-    line_lower = line.lower()
-    if "version" not in line_lower:
-        return None
-    line_lower = line_lower.replace(" =", " ").replace('"', ' ').replace("'", " ")
-    pieces = line_lower.split()
-    if len(pieces) > 1:
-        return pieces[1]
-    else:
-        return None
-
-
 def update_version_in_file(root, filename, new_version):
     """
     Update the version from the file and return the old version if it's found
     """
     version_filepath = os.path.join(root, filename)
     file_lines = []
-    updated = False
+    update_count = 0
     old_version = None
     with open(version_filepath) as f:
         for line in f.readlines():
-            line_lower = line.lower()
-            version = parse_version_from_line(line_lower)
-            if version is not None and not updated:
-                old_version = version
-                updated = True
-                if filename == "settings.py":
-                    updated_line = re.sub(
-                        "VERSION = .*",
-                        "VERSION = \"{version}\"".format(version=new_version),
-                        line,
-                    )
-                elif filename == "__init__.py":
-                    updated_line = re.sub(
-                        "__version__ ?=.*",
-                        "__version__ = '{version}'".format(version=new_version),
-                        line,
-                    )
-                elif filename == "setup.py":
-                    updated_line = re.sub(
-                        "version=.*",
-                        "version='{version},'".format(version=new_version),
-                        line,
-                    )
-                else:
-                    # Shouldn't get here
-                    raise OldVersionException("Unexpected file {}".format(filename))
-                file_lines.append(updated_line)
-            else:
-                file_lines.append(line)
+            line = line.strip()
+            updated_line = line
 
-    if updated:
+            if filename == "settings.py":
+                regex = r"^VERSION = .*(?P<version>\d+\.\d+\.\d+).*$"
+                match = re.match(regex, line)
+                if match:
+                    update_count += 1
+                    old_version = match.group('version').strip()
+                    updated_line = re.sub(regex, "VERSION = \"{}\"".format(new_version), line)
+            elif filename == "__init__.py":
+                regex = r"^__version__ ?=.*(?P<version>\d+\.\d+\.\d+).*"
+                match = re.match(regex, line)
+                if match:
+                    update_count += 1
+                    old_version = match.group('version').strip()
+                    updated_line = re.sub(regex, "__version__ = '{}'".format(new_version), line)
+            elif filename == "setup.py":
+                regex = r"version=.*(?P<version>\d+\.\d+\.\d+).*"
+                match = re.match(regex, line)
+                if match:
+                    update_count += 1
+                    old_version = match.group('version').strip()
+                    updated_line = re.sub(regex, "version='{}',".format(new_version), line)
+
+            file_lines.append("{}\n".format(updated_line))
+
+    if update_count == 1:
         # Replace contents of file with updated version
         with open(version_filepath, "w") as f:
             for line in file_lines:
                 f.write(line)
         return old_version
+    elif update_count > 1:
+        raise UpdateVersionException("Expected only one version for {file} but found {count}".format(
+            file=filename,
+            count=update_count,
+        ))
 
     # Unable to find old version for this file, but maybe there's another one
+    return None
 
 
 def update_version(new_version):
@@ -142,15 +131,29 @@ def update_version(new_version):
     print("Updating version...")
     exclude_dirs = ('.cache', '.git', '.settings', )
     version_files = ('settings.py', '__init__.py', 'setup.py')
+    found_version_filename = None
+    old_version = None
     for version_filename in version_files:
         for root, dirs, filenames in os.walk(".", topdown=True):
             dirs[:] = [d for d in dirs if d not in exclude_dirs]
             if version_filename in filenames:
-                result = update_version_in_file(root, version_filename, new_version)
-                if result:
-                    return result
+                version = update_version_in_file(root, version_filename, new_version)
+                if version:
+                    if not found_version_filename:
+                        found_version_filename = version_filename
+                        old_version = version
+                    else:
+                        raise UpdateVersionException(
+                            "Found at least two files with updatable versions: {} and {}".format(
+                                found_version_filename,
+                                version_filename,
+                            )
+                        )
 
-    raise OldVersionException("Unable to find previous version number")
+    if not found_version_filename:
+        raise UpdateVersionException("Unable to find previous version number")
+
+    return old_version
 
 
 def create_release_notes(old_version, with_checkboxes):

@@ -143,8 +143,8 @@ If the test works, upload to the real deal:
 3.  The ``util`` directory contains the templates to format the release notes
     and the GitHub descriptions.
 4.  The script expects to find the current release number in either the Django
-    ``settings.py`` file or in the ``setup.py`` file in the project root
-    directory. If your project has neither of these files, the script will
+    ``settings.py`` file, in ``setup.py``, or in ``__init__.py``.
+    If your project has neither of these files, the script will
     fail.
 5.  You can confirm that the release-candidate deployed successfully by
     checking this end point on the release-candidate server.  
