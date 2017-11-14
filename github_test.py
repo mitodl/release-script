@@ -20,8 +20,6 @@ def test_karma():
 
     with patch('github.run_query', autospec=True, return_value=payload) as patched:
         assert calculate_karma(github_access_token, parse("2017-11-09").date(), parse("2017-11-09").date()) == [
-            ('Tobias Macey', 2),
-            ('Amir Qayyum Khan', 2),
-            ('George Schneeloch', 1),
+            ('Tobias Macey', 1),
         ]
     patched.assert_called_once_with(github_access_token, KARMA_QUERY)
