@@ -76,8 +76,8 @@ def calculate_karma(github_access_token, begin_date, end_date):
         # we need to paginate (but instead we'll just raise an exception for now).
         outside_range = None
         for pull_request in repository['pullRequests']['nodes']:
-            merged_at = parse(pull_request['updatedAt']).date()
-            updated_at = parse(pull_request['mergedAt']).date()
+            updated_at = parse(pull_request['updatedAt']).date()
+            merged_at = parse(pull_request['mergedAt']).date()
 
             if begin_date <= updated_at <= end_date:
                 if begin_date <= merged_at <= end_date:
