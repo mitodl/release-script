@@ -74,7 +74,7 @@ def calculate_karma(github_access_token, begin_date, end_date):
     for repository in data['data']['organization']['repositories']['nodes']:
         # Keep track if any dates fall outside the range. If none do and we're at the max limit for number of PRs,
         # we need to paginate (but instead we'll just raise an exception for now).
-        outside_range = None
+        some_dates_out_of_range = False
         for pull_request in repository['pullRequests']['nodes']:
             updated_at = parse(pull_request['updatedAt']).date()
             merged_at = parse(pull_request['mergedAt']).date()
@@ -86,14 +86,19 @@ def calculate_karma(github_access_token, begin_date, end_date):
                     for assignee in pull_request['assignees']['nodes']:
                         karma[assignee['name']] += 1
             elif updated_at < begin_date:
-                outside_range = updated_at
-        if len(repository['pullRequests']['nodes']) == 100 and outside_range is None:
-            # This means there are more than 100 pull requests within that time range for that value.
+                some_dates_out_of_range = True
+        if len(repository['pullRequests']['nodes']) == 100 and not some_dates_out_of_range:
+            # This means there are at least 100 pull requests within that time range for that value.
             # We will probably not get more than 100 merged pull requests in a single sprint, but raise
             # an exception if we do.
-            raise Exception("Need to paginate for {}, earliest date is {} but closest date is {}".format(
-                repository['name'], begin_date, repository['pullRequests']['nodes'][-1]['updatedAt'],
-            ))
+            raise Exception(
+                "Need to paginate for {repo}, earliest date is {begin_date}"
+                " but closest date is {updated_date}".format(
+                    repo=repository['name'],
+                    begin_date=begin_date,
+                    updated_date=repository['pullRequests']['nodes'][-1]['updatedAt'],
+                )
+            )
 
     karma_list = [(k, v) for k, v in karma.items()]
     karma_list = sorted(karma_list, key=lambda tup: tup[1], reverse=True)
