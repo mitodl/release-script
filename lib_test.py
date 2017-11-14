@@ -5,6 +5,7 @@ from unittest.mock import (
     patch,
 )
 
+from requests import Response, HTTPError
 import pytest
 
 from lib import (
@@ -83,7 +84,9 @@ def test_get_release_pr():
         org=org,
         repo=repo,
     ))
-    assert pr == RELEASE_PR
+    assert pr.body == RELEASE_PR['body']
+    assert pr.url == RELEASE_PR['html_url']
+    assert pr.version == '0.53.3'
 
 
 def test_get_release_pr_no_pulls():
@@ -102,7 +105,19 @@ def test_too_many_releases():
     ):
         get_release_pr('org', 'repo')
 
-    assert ex.value.args[0] == "More than one release pull request open at the same time"
+    assert ex.value.args[0] == "More than one pull request for the branch release-candidate"
+
+
+def test_no_release_wrong_repo():
+    """If there is no repo accessible, an exception should be raised"""
+    response_404 = Response()
+    response_404.status_code = 404
+    with pytest.raises(HTTPError) as ex, patch(
+        'lib.requests.get', return_value=response_404
+    ):
+        get_release_pr('org', 'repo')
+
+    assert ex.value.response.status_code == 404
 
 
 def test_get_unchecked_authors():

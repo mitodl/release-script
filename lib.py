@@ -1,5 +1,6 @@
 """Shared functions for release script Python files"""
 import asyncio
+from collections import namedtuple
 from datetime import datetime, timedelta
 from difflib import SequenceMatcher
 import re
@@ -9,6 +10,9 @@ import sys
 import requests
 
 from exception import ReleaseException
+
+
+ReleasePR = namedtuple("ReleasePR", ['version', 'url', 'body'])
 
 
 def release_manager_name():
@@ -65,59 +69,60 @@ def parse_checkmarks(body):
     return commits
 
 
+def _get_pr(org, repo, branch):
+    """
+    Look up the pull request for a branch
+
+    Args:
+        org (str): The github organization (eg mitodl)
+        repo (str): The github repository (eg micromasters)
+        branch (str): The name of the associated branch
+
+    Returns:
+        dict: The information about the pull request
+    """
+    response = requests.get("https://api.github.com/repos/{org}/{repo}/pulls".format(
+        org=org,
+        repo=repo,
+    ))
+    response.raise_for_status()
+    pulls = response.json()
+    pulls = [pull for pull in pulls if pull['head']['ref'] == branch]
+    if len(pulls) == 0:
+        return None
+    elif len(pulls) > 1:
+        # Shouldn't happen since we look up by branch
+        raise Exception("More than one pull request for the branch {}".format(branch))
+
+    return pulls[0]
+
+
 def get_release_pr(org, repo):
     """
-    Look up the release pull request
+    Look up the pull request information for a release, or return None if it doesn't exist
 
     Args:
         org (str): The github organization (eg mitodl)
         repo (str): The github repository (eg micromasters)
 
     Returns:
-        dict: The information about the release pull request
+        ReleasePR: The information about the release pull request, or None if there is no release PR in progress
     """
-    pulls = requests.get("https://api.github.com/repos/{org}/{repo}/pulls".format(
-        org=org,
-        repo=repo,
-    )).json()
-    release_pulls = [pull for pull in pulls if pull['head']['ref'] == "release-candidate"]
-    if len(release_pulls) == 0:
+    pr = _get_pr(org, repo, 'release-candidate')
+    if pr is None:
         return None
-    elif len(release_pulls) > 1:
-        # Shouldn't happen since we look up by branch
-        raise Exception("More than one release pull request open at the same time")
 
-    return release_pulls[0]
-
-
-def get_release_pr_url(release_pr):
-    """
-    Look up the URL for the release pull request
-
-    Args:
-        release_pr (dict): The release PR info
-
-    Returns:
-        str: The URL for the release
-    """
-    return release_pr['html_url']
-
-
-def get_release_pr_version(release_pr):
-    """
-    Get the version for the release PR
-
-    Args:
-        release_pr (dict): The release PR info
-
-    Returns:
-        str: The version for the release
-    """
-    title = release_pr['title']
+    title = pr['title']
     match = re.match(r'^Release (?P<version>\d+\.\d+\.\d+)$', title)
     if not match:
         raise ReleaseException("Release PR title has an unexpected format")
-    return match.group('version')
+    version = match.group('version')
+
+    return ReleasePR(
+        version=version,
+        body=pr['body'],
+        url=pr['html_url'],
+    )
 
 
 def get_unchecked_authors(org, repo):

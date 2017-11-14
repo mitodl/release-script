@@ -29,8 +29,6 @@ from release import (
 from lib import (
     get_org_and_repo,
     get_release_pr,
-    get_release_pr_version,
-    get_release_pr_url,
     get_unchecked_authors,
     match_user,
     next_workday_at_10,
@@ -158,7 +156,7 @@ class Bot:
         org, repo = get_org_and_repo(repo_url)
         pr = get_release_pr(org, repo)
         if pr:
-            raise ReleaseException("A release is already in progress: {}".format(get_release_pr_url(pr)))
+            raise ReleaseException("A release is already in progress: {}".format(pr.url))
         release(repo_url, version)
 
         await self.say(
@@ -178,7 +176,7 @@ class Bot:
             " These people have commits in this release: {authors}".format(
                 version=version,
                 authors=", ".join(slack_usernames),
-                pr_url=get_release_pr_url(pr),
+                pr_url=pr.url,
                 project=repo_info.name,
             )
         )
@@ -206,7 +204,7 @@ class Bot:
             channel_id,
             "All checkboxes checked off. Release {version} is ready for the Merginator{name}!".format(
                 name=' {}'.format(self.translate_slack_usernames([release_manager])[0]) if release_manager else '',
-                version=get_release_pr_version(pr)
+                version=pr.version
             )
         )
 
@@ -223,7 +221,7 @@ class Bot:
         pr = get_release_pr(org, repo)
         if not pr:
             raise ReleaseException("No release currently in progress for {project}".format(project=repo_info.name))
-        version = get_release_pr_version(pr)
+        version = pr.version
 
         finish_release(repo_url, version)
 
