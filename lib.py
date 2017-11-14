@@ -136,7 +136,7 @@ def get_unchecked_authors(org, repo):
     release_pr = get_release_pr(org, repo)
     if not release_pr:
         raise ReleaseException("No release PR found")
-    body = release_pr['body']
+    body = release_pr.body
     commits = parse_checkmarks(body)
     return {commit['author_name'] for commit in commits if not commit['checked']}
 

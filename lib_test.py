@@ -17,6 +17,7 @@ from lib import (
     parse_checkmarks,
     reformatted_full_name,
     release_manager_name,
+    ReleasePR,
 )
 
 
@@ -127,7 +128,12 @@ def test_get_unchecked_authors():
     """
     org = 'org'
     repo = 'repo'
-    with patch('lib.get_release_pr', autospec=True, return_value=RELEASE_PR) as get_release_pr_mock:
+
+    with patch('lib.get_release_pr', autospec=True, return_value=ReleasePR(
+        body=FAKE_RELEASE_PR_BODY,
+        version='1.2.3',
+        url='http://url'
+    )) as get_release_pr_mock:
         unchecked = get_unchecked_authors(org, repo)
     assert unchecked == {"Alice Pote"}
     get_release_pr_mock.assert_called_once_with(org, repo)
