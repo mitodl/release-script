@@ -92,11 +92,11 @@ def calculate_karma(github_access_token, begin_date, end_date):
             # We will probably not get more than 100 merged pull requests in a single sprint, but raise
             # an exception if we do.
             raise Exception(
-                "Need to paginate for {repo}, earliest date is {begin_date}"
-                " but closest date is {updated_date}".format(
+                "Response contains more PRs than can be handled at once"
+                " for {repo}, {begin_date} to {end_date}.".format(
                     repo=repository['name'],
                     begin_date=begin_date,
-                    updated_date=repository['pullRequests']['nodes'][-1]['updatedAt'],
+                    end_date=end_date,
                 )
             )
 
