@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Release script for ODL projects"""
 import argparse
-import ast
 from contextlib import contextmanager
 import re
 from subprocess import (
@@ -88,26 +87,26 @@ def update_version_in_file(root, filename, new_version):
             updated_line = line
 
             if filename == "settings.py":
-                regex = r"^VERSION = (?P<version>[^#]*)"
+                regex = r"^VERSION = .*(?P<version>\d+\.\d+\.\d+).*$"
                 match = re.match(regex, line)
                 if match:
                     update_count += 1
-                    old_version = ast.literal_eval(match.group('version').strip())
+                    old_version = match.group('version').strip()
                     updated_line = re.sub(regex, "VERSION = \"{}\"".format(new_version), line)
             elif filename == "__init__.py":
-                regex = "^__version__ ?=(?P<version>[^#]*)"
+                regex = r"^__version__ ?=.*(?P<version>\d+\.\d+\.\d+).*"
                 match = re.match(regex, line)
                 if match:
                     update_count += 1
-                    old_version = ast.literal_eval(match.group('version').strip())
+                    old_version = match.group('version').strip()
                     updated_line = re.sub(regex, "__version__ = '{}'".format(new_version), line)
             elif filename == "setup.py":
-                regex = "version=(?P<version>[^,#]*)"
+                regex = r"version=.*(?P<version>\d+\.\d+\.\d+).*"
                 match = re.match(regex, line)
                 if match:
                     update_count += 1
-                    old_version = ast.literal_eval(match.group('version').strip())
-                    updated_line = re.sub(regex, "version='{}'".format(new_version), line)
+                    old_version = match.group('version').strip()
+                    updated_line = re.sub(regex, "version='{}',".format(new_version), line)
 
             file_lines.append("{}\n".format(updated_line))
 
