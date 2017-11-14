@@ -88,15 +88,12 @@ def in_script_dir(file_path):
 
 def get_envs():
     """Get required environment variables"""
-    required = ('SLACK_ACCESS_TOKEN', 'BOT_ACCESS_TOKEN', 'GITHUB_ACCESS_TOKEN')
-
-    for key in required:
-        value = os.environ.get(key)
-        if not value:
-            raise Exception("Missing {}".format(key))
-    return {
-        key: os.environ.get(key) for key in required
-    }
+    required_keys = ('SLACK_ACCESS_TOKEN', 'BOT_ACCESS_TOKEN', 'GITHUB_ACCESS_TOKEN')
+    env_dict = {key: os.environ.get(key, None) for key in required_keys}
+    missing_env_keys = [k for k, v in env_dict.items() if v is None]
+    if missing_env_keys:
+        raise Exception("Missing required env variable(s): {}".format(', '.join(missing_env_keys)))
+    return env_dict
 
 
 # pylint: disable=too-many-instance-attributes,too-many-arguments
