@@ -354,12 +354,12 @@ class Bot:
             )
         )
 
-    async def needs_review(self, repo_info):
+    async def needs_review(self, channel_id):
         """
         Print out what PRs need review
         """
         await self.say(
-            repo_info.channel_id,
+            channel_id,
             "These PRs need review and are unassigned:\n{}".format(
                 "\n".join(
                     "{repo}: {title} {url}".format(
@@ -406,7 +406,7 @@ class Bot:
                 start_date = parse(words[1]).date()
                 await self.karma(repo_info, start_date)
             elif has_command(['what', 'needs', 'review'], words):
-                await self.needs_review(repo_info)
+                await self.needs_review(channel_id)
             else:
                 await self.say(channel_id, "Oooopps! Invalid command format")
         except (InputException, ReleaseException) as ex:
