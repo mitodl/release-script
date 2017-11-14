@@ -153,6 +153,10 @@ class Bot:
         """
         repo_url = repo_info.repo_url
         channel_id = repo_info.channel_id
+        org, repo = get_org_and_repo(repo_url)
+        pr = get_release_pr(org, repo)
+        if pr:
+            raise ReleaseException("A release is already in progress: {}".format(pr.url))
         release(repo_url, version)
 
         await self.say(
@@ -164,8 +168,7 @@ class Bot:
         )
 
         await wait_for_deploy(repo_url, repo_info.rc_hash_url, "release-candidate")
-        org, repo = get_org_and_repo(repo_url)
-        unchecked_authors = get_unchecked_authors(org, repo, version)
+        unchecked_authors = get_unchecked_authors(org, repo)
         slack_usernames = self.translate_slack_usernames(unchecked_authors)
         await self.say(
             channel_id,
@@ -173,18 +176,17 @@ class Bot:
             " These people have commits in this release: {authors}".format(
                 version=version,
                 authors=", ".join(slack_usernames),
-                pr_url=get_release_pr(org, repo, version)['html_url'],
+                pr_url=pr.url,
                 project=repo_info.name,
             )
         )
 
-    async def wait_for_checkboxes(self, repo_info, version):
+    async def wait_for_checkboxes(self, repo_info):
         """
         Poll the Release PR and wait until all checkboxes are checked off
 
         Args:
             repo_info (RepoInfo): Information for a repo
-            version (str): The version
         """
         channel_id = repo_info.channel_id
         await self.say(
@@ -195,26 +197,32 @@ class Bot:
             )
         )
         org, repo = get_org_and_repo(repo_info.repo_url)
-        await wait_for_checkboxes(org, repo, version)
+        await wait_for_checkboxes(org, repo)
         release_manager = release_manager_name()
+        pr = get_release_pr(org, repo)
         await self.say(
             channel_id,
             "All checkboxes checked off. Release {version} is ready for the Merginator{name}!".format(
-                version=version,
                 name=' {}'.format(self.translate_slack_usernames([release_manager])[0]) if release_manager else '',
+                version=pr.version
             )
         )
 
-    async def finish_release(self, repo_info, version):
+    async def finish_release(self, repo_info):
         """
         Merge the release candidate into the release branch, tag it, merge to master, and wait for deployment
 
         Args:
             repo_info (RepoInfo): The info for a repo
-            version (str): The version
         """
         channel_id = repo_info.channel_id
         repo_url = repo_info.repo_url
+        org, repo = get_org_and_repo(repo_url)
+        pr = get_release_pr(org, repo)
+        if not pr:
+            raise ReleaseException("No release currently in progress for {project}".format(project=repo_info.name))
+        version = pr.version
+
         finish_release(repo_url, version)
 
         await self.say(
@@ -253,16 +261,15 @@ class Bot:
             ),
         )
 
-    async def message_if_unchecked(self, repo_info, version):
+    async def message_if_unchecked(self, repo_info):
         """
         Send a message next morning if any boxes are not yet checked off
 
         Args:
             repo_info (RepoInfo): Information for a repo
-            version (str): The version of the release to check
         """
         org, repo = get_org_and_repo(repo_info.repo_url)
-        unchecked_authors = get_unchecked_authors(org, repo, version)
+        unchecked_authors = get_unchecked_authors(org, repo)
         if unchecked_authors:
             slack_usernames = self.translate_slack_usernames(unchecked_authors)
             await self.say(
@@ -274,18 +281,17 @@ class Bot:
                 )
             )
 
-    async def delay_message(self, repo_info, version):
+    async def delay_message(self, repo_info):
         """
         sleep until 10am next day, then message
 
         Args:
             repo_info (RepoInfo): The info for a repo
-            version (str): The version number for the release
         """
         now = datetime.now()
         tomorrow_at_10 = next_workday_at_10(now)
         await asyncio.sleep((tomorrow_at_10 - now).total_seconds())
-        await self.message_if_unchecked(repo_info, version)
+        await self.message_if_unchecked(repo_info)
 
     async def handle_message(self, channel_id, repo_info, words, loop):
         """
@@ -304,16 +310,13 @@ class Bot:
             elif has_command(['release'], words) or has_command(['start', 'release'], words):
                 version = get_version_number(words[-1])
 
-                loop.create_task(self.delay_message(repo_info, version))
+                loop.create_task(self.delay_message(repo_info))
                 await self.do_release(repo_info, version)
-                await self.wait_for_checkboxes(repo_info, version)
+                await self.wait_for_checkboxes(repo_info)
             elif has_command(['finish', 'release'], words):
-                version = get_version_number(words[-1])
-
-                await self.finish_release(repo_info, version)
+                await self.finish_release(repo_info)
             elif has_command(['wait', 'for', 'checkboxes'], words):
-                version = get_version_number(words[-1])
-                await self.wait_for_checkboxes(repo_info, version)
+                await self.wait_for_checkboxes(repo_info)
             elif has_command(['hi'], words):
                 await self.say(
                     channel_id,
@@ -384,6 +387,7 @@ def main():
     resp = requests.post("https://slack.com/api/rtm.connect", data={
         "token": bot_access_token,
     })
+    resp.raise_for_status()
     doof_id = resp.json()['self']['id']
 
     async def connect_to_message_server(loop):

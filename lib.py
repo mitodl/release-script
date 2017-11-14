@@ -1,5 +1,6 @@
 """Shared functions for release script Python files"""
 import asyncio
+from collections import namedtuple
 from datetime import datetime, timedelta
 from difflib import SequenceMatcher
 import re
@@ -9,6 +10,9 @@ import sys
 import requests
 
 from exception import ReleaseException
+
+
+ReleasePR = namedtuple("ReleasePR", ['version', 'url', 'body'])
 
 
 def release_manager_name():
@@ -65,41 +69,74 @@ def parse_checkmarks(body):
     return commits
 
 
-def get_release_pr(org, repo, version):
+def _get_pr(org, repo, branch):
     """
-    Look up the release pull request
+    Look up the pull request for a branch
 
     Args:
         org (str): The github organization (eg mitodl)
         repo (str): The github repository (eg micromasters)
-        version (str): A version string used to match the PR title
+        branch (str): The name of the associated branch
 
     Returns:
-        dict: The information about the release pull request
+        dict: The information about the pull request
     """
-    pulls = requests.get("https://api.github.com/repos/{org}/{repo}/pulls".format(
+    response = requests.get("https://api.github.com/repos/{org}/{repo}/pulls".format(
         org=org,
         repo=repo,
-    )).json()
-    release_pulls = [pull for pull in pulls if pull['title'] == "Release {}".format(version)]
-    if len(release_pulls) == 0:
-        raise ReleaseException("No release pull request on server")
-    elif len(release_pulls) > 1:
-        raise ReleaseException("More than one release pull request open at the same time")
+    ))
+    response.raise_for_status()
+    pulls = response.json()
+    pulls = [pull for pull in pulls if pull['head']['ref'] == branch]
+    if len(pulls) == 0:
+        return None
+    elif len(pulls) > 1:
+        # Shouldn't happen since we look up by branch
+        raise Exception("More than one pull request for the branch {}".format(branch))
 
-    return release_pulls[0]
+    return pulls[0]
 
 
-def get_unchecked_authors(org, repo, version):
+def get_release_pr(org, repo):
+    """
+    Look up the pull request information for a release, or return None if it doesn't exist
+
+    Args:
+        org (str): The github organization (eg mitodl)
+        repo (str): The github repository (eg micromasters)
+
+    Returns:
+        ReleasePR: The information about the release pull request, or None if there is no release PR in progress
+    """
+    pr = _get_pr(org, repo, 'release-candidate')
+    if pr is None:
+        return None
+
+    title = pr['title']
+    match = re.match(r'^Release (?P<version>\d+\.\d+\.\d+)$', title)
+    if not match:
+        raise ReleaseException("Release PR title has an unexpected format")
+    version = match.group('version')
+
+    return ReleasePR(
+        version=version,
+        body=pr['body'],
+        url=pr['html_url'],
+    )
+
+
+def get_unchecked_authors(org, repo):
     """
     Returns list of authors who have not yet checked off their checkboxes
 
     Args:
         org (str): The github organization (eg mitodl)
         repo (str): The github repository (eg micromasters)
-        version (str): A version string used to match the PR title
     """
-    body = get_release_pr(org, repo, version)['body']
+    release_pr = get_release_pr(org, repo)
+    if not release_pr:
+        raise ReleaseException("No release PR found")
+    body = release_pr.body
     commits = parse_checkmarks(body)
     return {commit['author_name'] for commit in commits if not commit['checked']}
 
@@ -185,20 +222,19 @@ def match_user(slack_users, author_name, threshold=0.6):
         return author_name
 
 
-async def wait_for_checkboxes(org, repo, version):
+async def wait_for_checkboxes(org, repo):
     """
     Wait for checkboxes, polling every 60 seconds
 
     Args:
         org (str): The github organization (eg mitodl)
         repo (str): The github repository (eg micromasters)
-        version (str): A version string used to match the PR title
     """
     print("Waiting for checkboxes to be checked. Polling every 60 seconds...")
     error_count = 0
     while True:
         try:
-            unchecked_authors = get_unchecked_authors(org, repo, version)
+            unchecked_authors = get_unchecked_authors(org, repo)
             if len(unchecked_authors) == 0:
                 break
 

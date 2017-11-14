@@ -10,7 +10,6 @@ def main():
     """Wait for all checkboxes to get checked off"""
     parser = argparse.ArgumentParser()
     parser.add_argument("repo")
-    parser.add_argument("version")
     parser.add_argument("--org", default="mitodl")
     args = parser.parse_args()
 
@@ -18,7 +17,7 @@ def main():
         raise Exception("repo is just the repo name, not a URL or directory (ie 'micromasters')")
 
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(wait_for_checkboxes(args.org, args.repo, args.version))
+    loop.run_until_complete(wait_for_checkboxes(args.org, args.repo))
     loop.close()
 
 
