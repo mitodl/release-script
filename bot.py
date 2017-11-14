@@ -178,7 +178,7 @@ class Bot:
             " These people have commits in this release: {authors}".format(
                 version=version,
                 authors=", ".join(slack_usernames),
-                pr_url=get_release_pr_url(get_release_pr(org, repo)),
+                pr_url=get_release_pr_url(pr),
                 project=repo_info.name,
             )
         )
