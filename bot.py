@@ -53,9 +53,41 @@ RepoInfo = namedtuple('RepoInfo', [
 log = logging.getLogger(__name__)
 
 
-def load_repos_info():
+def get_channels_info(slack_access_token):
     """
-    Load repo information from JSON
+    Get channel information from slack
+
+    Args:
+        slack_access_token (str): Used to authenticate with slack
+
+    Returns:
+        dict: A map of channel names to channel ids
+    """
+    # public channels
+    resp = requests.post("https://slack.com/api/channels.list", data={
+        "token": slack_access_token
+    })
+    resp.raise_for_status()
+    channels = resp.json()['channels']
+    channels_map = {channel['name']: channel['id'] for channel in channels}
+
+    # private channels
+    resp = requests.post("https://slack.com/api/groups.list", data={
+        "token": slack_access_token
+    })
+    resp.raise_for_status()
+    groups = resp.json()['groups']
+    groups_map = {group['name']: group['id'] for group in groups}
+
+    return {**channels_map, **groups_map}
+
+
+def load_repos_info(channel_lookup):
+    """
+    Load repo information from JSON and looks up channel ids for each repo
+
+    Args:
+        channel_lookup (dict): Map of channel names to channel ids
 
     Returns:
         list of RepoInfo: Information about the repositories
@@ -68,7 +100,7 @@ def load_repos_info():
                 repo_url=repo_info['repo_url'],
                 rc_hash_url=repo_info['rc_hash_url'],
                 prod_hash_url=repo_info['prod_hash_url'],
-                channel_id=repo_info['channel_id'],
+                channel_id=channel_lookup[repo_info['channel_name']],
             ) for repo_info in repos_info['repos']
         ]
 
@@ -308,12 +340,12 @@ class Bot:
         await asyncio.sleep((tomorrow_at_10 - now).total_seconds())
         await self.message_if_unchecked(repo_info)
 
-    async def karma(self, repo_info, start_date):
+    async def karma(self, channel_id, start_date):
         """
         Print out PR karma for each user
         """
         await self.say(
-            repo_info.channel_id,
+            channel_id,
             "Pull request karma:\n{}".format(
                 "\n".join(
                     "{name}: {karma}".format(name=name, karma=karma) for name, karma in
@@ -408,7 +440,8 @@ def main():
     """main function for bot command"""
     envs = get_envs()
 
-    repos_info = load_repos_info()
+    channels_info = get_channels_info(envs['SLACK_ACCESS_TOKEN'])
+    repos_info = load_repos_info(channels_info)
 
     resp = requests.post("https://slack.com/api/rtm.connect", data={
         "token": envs['BOT_ACCESS_TOKEN'],

@@ -6,6 +6,7 @@ import sys
 
 from bot import (
     Bot,
+    get_channels_info,
     get_envs,
     load_repos_info,
 )
@@ -27,22 +28,28 @@ def main():
     envs = get_envs()
 
     if len(sys.argv) < 3:
-        raise Exception("Expected arguments: project_name command arg1 arg2...")
+        raise Exception("Expected arguments: channel_name command arg1 arg2...")
 
-    _, project_name, *words = sys.argv
+    _, channel_name, *words = sys.argv
 
-    repos_info = load_repos_info()
+    channels_info = get_channels_info(envs['SLACK_ACCESS_TOKEN'])
     try:
-        repo_info = [repo_info for repo_info in repos_info if repo_info.name == project_name][0]
+        channel_id = channels_info[channel_name]
+    except KeyError:
+        raise Exception("Unable to find channel by name {}".format(channel_name))
+
+    repos_info = load_repos_info(channels_info)
+    try:
+        repo_info = [repo_info for repo_info in repos_info if repo_info.channel_id == channel_id][0]
     except IndexError:
-        raise Exception("Unable to find channel with name {}".format(project_name))
+        repo_info = None
 
     bot = Bot(FakeConsoleSocket(), envs['SLACK_ACCESS_TOKEN'], envs['GITHUB_ACCESS_TOKEN'])
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(
         loop.create_task(
-            bot.handle_message(repo_info.channel_id, repo_info, words, loop)
+            bot.handle_message(channel_id, repo_info, words, loop)
         )
     )
 
