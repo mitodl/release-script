@@ -39,6 +39,41 @@ query {
 """
 
 
+NEEDS_REVIEW_QUERY = """
+query {
+  organization(login:"mitodl") {
+    repositories(first: 10, orderBy: {
+      field: PUSHED_AT,
+      direction: DESC
+    }) {
+      nodes {
+        name
+        pullRequests(first: 100, states: [OPEN], orderBy: {
+          field: UPDATED_AT
+          direction: DESC,
+        }) {
+          nodes {
+            title
+            url
+            labels(first: 3) {
+              nodes {
+                name
+              }
+            }
+            assignees(first: 1) {
+              nodes {
+                login
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
+
 def run_query(github_access_token, query):
     """
     Run a query using Github graphql API
@@ -67,6 +102,9 @@ def calculate_karma(github_access_token, begin_date, end_date):
         github_access_token (str): A Github access token
         begin_date (datetime.date): Start date for the range to look in
         end_date (datetime.date): The end date for the range to look in
+
+    Returns:
+        list of tuple: (assignee, karma count) sorted from most karma to least
     """
     data = run_query(github_access_token, KARMA_QUERY)
 
@@ -103,3 +141,38 @@ def calculate_karma(github_access_token, begin_date, end_date):
     karma_list = [(k, v) for k, v in karma.items()]
     karma_list = sorted(karma_list, key=lambda tup: tup[1], reverse=True)
     return karma_list
+
+
+def needs_review(github_access_token):
+    """
+    Calculate which PRs need review
+
+    Args:
+        github_access_token (str): A Github access token
+
+    Returns:
+        list of tuple: A list of (repo name, pr title, pr url) for PRs that need review and are unassigned
+    """
+    data = run_query(github_access_token, NEEDS_REVIEW_QUERY)
+    prs_needing_review = []
+    # Query will show all open PRs, we need to filter on assignee and label
+    for repository in data['data']['organization']['repositories']['nodes']:
+        for pull_request in repository['pullRequests']['nodes']:
+            has_needs_review = False
+
+            # Check for needs review label
+            for label in pull_request['labels']['nodes']:
+                if label['name'].lower() == 'needs review':
+                    has_needs_review = True
+                    break
+
+            if not has_needs_review:
+                continue
+
+            # Check for no assignee
+            if len(pull_request['assignees']['nodes']) == 0:
+                prs_needing_review.append(
+                    (repository['name'], pull_request['title'], pull_request['url'])
+                )
+
+    return prs_needing_review
