@@ -14,10 +14,15 @@ from bot import (
 
 class FakeConsoleSocket:
     """Fake socket which dumps to stdout"""
+    def __init__(self, channel_id):
+        self.channel_id = channel_id
 
-    async def send(self, payload):
+    async def send(self, payload_json):
         """Print out data which would get sent"""
-        text = json.loads(payload)['text']
+        payload = json.loads(payload_json)
+        if payload['channel'] != self.channel_id:
+            raise Exception("Unexpected channel for payload: {}".format(payload))
+        text = payload['text']
         print(
             "\033[92m{}\033[0m".format(text)
         )
@@ -44,7 +49,7 @@ def main():
     except IndexError:
         repo_info = None
 
-    bot = Bot(FakeConsoleSocket(), envs['SLACK_ACCESS_TOKEN'], envs['GITHUB_ACCESS_TOKEN'])
+    bot = Bot(FakeConsoleSocket(channel_id), envs['SLACK_ACCESS_TOKEN'], envs['GITHUB_ACCESS_TOKEN'])
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(

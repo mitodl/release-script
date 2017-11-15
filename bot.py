@@ -404,7 +404,7 @@ class Bot:
                 )
             elif has_command(['karma'], words):
                 start_date = parse(words[1]).date()
-                await self.karma(repo_info, start_date)
+                await self.karma(channel_id, start_date)
             elif has_command(['what', 'needs', 'review'], words):
                 await self.needs_review(channel_id)
             else:
