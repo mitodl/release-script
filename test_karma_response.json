@@ -1,0 +1,366 @@
+{
+    "data": {
+        "organization": {
+            "repositories": {
+                "nodes": [
+                    {
+                        "description": "Scripts to automate the release process.",
+                        "name": "release-script",
+                        "pullRequests": {
+                            "nodes": [
+                                {
+                                    "updatedAt": "2017-11-09T20:53:47Z",
+                                    "title": "Fix runtime version",
+                                    "mergedAt": "2017-11-09T20:53:45Z",
+                                    "assignees": {
+                                        "nodes": []
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-11-09T20:50:03Z",
+                                    "title": "Added procfile",
+                                    "mergedAt": "2017-11-09T20:50:00Z",
+                                    "assignees": {
+                                        "nodes": [
+                                            {
+                                                "login": "blarghmatey",
+                                                "name": "Tobias Macey"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-11-08T20:01:28Z",
+                                    "title": "Make version update slightly less sensitive",
+                                    "mergedAt": "2017-11-08T20:01:25Z",
+                                    "assignees": {
+                                        "nodes": [
+                                            {
+                                                "login": "annagav",
+                                                "name": "Anna Gavrilman"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-11-08T16:37:47Z",
+                                    "title": "Use JSON file to store information about repos",
+                                    "mergedAt": "2017-11-08T16:37:44Z",
+                                    "assignees": {
+                                        "nodes": [
+                                            {
+                                                "login": "annagav",
+                                                "name": "Anna Gavrilman"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-11-01T15:40:46Z",
+                                    "title": "Fixed release PR link",
+                                    "mergedAt": "2017-11-01T15:40:46Z",
+                                    "assignees": {
+                                        "nodes": []
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-10-25T00:19:33Z",
+                                    "title": "Exclude some directories in the file lookup process",
+                                    "mergedAt": "2017-10-25T00:19:30Z",
+                                    "assignees": {
+                                        "nodes": [
+                                            {
+                                                "login": "noisecapella",
+                                                "name": "George Schneeloch"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-10-20T19:18:46Z",
+                                    "title": "Validate repo for wait_for_checked.py",
+                                    "mergedAt": "2017-10-20T19:18:43Z",
+                                    "assignees": {
+                                        "nodes": [
+                                            {
+                                                "login": "mbertrand",
+                                                "name": "Matt Bertrand"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-10-13T14:55:41Z",
+                                    "title": "Add more repos information",
+                                    "mergedAt": "2017-10-13T14:55:39Z",
+                                    "assignees": {
+                                        "nodes": []
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-09-20T19:59:20Z",
+                                    "title": "Talk to doof through slack",
+                                    "mergedAt": "2017-09-20T19:59:18Z",
+                                    "assignees": {
+                                        "nodes": [
+                                            {
+                                                "login": "noisecapella",
+                                                "name": "George Schneeloch"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-09-19T21:49:31Z",
+                                    "title": "Fixed user mention",
+                                    "mergedAt": "2017-09-19T21:49:28Z",
+                                    "assignees": {
+                                        "nodes": []
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-09-19T18:24:45Z",
+                                    "title": "Replace check_call and check_output with python function calls",
+                                    "mergedAt": "2017-09-19T18:24:42Z",
+                                    "assignees": {
+                                        "nodes": [
+                                            {
+                                                "login": "rhysyngsun",
+                                                "name": "Nathan Levesque"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-09-07T01:19:06Z",
+                                    "title": "Convert the release script to python",
+                                    "mergedAt": "2017-09-07T01:19:05Z",
+                                    "assignees": {
+                                        "nodes": [
+                                            {
+                                                "login": "rhysyngsun",
+                                                "name": "Nathan Levesque"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-08-01T16:07:18Z",
+                                    "title": "Check for node.js",
+                                    "mergedAt": "2017-08-01T16:07:15Z",
+                                    "assignees": {
+                                        "nodes": [
+                                            {
+                                                "login": "aliceriot",
+                                                "name": "Alice"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-07-20T20:55:02Z",
+                                    "title": "Fixed lookup of release manager name",
+                                    "mergedAt": "2017-07-20T20:54:58Z",
+                                    "assignees": {
+                                        "nodes": [
+                                            {
+                                                "login": "noisecapella",
+                                                "name": "George Schneeloch"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-06-29T12:17:03Z",
+                                    "title": "added PyPI upload docs",
+                                    "mergedAt": "2017-06-29T12:16:45Z",
+                                    "assignees": {
+                                        "nodes": [
+                                            {
+                                                "login": "noisecapella",
+                                                "name": "George Schneeloch"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-06-29T03:09:10Z",
+                                    "title": "add license and PR template",
+                                    "mergedAt": "2017-06-29T03:09:05Z",
+                                    "assignees": {
+                                        "nodes": [
+                                            {
+                                                "login": "noisecapella",
+                                                "name": "George Schneeloch"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-06-14T21:21:04Z",
+                                    "title": "Tag the release manager when a release is ready to merge",
+                                    "mergedAt": "2017-06-14T21:21:03Z",
+                                    "assignees": {
+                                        "nodes": []
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-06-07T17:33:57Z",
+                                    "title": "Add __init__.__version__ to version checking",
+                                    "mergedAt": "2017-06-07T14:56:17Z",
+                                    "assignees": {
+                                        "nodes": [
+                                            {
+                                                "login": "noisecapella",
+                                                "name": "George Schneeloch"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-04-19T15:05:50Z",
+                                    "title": "Make bot a little more doof",
+                                    "mergedAt": "2017-04-19T15:05:50Z",
+                                    "assignees": {
+                                        "nodes": []
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-04-04T16:38:17Z",
+                                    "title": "Slack release bot",
+                                    "mergedAt": "2017-04-04T16:38:15Z",
+                                    "assignees": {
+                                        "nodes": []
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-03-28T18:25:39Z",
+                                    "title": "Add script to wait for release to be deployed",
+                                    "mergedAt": "2017-03-28T18:25:38Z",
+                                    "assignees": {
+                                        "nodes": [
+                                            {
+                                                "login": "annagav",
+                                                "name": "Anna Gavrilman"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-03-24T14:34:23Z",
+                                    "title": "Use default commit message for merge commit",
+                                    "mergedAt": "2017-03-24T14:34:21Z",
+                                    "assignees": {
+                                        "nodes": []
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-03-23T20:51:19Z",
+                                    "title": "Add script to wait for all checkboxes to be checked",
+                                    "mergedAt": "2017-03-23T20:51:17Z",
+                                    "assignees": {
+                                        "nodes": [
+                                            {
+                                                "login": "rhysyngsun",
+                                                "name": "Nathan Levesque"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-03-21T20:34:52Z",
+                                    "title": "Check tag to match the release version of the commit",
+                                    "mergedAt": "2017-03-21T20:34:49Z",
+                                    "assignees": {
+                                        "nodes": [
+                                            {
+                                                "login": "noisecapella",
+                                                "name": "George Schneeloch"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-01-27T16:03:58Z",
+                                    "title": "Fixed relative path reference to release.sh",
+                                    "mergedAt": "2017-01-27T16:03:58Z",
+                                    "assignees": {
+                                        "nodes": []
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-01-11T18:19:16Z",
+                                    "title": "Finish release script",
+                                    "mergedAt": "2017-01-11T18:19:13Z",
+                                    "assignees": {
+                                        "nodes": []
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2017-01-03T16:46:14Z",
+                                    "title": "Use temp dir for git stuff",
+                                    "mergedAt": "2017-01-03T16:46:11Z",
+                                    "assignees": {
+                                        "nodes": [
+                                            {
+                                                "login": "pdpinch",
+                                                "name": "Peter Pinch"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2016-11-04T15:46:59Z",
+                                    "title": "Updated release documentation",
+                                    "mergedAt": "2016-11-04T15:46:58Z",
+                                    "assignees": {
+                                        "nodes": [
+                                            {
+                                                "login": "pdpinch",
+                                                "name": "Peter Pinch"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2016-10-28T18:24:46Z",
+                                    "title": "Fixed OLD_VERSION",
+                                    "mergedAt": "2016-10-28T18:24:43Z",
+                                    "assignees": {
+                                        "nodes": [
+                                            {
+                                                "login": "gsidebo",
+                                                "name": "Gavin Sidebottom"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2016-06-25T17:26:05Z",
+                                    "title": "Added How-to-use instructions",
+                                    "mergedAt": "2016-06-25T17:26:02Z",
+                                    "assignees": {
+                                        "nodes": [
+                                            {
+                                                "login": "pdpinch",
+                                                "name": "Peter Pinch"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "updatedAt": "2016-03-04T19:27:22Z",
+                                    "title": "Added initial version",
+                                    "mergedAt": "2016-03-04T19:27:18Z",
+                                    "assignees": {
+                                        "nodes": []
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
