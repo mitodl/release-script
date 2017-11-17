@@ -56,13 +56,27 @@ def test_repo():
 def test_update_version_settings(test_repo):
     """update_version should return the old version and replace the appropriate file's text with the new version"""
     new_version = "9.9.99"
+    path = "ccxcon/settings.py"
+
+    old_lines = open(path).readlines()
+
     old_version = update_version(new_version)
     assert old_version == "0.2.0"
+    new_lines = open(path).readlines()
+
+    assert len(old_lines) == len(new_lines)
+
+    diff_count = 0
+    for old_line, new_line in zip(old_lines, new_lines):
+        if old_line != new_line:
+            diff_count += 1
+
+    assert diff_count == 1
 
     found_new_version = False
-    with open("ccxcon/settings.py") as f:
+    with open(path) as f:
         for line in f.readlines():
-            if line.strip() == "VERSION = \"{}\"".format(new_version):
+            if line == "VERSION = \"{}\"\n".format(new_version):
                 found_new_version = True
                 break
     assert found_new_version, "Unable to find updated version"
