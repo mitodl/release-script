@@ -4,6 +4,9 @@
   "buildpacks": [
     {
       "url": "https://github.com/heroku/heroku-buildpack-python"
+    },
+    {
+      "url": "https://github.com/heroku/heroku-buildpack-nodejs"
     }
   ],
   "description": "Release script for MIT ODL engineering projects",

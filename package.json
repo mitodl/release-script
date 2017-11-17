@@ -1,0 +1,12 @@
+{
+  "name": "odl-release-bot",
+  "version": "0.0.0",
+  "license": "BSD-3-Clause",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mitodl/release-script.git"
+  },
+  "dependencies": {
+    "git-release-notes": "^2.1.0"
+  }
+}
