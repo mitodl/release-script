@@ -110,7 +110,7 @@ def create_pr(github_access_token, repo_url, title, body, head, base):  # pylint
     """
 
     org, repo = get_org_and_repo(repo_url)
-    endpoint = "https://api.github.com/repos/mitodl/{org}/{repo}/pulls".format(
+    endpoint = "https://api.github.com/repos/{org}/{repo}/pulls".format(
         org=org,
         repo=repo,
     )
