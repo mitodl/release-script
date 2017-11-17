@@ -2,7 +2,6 @@
 """Slack bot for managing releases"""
 
 import asyncio
-from collections import namedtuple
 from datetime import datetime
 import os
 import sys
@@ -38,16 +37,8 @@ from lib import (
     release_manager_name,
     wait_for_checkboxes,
 )
+from repo_info import RepoInfo
 from wait_for_deploy import wait_for_deploy
-
-
-RepoInfo = namedtuple('RepoInfo', [
-    'name',
-    'repo_url',
-    'rc_hash_url',
-    'prod_hash_url',
-    'channel_id',
-])
 
 
 log = logging.getLogger(__name__)
@@ -204,7 +195,7 @@ class Bot:
         pr = get_release_pr(org, repo)
         if pr:
             raise ReleaseException("A release is already in progress: {}".format(pr.url))
-        release(repo_url, version)
+        release(self.github_access_token, repo_url, version)
 
         await self.say(
             channel_id,

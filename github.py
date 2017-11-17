@@ -6,6 +6,8 @@ import json
 from dateutil.parser import parse
 import requests
 
+from lib import get_org_and_repo
+
 
 KARMA_QUERY = """
 query {
@@ -92,6 +94,37 @@ def run_query(github_access_token, query):
     })
     resp.raise_for_status()
     return resp.json()
+
+
+def create_pr(github_access_token, repo_url, title, body, head, base):  # pylint: disable=too-many-arguments
+    """
+    Create a pull request
+
+    Args:
+        github_access_token (str): A github access token
+        repo_url (str): The URL of the repository to create the PR in
+        title (str): The title of the PR
+        body (str): The body of the PR
+        head (str): The head branch for the PR
+        base (str): The base branch for the PR
+    """
+
+    org, repo = get_org_and_repo(repo_url)
+    endpoint = "https://api.github.com/repos/{org}/{repo}/pulls".format(
+        org=org,
+        repo=repo,
+    )
+
+    resp = requests.post(endpoint, headers={
+        "Authorization": "Bearer {}".format(github_access_token),
+        "Accept": "application/vnd.github.v3+json",
+    }, data={
+        'title': title,
+        'body': body,
+        'head': head,
+        'base': base,
+    })
+    resp.raise_for_status()
 
 
 def calculate_karma(github_access_token, begin_date, end_date):

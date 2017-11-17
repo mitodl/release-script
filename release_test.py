@@ -15,7 +15,9 @@ from release import (
     create_release_notes,
     dependency_exists,
     DependencyException,
+    GIT_RELEASE_NOTES_PATH,
     init_working_dir,
+    SCRIPT_DIR,
     update_release_notes,
     UpdateVersionException,
     update_version,
@@ -23,9 +25,6 @@ from release import (
     validate_dependencies,
     verify_new_commits,
 )
-
-
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 # pylint: disable=redefined-outer-name, unused-argument
@@ -168,7 +167,7 @@ def test_validate_dependencies():
     """validate_dependencies should raise an exception if a dependency is missing or invalid"""
     with patch('release.dependency_exists', return_value=True) as dependency_exists_stub:
         validate_dependencies()
-    for dependency in ('node', 'hub', 'git', 'git-release-notes'):
+    for dependency in ('node', 'git', GIT_RELEASE_NOTES_PATH):
         dependency_exists_stub.assert_any_call(dependency)
 
         with patch(
