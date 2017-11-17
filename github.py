@@ -118,12 +118,12 @@ def create_pr(github_access_token, repo_url, title, body, head, base):  # pylint
     resp = requests.post(endpoint, headers={
         "Authorization": "Bearer {}".format(github_access_token),
         "Accept": "application/vnd.github.v3+json",
-    }, data={
+    }, data=json.dumps({
         'title': title,
         'body': body,
         'head': head,
         'base': base,
-    })
+    }))
     resp.raise_for_status()
 
 
