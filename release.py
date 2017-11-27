@@ -226,15 +226,11 @@ def generate_release_pr(github_access_token, repo_url, old_version, new_version)
     """
     print("Generating PR...")
 
-    checklist_header = "Release {version}\n\n".format(version=new_version)
-    checklist_body = create_release_notes(old_version, with_checkboxes=True)
-    checklist = "{}{}".format(checklist_header, checklist_body)
-
     create_pr(
         github_access_token=github_access_token,
         repo_url=repo_url,
         title="Release {version}".format(version=new_version),
-        body=checklist,
+        body=create_release_notes(old_version, with_checkboxes=True),
         head="release-candidate",
         base="release",
     )
