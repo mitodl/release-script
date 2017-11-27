@@ -8,3 +8,5 @@ __pycache__/
 htmlcov/
 .env_vars
 *.pyc
+package-lock.json
+node_modules/

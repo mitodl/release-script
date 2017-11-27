@@ -15,7 +15,10 @@ from release import (
     create_release_notes,
     dependency_exists,
     DependencyException,
+    generate_release_pr,
+    GIT_RELEASE_NOTES_PATH,
     init_working_dir,
+    SCRIPT_DIR,
     update_release_notes,
     UpdateVersionException,
     update_version,
@@ -23,9 +26,6 @@ from release import (
     validate_dependencies,
     verify_new_commits,
 )
-
-
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 # pylint: disable=redefined-outer-name, unused-argument
@@ -168,7 +168,7 @@ def test_validate_dependencies():
     """validate_dependencies should raise an exception if a dependency is missing or invalid"""
     with patch('release.dependency_exists', return_value=True) as dependency_exists_stub:
         validate_dependencies()
-    for dependency in ('node', 'hub', 'git', 'git-release-notes'):
+    for dependency in ('node', 'git', GIT_RELEASE_NOTES_PATH):
         dependency_exists_stub.assert_any_call(dependency)
 
         with patch(
@@ -358,3 +358,31 @@ def test_verify_new_commits(test_repo):
     make_empty_commit("User 1", "  Release 0.0.1  ")
     # No exception
     verify_new_commits("0.0.1")
+
+
+def test_generate_release_pr(test_repo):
+    """generate_release_pr should create a PR"""
+    access_token = 'access_token'
+    repo_url = 'http://repo.url.fake/'
+    old_version = '1.2.3'
+    new_version = '4.5.6'
+    body = 'body'
+
+    with patch('release.create_pr', autospec=True) as create_pr_mock, patch(
+        'release.create_release_notes', autospec=True, return_value=body
+    ) as create_release_notes_mock:
+        generate_release_pr(
+            access_token,
+            repo_url,
+            old_version,
+            new_version,
+        )
+    create_pr_mock.assert_called_once_with(
+        github_access_token=access_token,
+        repo_url=repo_url,
+        title="Release {}".format(new_version),
+        body=body,
+        head="release-candidate",
+        base="release",
+    )
+    create_release_notes_mock.assert_called_once_with(old_version, with_checkboxes=True)

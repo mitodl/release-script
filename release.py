@@ -15,9 +15,11 @@ import os
 from pkg_resources import parse_version
 
 from exception import ReleaseException
+from github import create_pr
 
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+GIT_RELEASE_NOTES_PATH = os.path.join(SCRIPT_DIR, "./node_modules/.bin/git-release-notes")
 
 
 class DependencyException(Exception):
@@ -58,14 +60,12 @@ def validate_dependencies():
     """Error if a dependency is missing or invalid"""
     print("Validating dependencies...")
 
-    if not dependency_exists("hub"):
-        raise DependencyException('Please install hub https://hub.github.com/')
     if not dependency_exists("git"):
         raise DependencyException('Please install git https://git-scm.com/downloads')
-    if not dependency_exists("git-release-notes"):
-        raise DependencyException('Please install git-release-notes https://www.npmjs.com/package/git-release-notes')
     if not dependency_exists("node"):
         raise DependencyException('Please install node.js https://nodejs.org/')
+    if not dependency_exists(GIT_RELEASE_NOTES_PATH):
+        raise DependencyException("Please run 'npm install' first")
 
     version = check_output(["node", "--version"]).decode()
     major_version = int(re.match(r'^v(\d+)\.', version).group(1))
@@ -164,7 +164,7 @@ def create_release_notes(old_version, with_checkboxes):
         filename = "release_notes_rst.ejs"
 
     return "{}\n".format(check_output([
-        "git-release-notes",
+        GIT_RELEASE_NOTES_PATH,
         "v{}..master".format(old_version),
         os.path.join(SCRIPT_DIR, "util", filename),
     ]).decode().strip())
@@ -214,22 +214,37 @@ def build_release():
     check_call(["git", "push", "--force", "-q", "origin", "release-candidate:release-candidate"])
 
 
-def generate_release_pr(old_version, new_version):
-    """Make a release pull request for the deployed release-candidate branch"""
+def generate_release_pr(github_access_token, repo_url, old_version, new_version):
+    """
+    Make a release pull request for the deployed release-candidate branch
+
+    Args:
+        github_access_token (str): The github access token
+        repo_url (str): URL for the repo
+        old_version (str): The previous release version
+        new_version (str): The version of the new release
+    """
     print("Generating PR...")
 
-    checklist_file = "release-notes-checklist"
-    with open(checklist_file, "w") as f:
-        f.write("Release {}\n".format(new_version))
-        f.write("\n")
+    create_pr(
+        github_access_token=github_access_token,
+        repo_url=repo_url,
+        title="Release {version}".format(version=new_version),
+        body=create_release_notes(old_version, with_checkboxes=True),
+        head="release-candidate",
+        base="release",
+    )
 
-        f.write(create_release_notes(old_version, with_checkboxes=True))
 
-    check_call(["hub", "pull-request", "-b", "release", "-h", "release-candidate", "-F", checklist_file])
+def release(github_access_token, repo_url, new_version):
+    """
+    Run a release
 
-
-def release(repo_url, new_version):
-    """Run a release"""
+    Args:
+        github_access_token (str): The github access token
+        repo_url (str): URL for a repo
+        new_version (str): The version of the new release
+    """
 
     validate_dependencies()
 
@@ -244,7 +259,7 @@ def release(repo_url, new_version):
         verify_new_commits(old_version)
         update_release_notes(old_version, new_version)
         build_release()
-        generate_release_pr(old_version, new_version)
+        generate_release_pr(github_access_token, repo_url, old_version, new_version)
 
     print("version {old_version} has been updated to {new_version}".format(
         old_version=old_version,
@@ -258,12 +273,16 @@ def main():
     """
     Create a new release
     """
+    try:
+        github_access_token = os.environ['GITHUB_ACCESS_TOKEN']
+    except KeyError:
+        raise Exception("Missing GITHUB_ACCESS_TOKEN")
     parser = argparse.ArgumentParser()
     parser.add_argument("repo_url")
     parser.add_argument("version")
     args = parser.parse_args()
 
-    release(repo_url=args.repo_url, new_version=args.version)
+    release(github_access_token=github_access_token, repo_url=args.repo_url, new_version=args.version)
 
 
 if __name__ == "__main__":

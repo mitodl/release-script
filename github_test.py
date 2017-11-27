@@ -7,6 +7,7 @@ from dateutil.parser import parse
 
 from bot import SCRIPT_DIR
 from github import (
+    create_pr,
     calculate_karma,
     needs_review,
     KARMA_QUERY,
@@ -74,3 +75,37 @@ def test_needs_review():
             ),
         ]
     patched.assert_called_once_with(github_access_token, NEEDS_REVIEW_QUERY)
+
+
+def test_create_pr():
+    """create_pr should create a pr or raise an exception if the attempt failed"""
+    access_token = 'github_access_token'
+    org = 'abc'
+    repo = 'xyz'
+    title = 'title'
+    body = 'body'
+    head = 'head'
+    base = 'base'
+    with patch('requests.post', autospec=True) as patched:
+        create_pr(
+            access_token,
+            'https://github.com/{}/{}.git'.format(org, repo),
+            title,
+            body,
+            head,
+            base,
+        )
+    endpoint = 'https://api.github.com/repos/{}/{}/pulls'.format(org, repo)
+    patched.assert_called_once_with(
+        endpoint,
+        headers={
+            "Authorization": "Bearer {}".format(access_token),
+            "Accept": "application/vnd.github.v3+json",
+        },
+        data=json.dumps({
+            'title': title,
+            'body': body,
+            'head': head,
+            'base': base,
+        })
+    )
