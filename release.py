@@ -83,7 +83,7 @@ def update_version_in_file(root, filename, new_version):
     old_version = None
     with open(version_filepath) as f:
         for line in f.readlines():
-            line = line.strip()
+            line = line.strip("\n")
             updated_line = line
 
             if filename == "settings.py":
@@ -101,7 +101,7 @@ def update_version_in_file(root, filename, new_version):
                     old_version = match.group('version').strip()
                     updated_line = re.sub(regex, "__version__ = '{}'".format(new_version), line)
             elif filename == "setup.py":
-                regex = r"version=.*(?P<version>\d+\.\d+\.\d+).*"
+                regex = r"\s*version=.*(?P<version>\d+\.\d+\.\d+).*"
                 match = re.match(regex, line)
                 if match:
                     update_count += 1
