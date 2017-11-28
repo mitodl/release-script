@@ -256,3 +256,18 @@ def now_in_utc():
         Returns current datetime in UTC
     """
     return datetime.now().replace(tzinfo=timezone.utc)
+
+
+def url_with_access_token(github_access_token, repo_url):
+    """
+    Inserts the access token into the URL
+
+    Returns:
+        str: The URL formatted with an access token
+    """
+    org, repo = get_org_and_repo(repo_url)
+    return "https://{token}@github.com/{org}/{repo}.git".format(
+        token=github_access_token,
+        org=org,
+        repo=repo,
+    )
