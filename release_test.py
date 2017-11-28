@@ -232,7 +232,8 @@ def test_validate_node_version(major):
 
 def test_init_working_dir(test_repo):
     """init_working_dir should initialize a valid git repo, and clean up after itself"""
-    with init_working_dir('fake_access_token', os.path.abspath(".git")) as other_directory:
+    # the fake access token won't matter here since this operation is read-only
+    with init_working_dir('fake_access_token', "https://github.com/mitodl/release-script.git") as other_directory:
         os.chdir(other_directory)
         check_call(["git", "status"])
     assert not os.path.exists(other_directory)
