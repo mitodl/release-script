@@ -217,6 +217,7 @@ class Bot:
         )
         unchecked_authors = get_unchecked_authors(org, repo)
         slack_usernames = self.translate_slack_usernames(unchecked_authors)
+        pr = get_release_pr(org, repo)
         await self.say(
             channel_id,
             "Release {version} for {project} was deployed! PR is up at {pr_url}."
