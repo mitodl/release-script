@@ -7,9 +7,11 @@ import re
 from subprocess import check_output
 import sys
 
-import requests
-
 from exception import ReleaseException
+from github import (
+    get_pull_request,
+    get_org_and_repo,
+)
 
 
 ReleasePR = namedtuple("ReleasePR", ['version', 'url', 'body'])
@@ -69,46 +71,19 @@ def parse_checkmarks(body):
     return commits
 
 
-def _get_pr(org, repo, branch):
-    """
-    Look up the pull request for a branch
-
-    Args:
-        org (str): The github organization (eg mitodl)
-        repo (str): The github repository (eg micromasters)
-        branch (str): The name of the associated branch
-
-    Returns:
-        dict: The information about the pull request
-    """
-    response = requests.get("https://api.github.com/repos/{org}/{repo}/pulls".format(
-        org=org,
-        repo=repo,
-    ))
-    response.raise_for_status()
-    pulls = response.json()
-    pulls = [pull for pull in pulls if pull['head']['ref'] == branch]
-    if len(pulls) == 0:
-        return None
-    elif len(pulls) > 1:
-        # Shouldn't happen since we look up by branch
-        raise Exception("More than one pull request for the branch {}".format(branch))
-
-    return pulls[0]
-
-
-def get_release_pr(org, repo):
+def get_release_pr(github_access_token, org, repo):
     """
     Look up the pull request information for a release, or return None if it doesn't exist
 
     Args:
+        github_access_token (str): The github access token
         org (str): The github organization (eg mitodl)
         repo (str): The github repository (eg micromasters)
 
     Returns:
         ReleasePR: The information about the release pull request, or None if there is no release PR in progress
     """
-    pr = _get_pr(org, repo, 'release-candidate')
+    pr = get_pull_request(github_access_token, org, repo, 'release-candidate')
     if pr is None:
         return None
 
@@ -125,34 +100,21 @@ def get_release_pr(org, repo):
     )
 
 
-def get_unchecked_authors(org, repo):
+def get_unchecked_authors(github_access_token, org, repo):
     """
     Returns list of authors who have not yet checked off their checkboxes
 
     Args:
+        github_access_token (str): The github access token
         org (str): The github organization (eg mitodl)
         repo (str): The github repository (eg micromasters)
     """
-    release_pr = get_release_pr(org, repo)
+    release_pr = get_release_pr(github_access_token, org, repo)
     if not release_pr:
         raise ReleaseException("No release PR found")
     body = release_pr.body
     commits = parse_checkmarks(body)
     return {commit['author_name'] for commit in commits if not commit['checked']}
-
-
-def get_org_and_repo(repo_url):
-    """
-    Get the org and repo from a git repository cloned from github.
-
-    Args:
-        repo_url (str): The repository URL
-
-    Returns:
-        tuple: (org, repo)
-    """
-    org, repo = re.match(r'^.*github\.com[:|/](.+)/(.+)\.git', repo_url).groups()
-    return org, repo
 
 
 def next_workday_at_10(now):
@@ -222,11 +184,12 @@ def match_user(slack_users, author_name, threshold=0.6):
         return author_name
 
 
-async def wait_for_checkboxes(org, repo):
+async def wait_for_checkboxes(github_access_token, org, repo):
     """
     Wait for checkboxes, polling every 60 seconds
 
     Args:
+        github_access_token (str): The github access token
         org (str): The github organization (eg mitodl)
         repo (str): The github repository (eg micromasters)
     """
@@ -234,7 +197,7 @@ async def wait_for_checkboxes(org, repo):
     error_count = 0
     while True:
         try:
-            unchecked_authors = get_unchecked_authors(org, repo)
+            unchecked_authors = get_unchecked_authors(github_access_token, org, repo)
             if len(unchecked_authors) == 0:
                 break
 

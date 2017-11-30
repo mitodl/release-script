@@ -2,11 +2,10 @@
 
 from collections import defaultdict
 import json
+import re
 
 from dateutil.parser import parse
 import requests
-
-from lib import get_org_and_repo
 
 
 KARMA_QUERY = """
@@ -96,6 +95,23 @@ def run_query(github_access_token, query):
     return resp.json()
 
 
+def github_auth_headers(github_access_token):
+    """
+    Create headers for authenticating requests against github
+
+    Args:
+        github_access_token (str): A github access token
+
+    Returns:
+        dict:
+            Headers for authenticating a request
+    """
+    return {
+        "Authorization": "Bearer {}".format(github_access_token),
+        "Accept": "application/vnd.github.v3+json",
+    }
+
+
 def create_pr(github_access_token, repo_url, title, body, head, base):  # pylint: disable=too-many-arguments
     """
     Create a pull request
@@ -115,16 +131,51 @@ def create_pr(github_access_token, repo_url, title, body, head, base):  # pylint
         repo=repo,
     )
 
-    resp = requests.post(endpoint, headers={
-        "Authorization": "Bearer {}".format(github_access_token),
-        "Accept": "application/vnd.github.v3+json",
-    }, data=json.dumps({
-        'title': title,
-        'body': body,
-        'head': head,
-        'base': base,
-    }))
+    resp = requests.post(
+        endpoint,
+        headers=github_auth_headers(github_access_token),
+        data=json.dumps({
+            'title': title,
+            'body': body,
+            'head': head,
+            'base': base,
+        })
+    )
     resp.raise_for_status()
+
+
+def get_pull_request(github_access_token, org, repo, branch):
+    """
+    Look up the pull request for a branch
+
+    Args:
+        github_access_token (str): The github access token
+        org (str): The github organization (eg mitodl)
+        repo (str): The github repository (eg micromasters)
+        branch (str): The name of the associated branch
+
+    Returns:
+        dict: The information about the pull request
+    """
+    endpoint = "https://api.github.com/repos/{org}/{repo}/pulls".format(
+        org=org,
+        repo=repo,
+    )
+
+    response = requests.get(
+        endpoint,
+        headers=github_auth_headers(github_access_token),
+    )
+    response.raise_for_status()
+    pulls = response.json()
+    pulls = [pull for pull in pulls if pull['head']['ref'] == branch]
+    if len(pulls) == 0:
+        return None
+    elif len(pulls) > 1:
+        # Shouldn't happen since we look up by branch
+        raise Exception("More than one pull request for the branch {}".format(branch))
+
+    return pulls[0]
 
 
 def calculate_karma(github_access_token, begin_date, end_date):
@@ -209,3 +260,17 @@ def needs_review(github_access_token):
                 )
 
     return prs_needing_review
+
+
+def get_org_and_repo(repo_url):
+    """
+    Get the org and repo from a git repository cloned from github.
+
+    Args:
+        repo_url (str): The repository URL
+
+    Returns:
+        tuple: (org, repo)
+    """
+    org, repo = re.match(r'^.*github\.com[:|/](.+)/(.+)\.git', repo_url).groups()
+    return org, repo
