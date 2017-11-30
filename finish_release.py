@@ -1,5 +1,6 @@
 """Release script to finish the release"""
 import argparse
+import os
 from subprocess import (
     check_call,
     check_output,
@@ -48,11 +49,11 @@ def merge_release():
     check_call(['git', 'push'])
 
 
-def finish_release(repo_url, version):
+def finish_release(github_access_token, repo_url, version):
     """Merge release to master and deploy to production"""
 
     validate_dependencies()
-    with init_working_dir(repo_url):
+    with init_working_dir(github_access_token, repo_url):
         check_release_tag(version)
         merge_release_candidate()
         tag_release(version)
@@ -63,12 +64,21 @@ def main():
     """
     Deploy a release to production
     """
+    try:
+        github_access_token = os.environ['GITHUB_ACCESS_TOKEN']
+    except KeyError:
+        raise Exception("Missing GITHUB_ACCESS_TOKEN")
+
     parser = argparse.ArgumentParser()
     parser.add_argument("repo_url")
     parser.add_argument("version")
     args = parser.parse_args()
 
-    finish_release(repo_url=args.repo_url, version=args.version)
+    finish_release(
+        github_access_token=github_access_token,
+        repo_url=args.repo_url,
+        version=args.version,
+    )
 
 
 if __name__ == "__main__":

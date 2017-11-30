@@ -23,6 +23,7 @@ from release import (
     UpdateVersionException,
     update_version,
     update_version_in_file,
+    url_with_access_token,
     validate_dependencies,
     verify_new_commits,
 )
@@ -230,12 +231,24 @@ def test_validate_node_version(major):
                 validate_dependencies()
 
 
-def test_init_working_dir(test_repo):
+def test_init_working_dir():
     """init_working_dir should initialize a valid git repo, and clean up after itself"""
-    with init_working_dir(os.path.abspath(".git")) as other_directory:
-        os.chdir(other_directory)
-        check_call(["git", "status"])
+    # the fake access token won't matter here since this operation is read-only
+    repo_url = "https://github.com/mitodl/release-script.git"
+    access_token = 'fake_access_token'
+    with patch('release.check_call', autospec=True) as check_call_mock, init_working_dir(
+        access_token, repo_url,
+    ) as other_directory:
+        assert os.path.exists(other_directory)
     assert not os.path.exists(other_directory)
+
+    calls = check_call_mock.call_args_list
+    assert [call[0][0] for call in calls] == [
+        ['git', 'init'],
+        ['git', 'remote', 'add', 'origin', url_with_access_token(access_token, repo_url)],
+        ['git', 'fetch'],
+        ['git', 'checkout', '-t', 'origin/master'],
+    ]
 
 
 def make_empty_commit(user, message):

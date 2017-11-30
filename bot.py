@@ -195,7 +195,11 @@ class Bot:
         pr = get_release_pr(org, repo)
         if pr:
             raise ReleaseException("A release is already in progress: {}".format(pr.url))
-        release(self.github_access_token, repo_url, version)
+        release(
+            github_access_token=self.github_access_token,
+            repo_url=repo_url,
+            new_version=version,
+        )
 
         await self.say(
             channel_id,
@@ -205,9 +209,15 @@ class Bot:
             ),
         )
 
-        await wait_for_deploy(repo_url, repo_info.rc_hash_url, "release-candidate")
+        await wait_for_deploy(
+            github_access_token=self.github_access_token,
+            repo_url=repo_url,
+            hash_url=repo_info.rc_hash_url,
+            watch_branch="release-candidate",
+        )
         unchecked_authors = get_unchecked_authors(org, repo)
         slack_usernames = self.translate_slack_usernames(unchecked_authors)
+        pr = get_release_pr(org, repo)
         await self.say(
             channel_id,
             "Release {version} for {project} was deployed! PR is up at {pr_url}."
@@ -261,7 +271,11 @@ class Bot:
             raise ReleaseException("No release currently in progress for {project}".format(project=repo_info.name))
         version = pr.version
 
-        finish_release(repo_url, version)
+        finish_release(
+            github_access_token=self.github_access_token,
+            repo_url=repo_url,
+            version=version,
+        )
 
         await self.say(
             channel_id,
@@ -270,7 +284,12 @@ class Bot:
                 project=repo_info.name,
             ),
         )
-        await wait_for_deploy(repo_url, repo_info.prod_hash_url, "release")
+        await wait_for_deploy(
+            github_access_token=self.github_access_token,
+            repo_url=repo_url,
+            hash_url=repo_info.prod_hash_url,
+            watch_branch="release",
+        )
         await self.say(
             channel_id,
             "My evil scheme {version} for {project} has been released to production. "
@@ -287,7 +306,7 @@ class Bot:
         Args:
             repo_info (RepoInfo): The info for a repo
         """
-        with init_working_dir(repo_info.repo_url):
+        with init_working_dir(self.github_access_token, repo_info.repo_url):
             last_version = update_version("9.9.9")
 
             release_notes = create_release_notes(last_version, with_checkboxes=False)

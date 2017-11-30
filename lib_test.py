@@ -18,6 +18,7 @@ from lib import (
     reformatted_full_name,
     release_manager_name,
     ReleasePR,
+    url_with_access_token,
 )
 
 
@@ -192,3 +193,10 @@ def test_release_manager_name():
     # If the name is missing we should return None
     with patch('lib.check_output', autospec=True, return_value=b''):
         assert release_manager_name() is None
+
+
+def test_url_with_access_token():
+    """url_with_access_token should insert the access token into the url"""
+    assert url_with_access_token(
+        "access", "http://github.com/mitodl/release-script.git"
+    ) == "https://access@github.com/mitodl/release-script.git"

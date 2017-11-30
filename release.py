@@ -16,6 +16,7 @@ from pkg_resources import parse_version
 
 from exception import ReleaseException
 from github import create_pr
+from lib import url_with_access_token
 
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -40,15 +41,16 @@ def dependency_exists(command):
 
 
 @contextmanager
-def init_working_dir(repo_url):
+def init_working_dir(github_access_token, repo_url):
     """Create a new directory with an empty git repo"""
     pwd = os.getcwd()
+    url = url_with_access_token(github_access_token, repo_url)
     try:
         with TemporaryDirectory() as directory:
             os.chdir(directory)
             # from http://stackoverflow.com/questions/2411031/how-do-i-clone-into-a-non-empty-directory
             check_call(["git", "init"])
-            check_call(["git", "remote", "add", "origin", repo_url])
+            check_call(["git", "remote", "add", "origin", url])
             check_call(["git", "fetch"])
             check_call(["git", "checkout", "-t", "origin/master"])
             yield directory
@@ -248,7 +250,7 @@ def release(github_access_token, repo_url, new_version):
 
     validate_dependencies()
 
-    with init_working_dir(repo_url):
+    with init_working_dir(github_access_token, repo_url):
         check_call(["git", "checkout", "-qb", "release-candidate"])
         old_version = update_version(new_version)
         if parse_version(old_version) >= parse_version(new_version):
@@ -282,7 +284,11 @@ def main():
     parser.add_argument("version")
     args = parser.parse_args()
 
-    release(github_access_token=github_access_token, repo_url=args.repo_url, new_version=args.version)
+    release(
+        github_access_token=github_access_token,
+        repo_url=args.repo_url,
+        new_version=args.version,
+    )
 
 
 if __name__ == "__main__":
