@@ -233,7 +233,6 @@ def test_validate_node_version(major):
 
 def test_init_working_dir():
     """init_working_dir should initialize a valid git repo, and clean up after itself"""
-    # the fake access token won't matter here since this operation is read-only
     repo_url = "https://github.com/mitodl/release-script.git"
     access_token = 'fake_access_token'
     with patch('release.check_call', autospec=True) as check_call_mock, init_working_dir(
@@ -249,6 +248,19 @@ def test_init_working_dir():
         ['git', 'fetch'],
         ['git', 'checkout', '-t', 'origin/master'],
     ]
+
+
+def test_init_working_dir_real():
+    """make sure init_working_dir can pull and checkout a real repo"""
+    # the fake access token won't matter here since this operation is read-only
+    repo_url = "https://github.com/mitodl/release-script.git"
+    access_token = ''
+    with init_working_dir(
+        access_token, repo_url,
+    ) as other_directory:
+        assert os.path.exists(other_directory)
+        check_call(["git", "status"])
+    assert not os.path.exists(other_directory)
 
 
 def make_empty_commit(user, message):
