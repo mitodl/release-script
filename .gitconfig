@@ -1,2 +1,3 @@
-user.name=Doof
-user.email=mitx-devops@mit.edu
+[user]
+    name=Doof
+    email=mitx-devops@mit.edu
