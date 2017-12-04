@@ -263,6 +263,16 @@ def test_init_working_dir_real():
     assert not os.path.exists(other_directory)
 
 
+def test_gitconfig():
+    """make sure we have a valid gitconfig file"""
+    with TemporaryDirectory() as directory:
+        check_call(["git", "init"], cwd=directory)
+        with open(os.path.join(directory, ".git", "config"), "w") as new_config:
+            with open(os.path.join(".gitconfig")) as old_config:
+                new_config.write(old_config.read())
+        check_call(["git", "status"], cwd=directory)
+
+
 def make_empty_commit(user, message):
     """Helper function to create an empty commit as a particular user"""
     check_call(["git", "config", "user.email", "{}@example.com".format(user)])
