@@ -9,6 +9,8 @@ from bot import SCRIPT_DIR
 from github import (
     create_pr,
     calculate_karma,
+    get_org_and_repo,
+    github_auth_headers,
     needs_review,
     KARMA_QUERY,
     NEEDS_REVIEW_QUERY,
@@ -109,3 +111,20 @@ def test_create_pr():
             'base': base,
         })
     )
+
+
+def test_github_auth_headers():
+    """github_auth_headers should have appropriate headers for autentication"""
+    github_access_token = 'access'
+    assert github_auth_headers(github_access_token) == {
+        "Authorization": "Bearer {}".format(github_access_token),
+        "Accept": "application/vnd.github.v3+json",
+    }
+
+
+def test_get_org_and_repo():
+    """get_org_and_repo should get the GitHub organization and repo from the directory"""
+    # I would be fine with testing this on cwd but Travis has a really old version of git that doesn't support
+    # get-url
+    for git_url in ["git@github.com:mitodl/release-script.git", "https://github.com/mitodl/release-script.git"]:
+        assert get_org_and_repo(git_url) == ("mitodl", "release-script")

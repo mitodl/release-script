@@ -8,8 +8,8 @@ from unittest.mock import (
 from requests import Response, HTTPError
 import pytest
 
+from github import github_auth_headers
 from lib import (
-    get_org_and_repo,
     get_release_pr,
     get_unchecked_authors,
     match_user,
@@ -79,13 +79,14 @@ def test_get_release_pr():
     """get_release_pr should grab a release from GitHub's API"""
     org = 'org'
     repo = 'repo'
+    access_token = 'access'
 
-    with patch('lib.requests.get', return_value=Mock(json=Mock(return_value=FAKE_PULLS))) as get_mock:
-        pr = get_release_pr(org, repo)
+    with patch('github.requests.get', return_value=Mock(json=Mock(return_value=FAKE_PULLS))) as get_mock:
+        pr = get_release_pr(access_token, org, repo)
     get_mock.assert_called_once_with("https://api.github.com/repos/{org}/{repo}/pulls".format(
         org=org,
         repo=repo,
-    ))
+    ), headers=github_auth_headers(access_token))
     assert pr.body == RELEASE_PR['body']
     assert pr.url == RELEASE_PR['html_url']
     assert pr.version == '0.53.3'
@@ -94,18 +95,18 @@ def test_get_release_pr():
 def test_get_release_pr_no_pulls():
     """If there is no release PR it should return None"""
     with patch(
-        'lib.requests.get', return_value=Mock(json=Mock(return_value=[OTHER_PR]))
+        'github.requests.get', return_value=Mock(json=Mock(return_value=[OTHER_PR]))
     ):
-        assert get_release_pr('org', 'repo-missing') is None
+        assert get_release_pr('access_token', 'org', 'repo-missing') is None
 
 
 def test_too_many_releases():
     """If there is no release PR, an exception should be raised"""
     pulls = [RELEASE_PR, RELEASE_PR]
     with pytest.raises(Exception) as ex, patch(
-        'lib.requests.get', return_value=Mock(json=Mock(return_value=pulls))
+        'github.requests.get', return_value=Mock(json=Mock(return_value=pulls))
     ):
-        get_release_pr('org', 'repo')
+        get_release_pr('access_token', 'org', 'repo')
 
     assert ex.value.args[0] == "More than one pull request for the branch release-candidate"
 
@@ -115,9 +116,9 @@ def test_no_release_wrong_repo():
     response_404 = Response()
     response_404.status_code = 404
     with pytest.raises(HTTPError) as ex, patch(
-        'lib.requests.get', return_value=response_404
+        'github.requests.get', return_value=response_404
     ):
-        get_release_pr('org', 'repo')
+        get_release_pr('access_token', 'org', 'repo')
 
     assert ex.value.response.status_code == 404
 
@@ -129,23 +130,16 @@ def test_get_unchecked_authors():
     """
     org = 'org'
     repo = 'repo'
+    access_token = 'all-access'
 
     with patch('lib.get_release_pr', autospec=True, return_value=ReleasePR(
         body=FAKE_RELEASE_PR_BODY,
         version='1.2.3',
         url='http://url'
     )) as get_release_pr_mock:
-        unchecked = get_unchecked_authors(org, repo)
+        unchecked = get_unchecked_authors(access_token, org, repo)
     assert unchecked == {"Alice Pote"}
-    get_release_pr_mock.assert_called_once_with(org, repo)
-
-
-def test_get_org_and_repo():
-    """get_org_and_repo should get the GitHub organization and repo from the directory"""
-    # I would be fine with testing this on cwd but Travis has a really old version of git that doesn't support
-    # get-url
-    for git_url in ["git@github.com:mitodl/release-script.git", "https://github.com/mitodl/release-script.git"]:
-        assert get_org_and_repo(git_url) == ("mitodl", "release-script")
+    get_release_pr_mock.assert_called_once_with(access_token, org, repo)
 
 
 def test_next_workday_at_10():
