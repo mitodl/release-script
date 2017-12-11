@@ -3,7 +3,7 @@
     {
       "name": "micromasters",
       "repo_url": "https://github.com/mitodl/micromasters.git",
-      "rc_hash_url": "https://micromasters-rc.herokuapp.com/static/hash.txt",
+      "rc_hash_url": "https://micromasters-rc.odl.mit.edu/static/hash.txt",
       "prod_hash_url": "https://micromasters.mit.edu/static/hash.txt",
       "channel_name": "micromasters-eng"
     },
