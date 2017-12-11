@@ -41,7 +41,11 @@ from lib import (
     wait_for_checkboxes,
 )
 from repo_info import RepoInfo
-from wait_for_deploy import wait_for_deploy
+from wait_for_deploy import (
+    fetch_release_hash,
+    wait_for_deploy,
+)
+from version import get_version_tag
 
 
 log = logging.getLogger(__name__)
@@ -302,6 +306,24 @@ class Bot:
             )
         )
 
+    async def report_version(self, repo_info):
+        """
+        Report the version that is running in production
+
+        Args:
+            repo_info (RepoInfo): The info for a repo
+        """
+        channel_id = repo_info.channel_id
+        repo_url = repo_info.repo_url
+
+        commit_hash = fetch_release_hash(repo_info.prod_hash_url)
+
+        version = get_version_tag(self.github_access_token, repo_url, commit_hash)
+        await self.say(
+            channel_id,
+            "Wait a minute! My evil scheme is at version {version}!".format(version=version[1:])
+        )
+
     async def commits_since_last_release(self, repo_info):
         """
         Have doof show the release notes since the last release
@@ -420,6 +442,8 @@ class Bot:
                 await self.karma(channel_id, start_date)
             elif has_command(['what', 'needs', 'review'], words):
                 await self.needs_review(channel_id)
+            elif has_command(["version"], words):
+                await self.report_version(repo_info)
             else:
                 await self.say(channel_id, "Oooopps! Invalid command format")
         except (InputException, ReleaseException) as ex:
