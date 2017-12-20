@@ -14,7 +14,9 @@ from release import (
 
 def fetch_release_hash(hash_url):
     """Fetch the hash from the release"""
-    release_hash = requests.get(hash_url).content.decode().strip()
+    response = requests.get(hash_url)
+    response.raise_for_status()
+    release_hash = response.content.decode().strip()
     if len(release_hash) != 40:
         raise Exception("Expected release hash from {hash_url} but got: {hash}".format(
             hash_url=hash_url,

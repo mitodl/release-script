@@ -450,6 +450,7 @@ def test_fetch_release_hash(mocker):
     ))
     assert fetch_release_hash(url) == sha1_hash.decode()
     get_mock.assert_called_once_with(url)
+    get_mock.return_value.raise_for_status.assert_called_once_with()
 
 
 def test_get_version_tag(mocker):
