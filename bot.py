@@ -188,6 +188,20 @@ class Bot:
             "text": text}))
         self.message_count += 1
 
+    async def typing(self, channel_id):
+        """
+        Post a message in the Slack channel that Doof is typing something
+
+        Args:
+            channel_id (str): A channel id
+        """
+        await self.websocket.send(json.dumps({
+            "id": self.message_count,
+            "type": "typing",
+            "channel": channel_id
+        }))
+        self.message_count += 1
+
     async def do_release(self, repo_info, version):
         """
         Start a new release and wait for deployment
@@ -417,8 +431,8 @@ class Bot:
             words (list of str): the words making up a command
             loop (asyncio.events.AbstractEventLoop): The asyncio event loop
         """
-
         try:
+            await self.typing(channel_id)
             if has_command(['release', 'notes'], words):
                 await self.commits_since_last_release(repo_info)
             elif has_command(['release'], words) or has_command(['start', 'release'], words):
