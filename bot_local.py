@@ -20,9 +20,12 @@ class FakeConsoleSocket:
     async def send(self, payload_json):
         """Print out data which would get sent"""
         payload = json.loads(payload_json)
-        if payload['channel'] != self.channel_id:
+        if payload.get('channel') != self.channel_id:
             raise Exception("Unexpected channel for payload: {}".format(payload))
-        text = payload['text']
+        if payload.get('type') != 'message':
+            # ignore typing and other unimportant messages
+            return
+        text = payload.get('text')
         print(
             "\033[92m{}\033[0m".format(text)
         )
