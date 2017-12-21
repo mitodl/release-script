@@ -477,7 +477,11 @@ class Bot:
             command=command,
             parsers=parsers,
         ) for command, parsers, _ in sorted(self.make_commands())]
-        await self.say(channel_id, "Commands:\n\n{}".format("\n".join(descriptions)))
+        await self.say(
+            channel_id,
+            "Come on, Perry the Platypus. Let's go home. I talk to you enough, right? "
+            "Yeah, you're right. Maybe too much.\n\n{}".format("\n".join(descriptions))
+        )
 
     def make_commands(self):
         """Describe the commands which are available"""
@@ -511,9 +515,13 @@ class Bot:
             if has_command(command_words, words):
                 args = words[len(command_words):]
                 if len(args) != len(parsers):
-                    await self.say(channel_id, "Command {} expects {} args but you only gave it {}".format(
-                        command, len(parsers), len(args)
-                    ))
+                    await self.say(
+                        channel_id,
+                        "I expected {expected_num} words for that command but you said {actual_num}".format(
+                            expected_num=len(parsers),
+                            actual_num=len(args),
+                        )
+                    )
                     return
 
                 parsed_args = []
@@ -521,7 +529,11 @@ class Bot:
                     try:
                         parsed_args.append(parser(arg))
                     except Exception as ex:
-                        raise InputException("Had a problem parsing {} with {}".format(arg, parser)) from ex
+                        raise InputException(
+                            "You said {word} but I'm having trouble figuring out how that fits into {parser}".format(
+                                word=arg,
+                                parser=parser
+                            )) from ex
 
                 await command_func(
                     CommandArgs(
