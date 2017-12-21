@@ -57,7 +57,7 @@ def main():
     loop = asyncio.get_event_loop()
     loop.run_until_complete(
         loop.create_task(
-            bot.handle_message(channel_id, repo_info, words, loop)
+            bot.handle_message('mitodl_user', channel_id, repo_info, words, loop)
         )
     )
 

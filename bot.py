@@ -33,11 +33,11 @@ from release import (
 from lib import (
     get_release_pr,
     get_unchecked_authors,
+    format_user_id,
     match_user,
     now_in_utc,
     next_workday_at_10,
     parse_date,
-    release_manager_name,
     VERSION_RE,
     wait_for_checkboxes,
 )
@@ -127,7 +127,7 @@ def get_envs():
     return env_dict
 
 
-CommandArgs = namedtuple('CommandArgs', ['channel_id', 'repo_info', 'args', 'loop'])
+CommandArgs = namedtuple('CommandArgs', ['manager', 'channel_id', 'repo_info', 'args', 'loop'])
 Command = namedtuple('Command', ['command', 'parsers', 'command_func', 'description'])
 Parser = namedtuple('Parser', ['func', 'description'])
 
@@ -160,12 +160,12 @@ class Bot:
         resp.raise_for_status()
         return resp.json()['members']
 
-    def translate_slack_usernames(self, unchecked_authors):
+    def translate_slack_usernames(self, names):
         """
         Try to match each full name with a slack username.
 
         Args:
-            unchecked_authors (iterable of str): An iterable of full names
+            names (iterable of str): An iterable of full names
 
         Returns:
             iterable of str:
@@ -173,11 +173,11 @@ class Bot:
         """
         try:
             slack_users = self.lookup_users()
-            return [match_user(slack_users, author) for author in unchecked_authors]
+            return [match_user(slack_users, author) for author in names]
 
         except Exception as exception:  # pylint: disable=broad-except
             sys.stderr.write("Error: {}".format(exception))
-            return unchecked_authors
+            return names
 
     async def say(self, channel_id, text):
         """
@@ -257,7 +257,7 @@ class Bot:
             )
         )
 
-        await self.wait_for_checkboxes(repo_info)
+        await self.wait_for_checkboxes(repo_info, command_args.manager)
         command_args.loop.create_task(self.delay_message(repo_info))
 
     async def wait_for_checkboxes_command(self, command_args):
@@ -267,14 +267,15 @@ class Bot:
         Args:
             command_args (CommandArgs): The arguments for this command
         """
-        await self.wait_for_checkboxes(command_args.repo_info)
+        await self.wait_for_checkboxes(command_args.repo_info, command_args.manager)
 
-    async def wait_for_checkboxes(self, repo_info):
+    async def wait_for_checkboxes(self, repo_info, manager):
         """
         Poll the Release PR and wait until all checkboxes are checked off
 
         Args:
             repo_info (RepoInfo): Information for a repo
+            manager (str): User id for the release manager
         """
         channel_id = repo_info.channel_id
         await self.say(
@@ -286,12 +287,11 @@ class Bot:
         )
         org, repo = get_org_and_repo(repo_info.repo_url)
         await wait_for_checkboxes(self.github_access_token, org, repo)
-        release_manager = release_manager_name()
         pr = get_release_pr(self.github_access_token, org, repo)
         await self.say(
             channel_id,
-            "All checkboxes checked off. Release {version} is ready for the Merginator{name}!".format(
-                name=' {}'.format(self.translate_slack_usernames([release_manager])[0]) if release_manager else '',
+            "All checkboxes checked off. Release {version} is ready for the Merginator {name}!".format(
+                name=format_user_id(manager),
                 version=pr.version
             )
         )
@@ -558,11 +558,13 @@ class Bot:
             ),
         ]
 
-    async def run_command(self, channel_id, repo_info, words, loop):  # pylint: disable=too-many-locals
+    # pylint: disable=too-many-locals
+    async def run_command(self, manager, channel_id, repo_info, words, loop):
         """
         Run a command
 
         Args:
+            manager (str): The user id for the person giving the command
             channel_id (str): The channel id
             repo_info (RepoInfo): The repo info, if the channel id can be found for that repo
             words (list of str): the words making up a command
@@ -604,6 +606,7 @@ class Bot:
                         channel_id=channel_id,
                         args=parsed_args,
                         loop=loop,
+                        manager=manager,
                     )
                 )
                 return
@@ -616,18 +619,19 @@ class Bot:
             " Y'know, unless, one of you happens to be really good with computers."
         )
 
-    async def handle_message(self, channel_id, repo_info, words, loop):
+    async def handle_message(self, manager, channel_id, repo_info, words, loop):
         """
         Handle the message
 
         Args:
+            manager (str): The user id for the person giving the command
             channel_id (str): The channel id
             repo_info (RepoInfo): The repo info, if the channel id can be found for that repo
             words (list of str): the words making up a command
             loop (asyncio.events.AbstractEventLoop): The asyncio event loop
         """
         try:
-            await self.run_command(channel_id, repo_info, words, loop)
+            await self.run_command(manager, channel_id, repo_info, words, loop)
         except (InputException, ReleaseException) as ex:
             log.exception("A BotException was raised:")
             await self.say(channel_id, "Oops! {}".format(ex))
@@ -714,7 +718,7 @@ def main():
                     message_handle, *words = all_words
                     if message_handle in ("<@{}>".format(doof_id), "@doof"):
                         loop.create_task(
-                            bot.handle_message(channel_id, channel_repo_info, words, loop)
+                            bot.handle_message(message['user'], channel_id, channel_repo_info, words, loop)
                         )
 
     loop = asyncio.get_event_loop()

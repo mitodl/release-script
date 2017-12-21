@@ -4,7 +4,6 @@ from collections import namedtuple
 from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
 import re
-from subprocess import check_output
 import sys
 
 from dateutil.parser import parse
@@ -20,21 +19,6 @@ ReleasePR = namedtuple("ReleasePR", ['version', 'url', 'body'])
 
 
 VERSION_RE = r'\d+\.\d+\.\d+'
-
-
-def release_manager_name():
-    """
-    Get the release manager's name, or None if it can't be found
-
-    Returns:
-        str: The release manager's name, or None if it can't be found
-    """
-    lines = check_output(["git", "config", "--global", "-l"]).decode().split("\n")
-    for line in lines:
-        pieces = line.split("=")
-        if len(pieces) == 2 and pieces[0] == 'user.name':
-            return pieces[1]
-    return None
 
 
 def parse_checkmarks(body):
@@ -142,7 +126,13 @@ def next_workday_at_10(now):
 
 def reformatted_full_name(full_name):
     """
-    Make the full name lowercase and split it so we use
+    Make the full name lowercase and split it so we can more easily calculate its similarity
+
+    Args:
+        full_name (str): The user's full name
+
+    Returns:
+        str: The name in lowercase, removing the middle names
     """
     pieces = full_name.lower().split()
     if len(pieces) >= 2:
@@ -151,6 +141,19 @@ def reformatted_full_name(full_name):
         return pieces[0]
     else:
         return ''
+
+
+def format_user_id(user_id):
+    """
+    Format user id so Slack tags it
+
+    Args:
+        user_id (str): A slack user id
+
+    Returns:
+        str: A user id in a Slack tag
+    """
+    return "<@{id}>".format(id=user_id)
 
 
 def match_user(slack_users, author_name, threshold=0.6):
@@ -184,7 +187,7 @@ def match_user(slack_users, author_name, threshold=0.6):
 
     if len(slack_matches) > 0:
         matched_user = max(slack_matches, key=lambda pair: pair[1])[0]
-        return "<@{id}>".format(id=matched_user['id'])
+        return format_user_id(matched_user['id'])
     else:
         return author_name
 
