@@ -1,7 +1,9 @@
 codecov
 pylint==1.6.5
 pytest
+pytest-asyncio
 pytest-cov
+pytest-mock
 pytest-pep8
 pytest-pylint==0.6.0
 tox

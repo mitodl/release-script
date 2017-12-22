@@ -27,6 +27,8 @@ from release import (
     validate_dependencies,
     verify_new_commits,
 )
+from version import get_version_tag
+from wait_for_deploy import fetch_release_hash
 
 
 # pylint: disable=redefined-outer-name, unused-argument
@@ -435,3 +437,26 @@ def test_generate_release_pr(test_repo):
         base="release",
     )
     create_release_notes_mock.assert_called_once_with(old_version, with_checkboxes=True)
+
+
+def test_fetch_release_hash(mocker):
+    """
+    fetch_release_hash should download the release hash at the URL
+    """
+    sha1_hash = b"X" * 40
+    url = 'a_url'
+    get_mock = mocker.patch('wait_for_deploy.requests.get', return_value=mocker.Mock(
+        content=sha1_hash
+    ))
+    assert fetch_release_hash(url) == sha1_hash.decode()
+    get_mock.assert_called_once_with(url)
+    get_mock.return_value.raise_for_status.assert_called_once_with()
+
+
+def test_get_version_tag(mocker):
+    """
+    get_version_tag should return the git hash of the directory
+    """
+    a_hash = b'hash'
+    mocker.patch('version.check_output', autospec=True, return_value=a_hash)
+    assert get_version_tag('github', 'http://github.com/mitodl/doof.git', 'commit') == a_hash.decode()

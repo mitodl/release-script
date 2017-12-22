@@ -421,6 +421,45 @@ class Bot:
             )
         )
 
+    async def run_command(self, channel_id, repo_info, words, loop):
+        """
+        Run a command
+
+        Args:
+            channel_id (str): The channel id
+            repo_info (RepoInfo): The repo info, if the channel id can be found for that repo
+            words (list of str): the words making up a command
+            loop (asyncio.events.AbstractEventLoop): The asyncio event loop
+        """
+        await self.typing(channel_id)
+        if has_command(['release', 'notes'], words):
+            await self.commits_since_last_release(repo_info)
+        elif has_command(['release'], words) or has_command(['start', 'release'], words):
+            version = get_version_number(words[-1])
+
+            loop.create_task(self.delay_message(repo_info))
+            await self.do_release(repo_info, version)
+            await self.wait_for_checkboxes(repo_info)
+        elif has_command(['finish', 'release'], words):
+            await self.finish_release(repo_info)
+        elif has_command(['wait', 'for', 'checkboxes'], words):
+            await self.wait_for_checkboxes(repo_info)
+        elif has_command(['hi'], words):
+            await self.say(
+                channel_id,
+                "A Mongol army? Really? Uh, I must have had the dial set for"
+                " 'Hun.' Oh, well, you don't look a gift horde in the mouth, so... hello! "
+            )
+        elif has_command(['karma'], words):
+            start_date = parse(words[1]).date()
+            await self.karma(channel_id, start_date)
+        elif has_command(['what', 'needs', 'review'], words):
+            await self.needs_review(channel_id)
+        elif has_command(["version"], words):
+            await self.report_version(repo_info)
+        else:
+            await self.say(channel_id, "Oooopps! Invalid command format")
+
     async def handle_message(self, channel_id, repo_info, words, loop):
         """
         Handle the message
@@ -432,34 +471,7 @@ class Bot:
             loop (asyncio.events.AbstractEventLoop): The asyncio event loop
         """
         try:
-            await self.typing(channel_id)
-            if has_command(['release', 'notes'], words):
-                await self.commits_since_last_release(repo_info)
-            elif has_command(['release'], words) or has_command(['start', 'release'], words):
-                version = get_version_number(words[-1])
-
-                loop.create_task(self.delay_message(repo_info))
-                await self.do_release(repo_info, version)
-                await self.wait_for_checkboxes(repo_info)
-            elif has_command(['finish', 'release'], words):
-                await self.finish_release(repo_info)
-            elif has_command(['wait', 'for', 'checkboxes'], words):
-                await self.wait_for_checkboxes(repo_info)
-            elif has_command(['hi'], words):
-                await self.say(
-                    channel_id,
-                    "A Mongol army? Really? Uh, I must have had the dial set for"
-                    " 'Hun.' Oh, well, you don't look a gift horde in the mouth, so... hello! "
-                )
-            elif has_command(['karma'], words):
-                start_date = parse(words[1]).date()
-                await self.karma(channel_id, start_date)
-            elif has_command(['what', 'needs', 'review'], words):
-                await self.needs_review(channel_id)
-            elif has_command(["version"], words):
-                await self.report_version(repo_info)
-            else:
-                await self.say(channel_id, "Oooopps! Invalid command format")
+            await self.run_command(channel_id, repo_info, words, loop)
         except (InputException, ReleaseException) as ex:
             log.exception("A BotException was raised:")
             await self.say(channel_id, "Oops, something went wrong: {}".format(ex))
