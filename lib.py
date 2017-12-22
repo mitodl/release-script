@@ -19,7 +19,7 @@ from github import (
 ReleasePR = namedtuple("ReleasePR", ['version', 'url', 'body'])
 
 
-VERSION_RE = r'^\d+\.\d+\.\d+$'
+VERSION_RE = r'\d+\.\d+\.\d+'
 
 
 def release_manager_name():
