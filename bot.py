@@ -128,6 +128,8 @@ def get_envs():
 
 
 CommandArgs = namedtuple('CommandArgs', ['channel_id', 'repo_info', 'args', 'loop'])
+Command = namedtuple('Command', ['command', 'parsers', 'command_func', 'description'])
+Parser = namedtuple('Parser', ['func', 'description'])
 
 
 # pylint: disable=too-many-instance-attributes,too-many-arguments
@@ -473,10 +475,12 @@ class Bot:
             command_args (CommandArgs): The arguments for this command
         """
         channel_id = command_args.channel_id
-        descriptions = ["{command}: {parsers}".format(
+        descriptions = ["  *{command}*: {parsers}{join}{description}".format(
             command=command,
-            parsers=parsers,
-        ) for command, parsers, _ in sorted(self.make_commands())]
+            parsers=" ".join("*<{}>*".format(parser.description) for parser in parsers),
+            join=" - " if parsers else "",
+            description=description,
+        ) for command, parsers, _, description in sorted(self.make_commands())]
         await self.say(
             channel_id,
             "Come on, Perry the Platypus. Let's go home. I talk to you enough, right? "
@@ -484,18 +488,74 @@ class Bot:
         )
 
     def make_commands(self):
-        """Describe the commands which are available"""
+        """
+        Describe the commands which are available
+
+        Returns:
+            list of Command:
+                A list of all commands available to use
+        """
         return [
-            ('release notes', [], self.commits_since_last_release),
-            ('start release', [get_version_number], self.release_command),
-            ('release', [get_version_number], self.release_command),
-            ('finish release', [], self.finish_release),
-            ('wait for checkboxes', [], self.wait_for_checkboxes_command),
-            ('hi', [], self.hi),
-            ('karma', [parse_date], self.karma),
-            ('what needs review', [], self.needs_review),
-            ('version', [], self.report_version),
-            ('help', [], self.help),
+            Command(
+                command='release notes',
+                parsers=[],
+                command_func=self.commits_since_last_release,
+                description="Release notes since last release",
+            ),
+            Command(
+                command='start release',
+                parsers=[Parser(func=get_version_number, description='new version number')],
+                command_func=self.release_command,
+                description='Start a new release',
+            ),
+            Command(
+                command='release',
+                parsers=[Parser(func=get_version_number, description='new version number')],
+                command_func=self.release_command,
+                description='Start a new release',
+            ),
+            Command(
+                command='finish release',
+                parsers=[],
+                command_func=self.finish_release,
+                description='Finish a release',
+            ),
+            Command(
+                command='wait for checkboxes',
+                parsers=[],
+                command_func=self.wait_for_checkboxes_command,
+                description='Wait for committers to check off their boxes',
+            ),
+            Command(
+                command='hi',
+                parsers=[],
+                command_func=self.hi,
+                description='Say hi to doof',
+            ),
+            Command(
+                command='karma',
+                parsers=[Parser(func=parse_date, description='beginning date')],
+                command_func=self.karma,
+                description='Show pull request karma from a given date until today',
+            ),
+            Command(
+                command='what needs review',
+                parsers=[],
+                command_func=self.needs_review,
+                description='List pull requests which need review and are unassigned',
+            ),
+            Command(
+                command='version',
+                parsers=[],
+                command_func=self.report_version,
+                description='Show the version of the latest merged release',
+            ),
+            Command(
+                command='help',
+                parsers=[],
+                command_func=self.help,
+                description='Show available commands',
+            ),
         ]
 
     async def run_command(self, channel_id, repo_info, words, loop):
@@ -510,14 +570,14 @@ class Bot:
         """
         await self.typing(channel_id)
         commands = self.make_commands()
-        for command, parsers, command_func in commands:
+        for command, parsers, command_func, _ in commands:
             command_words = command.split()
             if has_command(command_words, words):
                 args = words[len(command_words):]
                 if len(args) != len(parsers):
                     await self.say(
                         channel_id,
-                        "I expected {expected_num} words for that command but you said {actual_num}".format(
+                        "Careful, careful. I expected {expected_num} words but you said {actual_num}.".format(
                             expected_num=len(parsers),
                             actual_num=len(args),
                         )
@@ -527,12 +587,11 @@ class Bot:
                 parsed_args = []
                 for arg, parser in zip(args, parsers):
                     try:
-                        parsed_args.append(parser(arg))
+                        parsed_args.append(parser.func(arg))
                     except Exception as ex:
                         raise InputException(
-                            "You said {word} but I'm having trouble figuring out how that fits into {parser}".format(
+                            "Oh dear! You said {word} but I'm having trouble figuring out what that means.".format(
                                 word=arg,
-                                parser=parser
                             )) from ex
 
                 await command_func(
@@ -545,7 +604,12 @@ class Bot:
                 )
                 return
 
-        await self.say(channel_id, "I don't know that command")
+        await self.say(
+            channel_id,
+            "You're both persistent, I'll give ya that, but the security system "
+            "is offline and there's nothing you or your little dog friend can do about it!"
+            " Y'know, unless, one of you happens to be really good with computers."
+        )
 
     async def handle_message(self, channel_id, repo_info, words, loop):
         """
@@ -561,7 +625,7 @@ class Bot:
             await self.run_command(channel_id, repo_info, words, loop)
         except (InputException, ReleaseException) as ex:
             log.exception("A BotException was raised:")
-            await self.say(channel_id, "Oops, something went wrong: {}".format(ex))
+            await self.say(channel_id, "Oops! {}".format(ex))
         except:  # pylint: disable=bare-except
             log.exception("Exception found when handling a message")
             await self.say(
