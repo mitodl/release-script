@@ -588,11 +588,14 @@ class Bot:
                 for arg, parser in zip(args, parsers):
                     try:
                         parsed_args.append(parser.func(arg))
-                    except Exception as ex:
-                        raise InputException(
+                    except:  # pylint: disable=bare-except
+                        log.exception("Parser exception")
+                        await self.say(
+                            channel_id,
                             "Oh dear! You said {word} but I'm having trouble figuring out what that means.".format(
                                 word=arg,
-                            )) from ex
+                            )
+                        )
 
                 await command_func(
                     CommandArgs(
