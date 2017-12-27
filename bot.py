@@ -596,6 +596,7 @@ class Bot:
                                 word=arg,
                             )
                         )
+                        return
 
                 await command_func(
                     CommandArgs(
@@ -607,6 +608,7 @@ class Bot:
                 )
                 return
 
+        # No command matched
         await self.say(
             channel_id,
             "You're both persistent, I'll give ya that, but the security system "
