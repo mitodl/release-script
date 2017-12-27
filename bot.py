@@ -558,7 +558,7 @@ class Bot:
             ),
         ]
 
-    async def run_command(self, channel_id, repo_info, words, loop):
+    async def run_command(self, channel_id, repo_info, words, loop):  # pylint: disable=too-many-locals
         """
         Run a command
 
