@@ -475,10 +475,10 @@ class Bot:
             command_args (CommandArgs): The arguments for this command
         """
         channel_id = command_args.channel_id
-        descriptions = ["  *{command}*: {parsers}{join}{description}".format(
+        descriptions = ["  *{command}*{join}{parsers}: {description}".format(
             command=command,
             parsers=" ".join("*<{}>*".format(parser.description) for parser in parsers),
-            join=" - " if parsers else "",
+            join=" " if parsers else "",
             description=description,
         ) for command, parsers, _, description in sorted(self.make_commands())]
         await self.say(
@@ -592,7 +592,7 @@ class Bot:
                         log.exception("Parser exception")
                         await self.say(
                             channel_id,
-                            "Oh dear! You said {word} but I'm having trouble figuring out what that means.".format(
+                            "Oh dear! You said `{word}` but I'm having trouble figuring out what that means.".format(
                                 word=arg,
                             )
                         )
