@@ -7,6 +7,8 @@ import re
 from subprocess import check_output
 import sys
 
+from dateutil.parser import parse
+
 from exception import ReleaseException
 from github import (
     get_pull_request,
@@ -15,6 +17,9 @@ from github import (
 
 
 ReleasePR = namedtuple("ReleasePR", ['version', 'url', 'body'])
+
+
+VERSION_RE = r'\d+\.\d+\.\d+'
 
 
 def release_manager_name():
@@ -234,3 +239,16 @@ def url_with_access_token(github_access_token, repo_url):
         org=org,
         repo=repo,
     )
+
+
+def parse_date(date_string):
+    """
+    Parse a string into a date object
+
+    Args:
+        date_string (str): A date string
+
+    Returns:
+        date: A date object
+    """
+    return parse(date_string).date()

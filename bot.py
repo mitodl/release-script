@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Slack bot for managing releases"""
-
 import asyncio
+from collections import namedtuple
 from datetime import datetime
 import os
 import sys
@@ -9,7 +9,6 @@ import logging
 import json
 import re
 
-from dateutil.parser import parse
 import requests
 from websockets.exceptions import ConnectionClosed
 import websockets
@@ -37,7 +36,9 @@ from lib import (
     match_user,
     now_in_utc,
     next_workday_at_10,
+    parse_date,
     release_manager_name,
+    VERSION_RE,
     wait_for_checkboxes,
 )
 from repo_info import RepoInfo
@@ -126,6 +127,11 @@ def get_envs():
     return env_dict
 
 
+CommandArgs = namedtuple('CommandArgs', ['channel_id', 'repo_info', 'args', 'loop'])
+Command = namedtuple('Command', ['command', 'parsers', 'command_func', 'description'])
+Parser = namedtuple('Parser', ['func', 'description'])
+
+
 # pylint: disable=too-many-instance-attributes,too-many-arguments
 class Bot:
     """Slack bot used to manage the release"""
@@ -202,14 +208,15 @@ class Bot:
         }))
         self.message_count += 1
 
-    async def do_release(self, repo_info, version):
+    async def release_command(self, command_args):
         """
         Start a new release and wait for deployment
 
         Args:
-            repo_info (RepoInfo): Information for a repo
-            version (str): The version
+            command_args (CommandArgs): The arguments for this command
         """
+        repo_info = command_args.repo_info
+        version = command_args.args[0]
         repo_url = repo_info.repo_url
         channel_id = repo_info.channel_id
         org, repo = get_org_and_repo(repo_url)
@@ -250,6 +257,18 @@ class Bot:
             )
         )
 
+        await self.wait_for_checkboxes(repo_info)
+        command_args.loop.create_task(self.delay_message(repo_info))
+
+    async def wait_for_checkboxes_command(self, command_args):
+        """
+        Poll the Release PR and wait until all checkboxes are checked off
+
+        Args:
+            command_args (CommandArgs): The arguments for this command
+        """
+        await self.wait_for_checkboxes(command_args.repo_info)
+
     async def wait_for_checkboxes(self, repo_info):
         """
         Poll the Release PR and wait until all checkboxes are checked off
@@ -277,13 +296,14 @@ class Bot:
             )
         )
 
-    async def finish_release(self, repo_info):
+    async def finish_release(self, command_args):
         """
         Merge the release candidate into the release branch, tag it, merge to master, and wait for deployment
 
         Args:
-            repo_info (RepoInfo): The info for a repo
+            command_args (CommandArgs): The arguments for this command
         """
+        repo_info = command_args.repo_info
         channel_id = repo_info.channel_id
         repo_url = repo_info.repo_url
         org, repo = get_org_and_repo(repo_url)
@@ -320,13 +340,14 @@ class Bot:
             )
         )
 
-    async def report_version(self, repo_info):
+    async def report_version(self, command_args):
         """
         Report the version that is running in production
 
         Args:
-            repo_info (RepoInfo): The info for a repo
+            command_args (RepoInfo): The arguments for this command
         """
+        repo_info = command_args.repo_info
         channel_id = repo_info.channel_id
         repo_url = repo_info.repo_url
 
@@ -338,13 +359,14 @@ class Bot:
             "Wait a minute! My evil scheme is at version {version}!".format(version=version[1:])
         )
 
-    async def commits_since_last_release(self, repo_info):
+    async def commits_since_last_release(self, command_args):
         """
         Have doof show the release notes since the last release
 
         Args:
-            repo_info (RepoInfo): The info for a repo
+            command_args (CommandArgs): The arguments for this command
         """
+        repo_info = command_args.repo_info
         with init_working_dir(self.github_access_token, repo_info.repo_url):
             last_version = update_version("9.9.9")
 
@@ -389,10 +411,16 @@ class Bot:
         await asyncio.sleep((tomorrow_at_10 - now).total_seconds())
         await self.message_if_unchecked(repo_info)
 
-    async def karma(self, channel_id, start_date):
+    async def karma(self, command_args):
         """
         Print out PR karma for each user
+
+        Args:
+            command_args (CommandArgs): The arguments for this command
         """
+        channel_id = command_args.channel_id
+        start_date = command_args.args[0]
+
         await self.say(
             channel_id,
             "Pull request karma:\n{}".format(
@@ -403,10 +431,14 @@ class Bot:
             )
         )
 
-    async def needs_review(self, channel_id):
+    async def needs_review(self, command_args):
         """
         Print out what PRs need review
+
+        Args:
+            command_args (CommandArgs): The arguments for this command
         """
+        channel_id = command_args.channel_id
         await self.say(
             channel_id,
             "These PRs need review and are unassigned:\n{}".format(
@@ -421,7 +453,112 @@ class Bot:
             )
         )
 
-    async def run_command(self, channel_id, repo_info, words, loop):
+    async def hi(self, command_args):
+        """
+        Say hi
+
+        Args:
+            command_args (CommandArgs): The arguments for this command
+        """
+        channel_id = command_args.channel_id
+        await self.say(
+            channel_id,
+            "A Mongol army? Really? Uh, I must have had the dial set for"
+            " 'Hun.' Oh, well, you don't look a gift horde in the mouth, so... hello! "
+        )
+
+    async def help(self, command_args):
+        """
+        List the commands the user can use
+
+        Args:
+            command_args (CommandArgs): The arguments for this command
+        """
+        channel_id = command_args.channel_id
+        descriptions = ["  *{command}*{join}{parsers}: {description}".format(
+            command=command,
+            parsers=" ".join("*<{}>*".format(parser.description) for parser in parsers),
+            join=" " if parsers else "",
+            description=description,
+        ) for command, parsers, _, description in sorted(self.make_commands())]
+        await self.say(
+            channel_id,
+            "Come on, Perry the Platypus. Let's go home. I talk to you enough, right? "
+            "Yeah, you're right. Maybe too much.\n\n{}".format("\n".join(descriptions))
+        )
+
+    def make_commands(self):
+        """
+        Describe the commands which are available
+
+        Returns:
+            list of Command:
+                A list of all commands available to use
+        """
+        return [
+            Command(
+                command='release notes',
+                parsers=[],
+                command_func=self.commits_since_last_release,
+                description="Release notes since last release",
+            ),
+            Command(
+                command='start release',
+                parsers=[Parser(func=get_version_number, description='new version number')],
+                command_func=self.release_command,
+                description='Start a new release',
+            ),
+            Command(
+                command='release',
+                parsers=[Parser(func=get_version_number, description='new version number')],
+                command_func=self.release_command,
+                description='Start a new release',
+            ),
+            Command(
+                command='finish release',
+                parsers=[],
+                command_func=self.finish_release,
+                description='Finish a release',
+            ),
+            Command(
+                command='wait for checkboxes',
+                parsers=[],
+                command_func=self.wait_for_checkboxes_command,
+                description='Wait for committers to check off their boxes',
+            ),
+            Command(
+                command='hi',
+                parsers=[],
+                command_func=self.hi,
+                description='Say hi to doof',
+            ),
+            Command(
+                command='karma',
+                parsers=[Parser(func=parse_date, description='beginning date')],
+                command_func=self.karma,
+                description='Show pull request karma from a given date until today',
+            ),
+            Command(
+                command='what needs review',
+                parsers=[],
+                command_func=self.needs_review,
+                description='List pull requests which need review and are unassigned',
+            ),
+            Command(
+                command='version',
+                parsers=[],
+                command_func=self.report_version,
+                description='Show the version of the latest merged release',
+            ),
+            Command(
+                command='help',
+                parsers=[],
+                command_func=self.help,
+                description='Show available commands',
+            ),
+        ]
+
+    async def run_command(self, channel_id, repo_info, words, loop):  # pylint: disable=too-many-locals
         """
         Run a command
 
@@ -432,33 +569,52 @@ class Bot:
             loop (asyncio.events.AbstractEventLoop): The asyncio event loop
         """
         await self.typing(channel_id)
-        if has_command(['release', 'notes'], words):
-            await self.commits_since_last_release(repo_info)
-        elif has_command(['release'], words) or has_command(['start', 'release'], words):
-            version = get_version_number(words[-1])
+        commands = self.make_commands()
+        for command, parsers, command_func, _ in commands:
+            command_words = command.split()
+            if has_command(command_words, words):
+                args = words[len(command_words):]
+                if len(args) != len(parsers):
+                    await self.say(
+                        channel_id,
+                        "Careful, careful. I expected {expected_num} words but you said {actual_num}.".format(
+                            expected_num=len(parsers),
+                            actual_num=len(args),
+                        )
+                    )
+                    return
 
-            loop.create_task(self.delay_message(repo_info))
-            await self.do_release(repo_info, version)
-            await self.wait_for_checkboxes(repo_info)
-        elif has_command(['finish', 'release'], words):
-            await self.finish_release(repo_info)
-        elif has_command(['wait', 'for', 'checkboxes'], words):
-            await self.wait_for_checkboxes(repo_info)
-        elif has_command(['hi'], words):
-            await self.say(
-                channel_id,
-                "A Mongol army? Really? Uh, I must have had the dial set for"
-                " 'Hun.' Oh, well, you don't look a gift horde in the mouth, so... hello! "
-            )
-        elif has_command(['karma'], words):
-            start_date = parse(words[1]).date()
-            await self.karma(channel_id, start_date)
-        elif has_command(['what', 'needs', 'review'], words):
-            await self.needs_review(channel_id)
-        elif has_command(["version"], words):
-            await self.report_version(repo_info)
-        else:
-            await self.say(channel_id, "Oooopps! Invalid command format")
+                parsed_args = []
+                for arg, parser in zip(args, parsers):
+                    try:
+                        parsed_args.append(parser.func(arg))
+                    except:  # pylint: disable=bare-except
+                        log.exception("Parser exception")
+                        await self.say(
+                            channel_id,
+                            "Oh dear! You said `{word}` but I'm having trouble figuring out what that means.".format(
+                                word=arg,
+                            )
+                        )
+                        return
+
+                await command_func(
+                    CommandArgs(
+                        repo_info=repo_info,
+                        channel_id=channel_id,
+                        args=parsed_args,
+                        loop=loop,
+                    )
+                )
+                return
+
+        # No command matched
+        await self.say(
+            channel_id,
+            "You're both persistent, I'll give ya that, but the security system "
+            "is offline and there's nothing you or your little dog friend can do about it!"
+            " Y'know, unless, one of you happens to be really good with computers."
+        )
 
     async def handle_message(self, channel_id, repo_info, words, loop):
         """
@@ -474,7 +630,7 @@ class Bot:
             await self.run_command(channel_id, repo_info, words, loop)
         except (InputException, ReleaseException) as ex:
             log.exception("A BotException was raised:")
-            await self.say(channel_id, "Oops, something went wrong: {}".format(ex))
+            await self.say(channel_id, "Oops! {}".format(ex))
         except:  # pylint: disable=bare-except
             log.exception("Exception found when handling a message")
             await self.say(
@@ -493,7 +649,7 @@ def get_version_number(text):
     Returns:
         str: The version if it parsed correctly
     """
-    pattern = re.compile('^[0-9.]+$')
+    pattern = re.compile(VERSION_RE)
     if pattern.match(text):
         return text
     else:

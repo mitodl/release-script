@@ -16,7 +16,10 @@ from pkg_resources import parse_version
 
 from exception import ReleaseException
 from github import create_pr
-from lib import url_with_access_token
+from lib import (
+    url_with_access_token,
+    VERSION_RE,
+)
 
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -89,21 +92,21 @@ def update_version_in_file(root, filename, new_version):
             updated_line = line
 
             if filename == "settings.py":
-                regex = r"^VERSION = .*(?P<version>\d+\.\d+\.\d+).*$"
+                regex = r"^VERSION = .*(?P<version>{}).*$".format(VERSION_RE)
                 match = re.match(regex, line)
                 if match:
                     update_count += 1
                     old_version = match.group('version').strip()
                     updated_line = re.sub(regex, "VERSION = \"{}\"".format(new_version), line)
             elif filename == "__init__.py":
-                regex = r"^__version__ ?=.*(?P<version>\d+\.\d+\.\d+).*"
+                regex = r"^__version__ ?=.*(?P<version>{}).*".format(VERSION_RE)
                 match = re.match(regex, line)
                 if match:
                     update_count += 1
                     old_version = match.group('version').strip()
                     updated_line = re.sub(regex, "__version__ = '{}'".format(new_version), line)
             elif filename == "setup.py":
-                regex = r"\s*version=.*(?P<version>\d+\.\d+\.\d+).*"
+                regex = r"\s*version=.*(?P<version>{}).*".format(VERSION_RE)
                 match = re.match(regex, line)
                 if match:
                     update_count += 1
