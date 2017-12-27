@@ -397,7 +397,7 @@ class Bot:
             channel_id,
             "Pull request karma:\n{}".format(
                 "\n".join(
-                    "{name}: {karma}".format(name=name, karma=karma) for name, karma in
+                    "  *{name}*: {karma}".format(name=name, karma=karma) for name, karma in
                     calculate_karma(self.github_access_token, start_date, now_in_utc().date())
                 )
             )
@@ -411,7 +411,7 @@ class Bot:
             channel_id,
             "These PRs need review and are unassigned:\n{}".format(
                 "\n".join(
-                    "{repo}: {title} {url}".format(
+                    "  *{repo}*: {title} {url}".format(
                         repo=repo,
                         title=title,
                         url=url,
