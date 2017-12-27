@@ -602,7 +602,7 @@ class Bot:
                     CommandArgs(
                         repo_info=repo_info,
                         channel_id=channel_id,
-                        args=[parser(arg) for arg, parser in zip(args, parsers)],
+                        args=parsed_args,
                         loop=loop,
                     )
                 )
