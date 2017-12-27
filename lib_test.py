@@ -1,5 +1,5 @@
 """Tests for lib"""
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import (
     Mock,
     patch,
@@ -143,12 +143,12 @@ def test_get_unchecked_authors():
 
 def test_next_workday_at_10():
     """next_workday_at_10 should get the time that's tomorrow at 10am, or Monday if that's the next workday"""
-    saturday_at_8am = datetime(2017, 4, 1, 8)
-    assert next_workday_at_10(saturday_at_8am) == datetime(2017, 4, 3, 10)
-    tuesday_at_4am = datetime(2017, 4, 4, 4)
-    assert next_workday_at_10(tuesday_at_4am) == datetime(2017, 4, 5, 10)
-    wednesday_at_3pm = datetime(2017, 4, 5, 15)
-    assert next_workday_at_10(wednesday_at_3pm) == datetime(2017, 4, 6, 10)
+    saturday_at_8am = datetime(2017, 4, 1, 8, tzinfo=timezone.utc)
+    assert next_workday_at_10(saturday_at_8am) == datetime(2017, 4, 3, 10, tzinfo=timezone.utc)
+    tuesday_at_4am = datetime(2017, 4, 4, 4, tzinfo=timezone.utc)
+    assert next_workday_at_10(tuesday_at_4am) == datetime(2017, 4, 5, 10, tzinfo=timezone.utc)
+    wednesday_at_3pm = datetime(2017, 4, 5, 15, tzinfo=timezone.utc)
+    assert next_workday_at_10(wednesday_at_3pm) == datetime(2017, 4, 6, 10, tzinfo=timezone.utc)
 
 
 def test_reformatted_full_name():

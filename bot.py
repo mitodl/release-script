@@ -10,6 +10,7 @@ import json
 import re
 
 import requests
+import pytz
 from websockets.exceptions import ConnectionClosed
 import websockets
 
@@ -119,7 +120,7 @@ def in_script_dir(file_path):
 
 def get_envs():
     """Get required environment variables"""
-    required_keys = ('SLACK_ACCESS_TOKEN', 'BOT_ACCESS_TOKEN', 'GITHUB_ACCESS_TOKEN')
+    required_keys = ('SLACK_ACCESS_TOKEN', 'BOT_ACCESS_TOKEN', 'GITHUB_ACCESS_TOKEN', 'TIMEZONE')
     env_dict = {key: os.environ.get(key, None) for key in required_keys}
     missing_env_keys = [k for k, v in env_dict.items() if v is None]
     if missing_env_keys:
@@ -136,7 +137,7 @@ Parser = namedtuple('Parser', ['func', 'description'])
 class Bot:
     """Slack bot used to manage the release"""
 
-    def __init__(self, websocket, slack_access_token, github_access_token, loop):
+    def __init__(self, websocket, slack_access_token, github_access_token, timezone, loop):
         """
         Create the slack bot
 
@@ -144,11 +145,13 @@ class Bot:
             websocket (websockets.client.WebSocketClientProtocol): websocket for sending/receiving messages
             slack_access_token (str): The OAuth access token used to interact with Slack
             github_access_token (str): The Github access token used to interact with Github
+            timezone (tzinfo): The time zone of the team interacting with the bot
             loop (asyncio.events.AbstractEventLoop): The event loop
         """
         self.websocket = websocket
         self.slack_access_token = slack_access_token
         self.github_access_token = github_access_token
+        self.timezone = timezone
         self.loop = loop
 
         self.tasks = {}
@@ -460,7 +463,7 @@ class Bot:
         Args:
             repo_info (RepoInfo): The info for a repo
         """
-        now = datetime.now()
+        now = datetime.now(tz=self.timezone)
         tomorrow_at_10 = next_workday_at_10(now)
         await asyncio.sleep((tomorrow_at_10 - now).total_seconds())
         await self.message_if_unchecked(repo_info)
@@ -756,7 +759,13 @@ def main():
     async def connect_to_message_server(loop):
         """Setup connection with websocket server"""
         async with websockets.connect(resp.json()['url']) as websocket:
-            bot = Bot(websocket, envs['SLACK_ACCESS_TOKEN'], envs['GITHUB_ACCESS_TOKEN'], loop)
+            bot = Bot(
+                websocket=websocket,
+                slack_access_token=envs['SLACK_ACCESS_TOKEN'],
+                github_access_token=envs['GITHUB_ACCESS_TOKEN'],
+                timezone=pytz.timezone(envs['TIMEZONE']),
+                loop=loop,
+            )
             while True:
                 message = await websocket.recv()
                 print(message)

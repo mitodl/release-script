@@ -1,8 +1,10 @@
 """Tests for Doof"""
+from datetime import datetime, timedelta
 import json
 from unittest.mock import Mock
 
 import pytest
+import pytz
 
 from bot import Bot
 from exception import ReleaseException
@@ -53,7 +55,13 @@ def mock_socket():
 class DoofSpoof(Bot):
     """Testing bot"""
     def __init__(self, loop):
-        super().__init__(mock_socket(), SLACK_ACCESS, GITHUB_ACCESS, loop)
+        super().__init__(
+            websocket=mock_socket(),
+            slack_access_token=SLACK_ACCESS,
+            github_access_token=GITHUB_ACCESS,
+            timezone=pytz.timezone("America/New_York"),
+            loop=loop,
+        )
 
         self.slack_users = []
 
@@ -275,3 +283,34 @@ async def test_finish_release_no_release(doof, repo_info, event_loop, mocker):
     assert 'No release currently in progress' in ex.value.args[0]
     org, repo = get_org_and_repo(repo_info.repo_url)
     get_release_pr_mock.assert_called_once_with(GITHUB_ACCESS, org, repo)
+
+
+async def test_delay_message(doof, repo_info, mocker):
+    """
+    Doof should finish a release when asked
+    """
+    now = datetime.now(tz=doof.timezone)
+    seconds_diff = 30
+    future = now + timedelta(seconds=seconds_diff)
+    next_workday_mock = mocker.patch('bot.next_workday_at_10', autospec=True, return_value=future)
+
+    sleep_sync_mock = Mock()
+
+    async def sleep_fake(*args, **kwargs):
+        """await cannot be used with mock objects"""
+        sleep_sync_mock(*args, **kwargs)
+
+    mocker.patch('asyncio.sleep', sleep_fake)
+
+    mocker.patch('bot.get_unchecked_authors', return_value=['author1'])
+
+    await doof.delay_message(repo_info)
+    assert doof.websocket.said(
+        repo_info.channel_id,
+        'The following authors have not yet checked off their boxes for doof_repo: author1',
+    )
+    assert next_workday_mock.call_count == 1
+    assert abs(next_workday_mock.call_args[0][0] - now).total_seconds() < 1
+    assert next_workday_mock.call_args[0][0].tzinfo.zone == doof.timezone.zone
+    assert sleep_sync_mock.call_count == 1
+    assert abs(seconds_diff - sleep_sync_mock.call_args[0][0]) < 1  # pylint: disable=unsubscriptable-object
