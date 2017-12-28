@@ -161,12 +161,37 @@ def update_version(new_version):
     return old_version
 
 
+def any_new_commits(version):
+    """
+    Return true if there are any new commits since a release
+
+    Args:
+        version (str): A version string
+
+    Returns:
+        bool: True if there are new commits
+    """
+    return int(check_output(["git", "rev-list", "--count", "v{}..master".format(version)])) != 0
+
+
 def create_release_notes(old_version, with_checkboxes):
-    """Returns the release note text for the commits made for this version"""
+    """
+    Returns the release note text for the commits made for this version
+
+    Args:
+        old_version (str): The starting version of the range of commits
+        with_checkboxes (bool): If true, create the release notes with spaces for checkboxes
+
+    Returns:
+        str: The release notes
+    """
     if with_checkboxes:
         filename = "release_notes.ejs"
     else:
         filename = "release_notes_rst.ejs"
+
+    if not any_new_commits(old_version):
+        return "No new commits"
 
     return "{}\n".format(check_output([
         GIT_RELEASE_NOTES_PATH,
@@ -177,7 +202,7 @@ def create_release_notes(old_version, with_checkboxes):
 
 def verify_new_commits(old_version):
     """Check if there are new commits to release"""
-    if int(check_output(["git", "rev-list", "--count", "v{}..master".format(old_version)])) == 0:
+    if not any_new_commits(old_version):
         raise ReleaseException("No new commits to put in release")
 
 

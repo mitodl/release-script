@@ -319,6 +319,16 @@ def test_create_release_notes(test_repo, with_checkboxes):
         ])
 
 
+@pytest.mark.parametrize("with_checkboxes", [True, False])
+def test_create_release_notes_empty(test_repo, with_checkboxes):
+    """create_release_notes should return a string saying there are no new commits"""
+    make_empty_commit("initial", "initial commit")
+    check_call(["git", "tag", "v0.0.1"])
+
+    notes = create_release_notes("0.0.1", with_checkboxes=with_checkboxes)
+    assert notes == "No new commits"
+
+
 def test_update_release_notes(test_repo):
     """update_release_notes should update the existing release notes and add new notes for the new commits"""
     check_call(["git", "checkout", "master"])
