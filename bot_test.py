@@ -24,6 +24,16 @@ SLACK_ACCESS = 'slack'
 
 
 # pylint: disable=redefined-outer-name
+def asyncify(func):
+    """
+    Make a sync function async
+    """
+    async def async_func(*args, **kwargs):
+        """await cannot be used with mock objects"""
+        func(*args, **kwargs)
+    return async_func
+
+
 def mock_socket():
     """A fake socket for recording messages in a Mock"""
     send_sync = Mock()
@@ -139,27 +149,21 @@ async def test_release(doof, repo_info, event_loop, mocker, command):
     release_mock = mocker.patch('bot.release', autospec=True)
 
     wait_for_deploy_sync_mock = Mock()
-
-    async def wait_for_deploy_fake(*args, **kwargs):
-        """await cannot be used with mock objects"""
-        wait_for_deploy_sync_mock(*args, **kwargs)
-
-    mocker.patch('bot.wait_for_deploy', wait_for_deploy_fake)
+    mocker.patch('bot.wait_for_deploy', asyncify(wait_for_deploy_sync_mock))
     authors = ['author1', 'author2']
     mocker.patch('bot.get_unchecked_authors', return_value=authors)
 
+    mocker.patch('asyncio.sleep', asyncify(Mock()))
+
     wait_for_checkboxes_sync_mock = Mock()
-    async def wait_for_checkboxes_fake(*args, **kwargs):
-        """await cannot be used with mock objects"""
-        wait_for_checkboxes_sync_mock(*args, **kwargs)
-    mocker.patch('bot.wait_for_checkboxes', wait_for_checkboxes_fake)
+    mocker.patch('bot.wait_for_checkboxes', asyncify(wait_for_checkboxes_sync_mock))
 
     command_words = command.split() + [version]
     me = 'mitodl_user'
     await doof.run_command(me, repo_info.channel_id, repo_info, command_words, event_loop)
 
-    # run out the clock
-    for key, task in doof.tasks.items():
+    # run out the clock. We mocked asyncio.sleep so this should be instantaneous
+    for _, task in doof.tasks.items():
         await task
 
     org, repo = get_org_and_repo(repo_info.repo_url)
@@ -247,12 +251,7 @@ async def test_finish_release(doof, repo_info, event_loop, mocker):
     finish_release_mock = mocker.patch('bot.finish_release', autospec=True)
 
     wait_for_deploy_sync_mock = Mock()
-
-    async def wait_for_deploy_fake(*args, **kwargs):
-        """await cannot be used with mock objects"""
-        wait_for_deploy_sync_mock(*args, **kwargs)
-
-    mocker.patch('bot.wait_for_deploy', wait_for_deploy_fake)
+    mocker.patch('bot.wait_for_deploy', asyncify(wait_for_deploy_sync_mock))
 
     await doof.run_command('mitodl_user', repo_info.channel_id, repo_info, ['finish', 'release'], event_loop)
 
@@ -295,12 +294,7 @@ async def test_delay_message(doof, repo_info, mocker):
     next_workday_mock = mocker.patch('bot.next_workday_at_10', autospec=True, return_value=future)
 
     sleep_sync_mock = Mock()
-
-    async def sleep_fake(*args, **kwargs):
-        """await cannot be used with mock objects"""
-        sleep_sync_mock(*args, **kwargs)
-
-    mocker.patch('asyncio.sleep', sleep_fake)
+    mocker.patch('asyncio.sleep', asyncify(sleep_sync_mock))
 
     mocker.patch('bot.get_unchecked_authors', return_value=['author1'])
 

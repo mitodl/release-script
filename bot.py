@@ -468,8 +468,6 @@ class Bot:
         await asyncio.sleep((tomorrow_at_10 - now).total_seconds())
         await self.message_if_unchecked(repo_info)
 
-        del self.delay_message_tasks[repo_info.channel_id]
-
     async def karma(self, command_args):
         """
         Print out PR karma for each user
