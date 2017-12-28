@@ -52,8 +52,8 @@ def mock_socket():
 
 class DoofSpoof(Bot):
     """Testing bot"""
-    def __init__(self):
-        super().__init__(mock_socket(), SLACK_ACCESS, GITHUB_ACCESS)
+    def __init__(self, loop):
+        super().__init__(mock_socket(), SLACK_ACCESS, GITHUB_ACCESS, loop)
 
         self.slack_users = []
 
@@ -63,9 +63,9 @@ class DoofSpoof(Bot):
 
 
 @pytest.fixture
-def doof():
+def doof(event_loop):
     """Create a Doof"""
-    yield DoofSpoof()
+    yield DoofSpoof(event_loop)
 
 
 @pytest.fixture
@@ -149,6 +149,10 @@ async def test_release(doof, repo_info, event_loop, mocker, command):
     command_words = command.split() + [version]
     me = 'mitodl_user'
     await doof.run_command(me, repo_info.channel_id, repo_info, command_words, event_loop)
+
+    # run out the clock
+    for key, task in doof.tasks.items():
+        await task
 
     org, repo = get_org_and_repo(repo_info.repo_url)
     get_release_pr_mock.assert_any_call(GITHUB_ACCESS, org, repo)

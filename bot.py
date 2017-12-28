@@ -127,7 +127,7 @@ def get_envs():
     return env_dict
 
 
-CommandArgs = namedtuple('CommandArgs', ['manager', 'channel_id', 'repo_info', 'args', 'loop'])
+CommandArgs = namedtuple('CommandArgs', ['manager', 'channel_id', 'repo_info', 'args'])
 Command = namedtuple('Command', ['command', 'parsers', 'command_func', 'description'])
 Parser = namedtuple('Parser', ['func', 'description'])
 
@@ -136,7 +136,7 @@ Parser = namedtuple('Parser', ['func', 'description'])
 class Bot:
     """Slack bot used to manage the release"""
 
-    def __init__(self, websocket, slack_access_token, github_access_token):
+    def __init__(self, websocket, slack_access_token, github_access_token, loop):
         """
         Create the slack bot
 
@@ -144,11 +144,29 @@ class Bot:
             websocket (websockets.client.WebSocketClientProtocol): websocket for sending/receiving messages
             slack_access_token (str): The OAuth access token used to interact with Slack
             github_access_token (str): The Github access token used to interact with Github
+            loop (asyncio.events.AbstractEventLoop): The event loop
         """
         self.websocket = websocket
         self.slack_access_token = slack_access_token
         self.github_access_token = github_access_token
+        self.loop = loop
+
+        self.tasks = {}
         self.message_count = 0
+
+    def create_singleton_task(self, key, coroutine):
+        """
+        Create a task and run it. If another is already running it is cancelled first.
+
+        Args:
+            key (str): Some unique key for the task
+            coroutine (coroutine): A coroutine to create a task for
+        """
+        if key in self.tasks:
+            self.tasks[key].cancel()
+            del self.tasks[key]
+
+        self.tasks[key] = self.loop.create_task(coroutine)
 
     def lookup_users(self):
         """
@@ -218,11 +236,25 @@ class Bot:
         repo_info = command_args.repo_info
         version = command_args.args[0]
         repo_url = repo_info.repo_url
-        channel_id = repo_info.channel_id
         org, repo = get_org_and_repo(repo_url)
         pr = get_release_pr(self.github_access_token, org, repo)
         if pr:
             raise ReleaseException("A release is already in progress: {}".format(pr.url))
+        await self.release(repo_info, version, command_args.manager)
+
+    async def release(self, repo_info, version, manager):
+        """
+        Start a release and wait for deployment
+
+        Args:
+            repo_info (RepoInfo): Repository information
+            version (str): The new version
+            manager (str): The release manager user id
+        """
+        repo_url = repo_info.repo_url
+        channel_id = repo_info.channel_id
+        org, repo = get_org_and_repo(repo_url)
+
         release(
             github_access_token=self.github_access_token,
             repo_url=repo_url,
@@ -257,8 +289,11 @@ class Bot:
             )
         )
 
-        await self.wait_for_checkboxes(repo_info, command_args.manager)
-        command_args.loop.create_task(self.delay_message(repo_info))
+        self.create_singleton_task("delay-message-{}".format(channel_id), self.delay_message(repo_info))
+        self.create_singleton_task(
+            "wait-for-checkboxes-{}".format(channel_id),
+            self.wait_for_checkboxes(repo_info, manager),
+        )
 
     async def wait_for_checkboxes_command(self, command_args):
         """
@@ -267,7 +302,10 @@ class Bot:
         Args:
             command_args (CommandArgs): The arguments for this command
         """
-        await self.wait_for_checkboxes(command_args.repo_info, command_args.manager)
+        self.create_singleton_task(
+            "wait-for-checkboxes-{}".format(command_args.channel_id),
+            self.wait_for_checkboxes(command_args.repo_info, command_args.manager),
+        )
 
     async def wait_for_checkboxes(self, repo_info, manager):
         """
@@ -340,6 +378,22 @@ class Bot:
             )
         )
 
+    async def update_release(self, command_args):
+        """
+        Update an existing release with new commits
+
+        Args:
+            command_args (CommandArgs): The arguments for this command
+        """
+        repo_info = command_args.repo_info
+        repo_url = repo_info.repo_url
+        org, repo = get_org_and_repo(repo_url)
+        pr = get_release_pr(self.github_access_token, org, repo)
+        if not pr:
+            raise ReleaseException("No release is in progress, nothing to update")
+
+        await self.release(repo_info, pr.version, command_args.manager)
+
     async def report_version(self, command_args):
         """
         Report the version that is running in production
@@ -410,6 +464,8 @@ class Bot:
         tomorrow_at_10 = next_workday_at_10(now)
         await asyncio.sleep((tomorrow_at_10 - now).total_seconds())
         await self.message_if_unchecked(repo_info)
+
+        del self.delay_message_tasks[repo_info.channel_id]
 
     async def karma(self, command_args):
         """
@@ -521,6 +577,12 @@ class Bot:
                 description='Finish a release',
             ),
             Command(
+                command='update release',
+                parsers=[],
+                command_func=self.update_release,
+                description='Update the current release',
+            ),
+            Command(
                 command='wait for checkboxes',
                 parsers=[],
                 command_func=self.wait_for_checkboxes_command,
@@ -605,7 +667,6 @@ class Bot:
                         repo_info=repo_info,
                         channel_id=channel_id,
                         args=parsed_args,
-                        loop=loop,
                         manager=manager,
                     )
                 )
@@ -695,7 +756,7 @@ def main():
     async def connect_to_message_server(loop):
         """Setup connection with websocket server"""
         async with websockets.connect(resp.json()['url']) as websocket:
-            bot = Bot(websocket, envs['SLACK_ACCESS_TOKEN'], envs['GITHUB_ACCESS_TOKEN'])
+            bot = Bot(websocket, envs['SLACK_ACCESS_TOKEN'], envs['GITHUB_ACCESS_TOKEN'], loop)
             while True:
                 message = await websocket.recv()
                 print(message)
