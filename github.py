@@ -169,7 +169,7 @@ def get_pull_request(github_access_token, org, repo, branch):
     response.raise_for_status()
     pulls = response.json()
     pulls = [pull for pull in pulls if pull['head']['ref'] == branch]
-    if len(pulls) == 0:
+    if not pulls:
         return None
     elif len(pulls) > 1:
         # Shouldn't happen since we look up by branch
@@ -254,7 +254,7 @@ def needs_review(github_access_token):
                 continue
 
             # Check for no assignee
-            if len(pull_request['assignees']['nodes']) == 0:
+            if not pull_request['assignees']['nodes']:
                 prs_needing_review.append(
                     (repository['name'], pull_request['title'], pull_request['url'])
                 )

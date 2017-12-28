@@ -11,6 +11,7 @@ import re
 
 import requests
 import pytz
+from tornado.platform.asyncio import AsyncIOMainLoop
 from websockets.exceptions import ConnectionClosed
 import websockets
 
@@ -48,9 +49,16 @@ from wait_for_deploy import (
     wait_for_deploy,
 )
 from version import get_version_tag
+from web import make_app
 
 
 log = logging.getLogger(__name__)
+
+
+CommandArgs = namedtuple('CommandArgs', ['channel_id', 'repo_info', 'args', 'loop', 'manager'])
+Command = namedtuple('Command', ['command', 'parsers', 'command_func', 'description'])
+Parser = namedtuple('Parser', ['func', 'description'])
+FINISH_RELEASE_ID = 'finish_release'
 
 
 def get_channels_info(slack_access_token):
@@ -120,7 +128,9 @@ def in_script_dir(file_path):
 
 def get_envs():
     """Get required environment variables"""
-    required_keys = ('SLACK_ACCESS_TOKEN', 'BOT_ACCESS_TOKEN', 'GITHUB_ACCESS_TOKEN', 'TIMEZONE')
+    required_keys = (
+        'SLACK_ACCESS_TOKEN', 'BOT_ACCESS_TOKEN', 'GITHUB_ACCESS_TOKEN', 'SLACK_WEBHOOK_TOKEN', 'TIMEZONE',
+    )
     env_dict = {key: os.environ.get(key, None) for key in required_keys}
     missing_env_keys = [k for k, v in env_dict.items() if v is None]
     if missing_env_keys:
@@ -128,12 +138,7 @@ def get_envs():
     return env_dict
 
 
-CommandArgs = namedtuple('CommandArgs', ['manager', 'channel_id', 'repo_info', 'args', 'loop'])
-Command = namedtuple('Command', ['command', 'parsers', 'command_func', 'description'])
-Parser = namedtuple('Parser', ['func', 'description'])
-
-
-# pylint: disable=too-many-instance-attributes,too-many-arguments
+# pylint: disable=too-many-instance-attributes,too-many-arguments,too-many-public-methods
 class Bot:
     """Slack bot used to manage the release"""
 
@@ -312,10 +317,23 @@ class Bot:
         pr = get_release_pr(self.github_access_token, org, repo)
         await self.say(
             channel_id,
-            "All checkboxes checked off. Release {version} is ready for the Merginator {name}!".format(
+            text="All checkboxes checked off. Release {version} is ready for the Merginator {name}!".format(
                 name=format_user_id(manager),
                 version=pr.version
-            )
+            ),
+            attachments=[
+                {
+                    "fallback": "Finish the release",
+                    "callback_id": FINISH_RELEASE_ID,
+                    "actions": [
+                        {
+                            "name": "finish_release",
+                            "text": "Finish the release",
+                            "type": "button",
+                        }
+                    ]
+                }
+            ]
         )
 
     async def finish_release(self, command_args):
@@ -667,6 +685,26 @@ class Bot:
                 "No! Perry the Platypus, don't do it! Don't push the self-destruct button. This one right here.",
             )
 
+    async def handle_webhook(self, channel_id, repo_info, payload):
+        """
+        Handle a webhook coming from Slack. The payload has already been verified at this point.
+
+        Args:
+            channel_id (str): The channel id where the button was originally pressed
+            repo_info (RepoInfo): Repository information for the channel, if any
+            payload (dict): The webhook information
+        """
+        callback_id = payload['callback_id']
+        if callback_id == FINISH_RELEASE_ID:
+            await self.finish_release(CommandArgs(
+                channel_id=channel_id,
+                repo_info=repo_info,
+                args=[],
+                loop=asyncio.get_event_loop(),
+            ))
+        else:
+            log.error("Invalid payload callback id: %s", payload)
+
 
 def get_version_number(text):
     """
@@ -725,39 +763,47 @@ def main():
                 github_access_token=envs['GITHUB_ACCESS_TOKEN'],
                 timezone=pytz.timezone(envs['TIMEZONE']),
             )
-            while True:
-                message = await websocket.recv()
-                print(message)
-                message = json.loads(message)
-                if message.get('type') != 'message':
-                    continue
+            app = make_app(token=envs['SLACK_WEBHOOK_TOKEN'], bot=bot, repos_info=repos_info)
+            try:
+                while True:
+                    message = await websocket.recv()
+                    print(message)
+                    message = json.loads(message)
+                    if message.get('type') != 'message':
+                        continue
 
-                if message.get('subtype') == 'message_changed':
-                    # A user edits their message
-                    # content = message.get('message', {}).get('text')
-                    content = None
-                else:
-                    content = message.get('text')
+                    if message.get('subtype') == 'message_changed':
+                        # A user edits their message
+                        # content = message.get('message', {}).get('text')
+                        content = None
+                    else:
+                        content = message.get('text')
 
-                if content is None:
-                    continue
+                    if content is None:
+                        continue
 
-                channel_id = message.get('channel')
-                channel_repo_info = None
-                for repo_info in repos_info:
-                    if repo_info.channel_id == channel_id:
-                        channel_repo_info = repo_info
+                    channel_id = message.get('channel')
+                    channel_repo_info = None
+                    for repo_info in repos_info:
+                        if repo_info.channel_id == channel_id:
+                            channel_repo_info = repo_info
 
-                all_words = content.strip().split()
-                if len(all_words) > 0:
-                    message_handle, *words = all_words
-                    if message_handle in ("<@{}>".format(doof_id), "@doof"):
-                        print("handling...", words, channel_id, channel_repo_info)
-                        loop.create_task(
-                            bot.handle_message(message['user'], channel_id, channel_repo_info, words, loop)
-                        )
+                    all_words = content.strip().split()
+                    if len(all_words) > 0:
+                        message_handle, *words = all_words
+                        if message_handle in ("<@{}>".format(doof_id), "@doof"):
+                            print("handling...", words, channel_id, channel_repo_info)
+                            loop.create_task(
+                                bot.handle_message(message['user'], channel_id, channel_repo_info, words, loop)
+                            )
+            finally:
+                app.stop()
 
     loop = asyncio.get_event_loop()
+
+    # Start tornado and link it to the main event loop
+    AsyncIOMainLoop().install()
+
     while True:
         try:
             loop.run_until_complete(connect_to_message_server(loop))
