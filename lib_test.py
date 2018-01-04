@@ -1,5 +1,5 @@
 """Tests for lib"""
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import (
     Mock,
     patch,
@@ -16,7 +16,6 @@ from lib import (
     next_workday_at_10,
     parse_checkmarks,
     reformatted_full_name,
-    release_manager_name,
     ReleasePR,
     url_with_access_token,
 )
@@ -144,12 +143,12 @@ def test_get_unchecked_authors():
 
 def test_next_workday_at_10():
     """next_workday_at_10 should get the time that's tomorrow at 10am, or Monday if that's the next workday"""
-    saturday_at_8am = datetime(2017, 4, 1, 8)
-    assert next_workday_at_10(saturday_at_8am) == datetime(2017, 4, 3, 10)
-    tuesday_at_4am = datetime(2017, 4, 4, 4)
-    assert next_workday_at_10(tuesday_at_4am) == datetime(2017, 4, 5, 10)
-    wednesday_at_3pm = datetime(2017, 4, 5, 15)
-    assert next_workday_at_10(wednesday_at_3pm) == datetime(2017, 4, 6, 10)
+    saturday_at_8am = datetime(2017, 4, 1, 8, tzinfo=timezone.utc)
+    assert next_workday_at_10(saturday_at_8am) == datetime(2017, 4, 3, 10, tzinfo=timezone.utc)
+    tuesday_at_4am = datetime(2017, 4, 4, 4, tzinfo=timezone.utc)
+    assert next_workday_at_10(tuesday_at_4am) == datetime(2017, 4, 5, 10, tzinfo=timezone.utc)
+    wednesday_at_3pm = datetime(2017, 4, 5, 15, tzinfo=timezone.utc)
+    assert next_workday_at_10(wednesday_at_3pm) == datetime(2017, 4, 6, 10, tzinfo=timezone.utc)
 
 
 def test_reformatted_full_name():
@@ -175,18 +174,6 @@ def test_match_users():
     assert match_user(FAKE_SLACK_USERS, "George Schneeloch") == "<@U12345>"
     assert match_user(FAKE_SLACK_USERS, "George Schneelock") == "<@U12345>"
     assert match_user(FAKE_SLACK_USERS, "George") == "George"
-
-
-def test_release_manager_name():
-    """release_manager_name should return the name of the release manager"""
-    git_config_text = b'user.name=George Schneeloch\nuser.email=gschneel@mit.edu\npush.default=simple\n'
-    with patch('lib.check_output', autospec=True, return_value=git_config_text) as check_output_stub:
-        assert release_manager_name() == 'George Schneeloch'
-    check_output_stub.assert_called_with(['git', 'config', '--global', '-l'])
-
-    # If the name is missing we should return None
-    with patch('lib.check_output', autospec=True, return_value=b''):
-        assert release_manager_name() is None
 
 
 def test_url_with_access_token():

@@ -10,6 +10,7 @@ import json
 import re
 
 import requests
+import pytz
 from websockets.exceptions import ConnectionClosed
 import websockets
 
@@ -33,11 +34,11 @@ from release import (
 from lib import (
     get_release_pr,
     get_unchecked_authors,
+    format_user_id,
     match_user,
     now_in_utc,
     next_workday_at_10,
     parse_date,
-    release_manager_name,
     VERSION_RE,
     wait_for_checkboxes,
 )
@@ -119,7 +120,7 @@ def in_script_dir(file_path):
 
 def get_envs():
     """Get required environment variables"""
-    required_keys = ('SLACK_ACCESS_TOKEN', 'BOT_ACCESS_TOKEN', 'GITHUB_ACCESS_TOKEN')
+    required_keys = ('SLACK_ACCESS_TOKEN', 'BOT_ACCESS_TOKEN', 'GITHUB_ACCESS_TOKEN', 'TIMEZONE')
     env_dict = {key: os.environ.get(key, None) for key in required_keys}
     missing_env_keys = [k for k, v in env_dict.items() if v is None]
     if missing_env_keys:
@@ -127,7 +128,7 @@ def get_envs():
     return env_dict
 
 
-CommandArgs = namedtuple('CommandArgs', ['channel_id', 'repo_info', 'args', 'loop'])
+CommandArgs = namedtuple('CommandArgs', ['manager', 'channel_id', 'repo_info', 'args'])
 Command = namedtuple('Command', ['command', 'parsers', 'command_func', 'description'])
 Parser = namedtuple('Parser', ['func', 'description'])
 
@@ -136,7 +137,7 @@ Parser = namedtuple('Parser', ['func', 'description'])
 class Bot:
     """Slack bot used to manage the release"""
 
-    def __init__(self, websocket, slack_access_token, github_access_token):
+    def __init__(self, websocket, slack_access_token, github_access_token, timezone, loop):
         """
         Create the slack bot
 
@@ -144,11 +145,31 @@ class Bot:
             websocket (websockets.client.WebSocketClientProtocol): websocket for sending/receiving messages
             slack_access_token (str): The OAuth access token used to interact with Slack
             github_access_token (str): The Github access token used to interact with Github
+            timezone (tzinfo): The time zone of the team interacting with the bot
+            loop (asyncio.events.AbstractEventLoop): The event loop
         """
         self.websocket = websocket
         self.slack_access_token = slack_access_token
         self.github_access_token = github_access_token
+        self.timezone = timezone
+        self.loop = loop
+
+        self.tasks = {}
         self.message_count = 0
+
+    def create_singleton_task(self, key, coroutine):
+        """
+        Create a task and run it. If another is already running it is cancelled first.
+
+        Args:
+            key (str): Some unique key for the task
+            coroutine (coroutine): A coroutine to create a task for
+        """
+        if key in self.tasks:
+            self.tasks[key].cancel()
+            del self.tasks[key]
+
+        self.tasks[key] = self.loop.create_task(coroutine)
 
     def lookup_users(self):
         """
@@ -160,12 +181,12 @@ class Bot:
         resp.raise_for_status()
         return resp.json()['members']
 
-    def translate_slack_usernames(self, unchecked_authors):
+    def translate_slack_usernames(self, names):
         """
         Try to match each full name with a slack username.
 
         Args:
-            unchecked_authors (iterable of str): An iterable of full names
+            names (iterable of str): An iterable of full names
 
         Returns:
             iterable of str:
@@ -173,11 +194,11 @@ class Bot:
         """
         try:
             slack_users = self.lookup_users()
-            return [match_user(slack_users, author) for author in unchecked_authors]
+            return [match_user(slack_users, author) for author in names]
 
         except Exception as exception:  # pylint: disable=broad-except
             sys.stderr.write("Error: {}".format(exception))
-            return unchecked_authors
+            return names
 
     async def say(self, channel_id, text):
         """
@@ -218,11 +239,25 @@ class Bot:
         repo_info = command_args.repo_info
         version = command_args.args[0]
         repo_url = repo_info.repo_url
-        channel_id = repo_info.channel_id
         org, repo = get_org_and_repo(repo_url)
         pr = get_release_pr(self.github_access_token, org, repo)
         if pr:
             raise ReleaseException("A release is already in progress: {}".format(pr.url))
+        await self.release(repo_info, version, command_args.manager)
+
+    async def release(self, repo_info, version, manager):
+        """
+        Start a release and wait for deployment
+
+        Args:
+            repo_info (RepoInfo): Repository information
+            version (str): The new version
+            manager (str): The release manager user id
+        """
+        repo_url = repo_info.repo_url
+        channel_id = repo_info.channel_id
+        org, repo = get_org_and_repo(repo_url)
+
         release(
             github_access_token=self.github_access_token,
             repo_url=repo_url,
@@ -257,8 +292,11 @@ class Bot:
             )
         )
 
-        await self.wait_for_checkboxes(repo_info)
-        command_args.loop.create_task(self.delay_message(repo_info))
+        self.create_singleton_task("delay-message-{}".format(channel_id), self.delay_message(repo_info))
+        self.create_singleton_task(
+            "wait-for-checkboxes-{}".format(channel_id),
+            self.wait_for_checkboxes(repo_info, manager),
+        )
 
     async def wait_for_checkboxes_command(self, command_args):
         """
@@ -267,14 +305,18 @@ class Bot:
         Args:
             command_args (CommandArgs): The arguments for this command
         """
-        await self.wait_for_checkboxes(command_args.repo_info)
+        self.create_singleton_task(
+            "wait-for-checkboxes-{}".format(command_args.channel_id),
+            self.wait_for_checkboxes(command_args.repo_info, command_args.manager),
+        )
 
-    async def wait_for_checkboxes(self, repo_info):
+    async def wait_for_checkboxes(self, repo_info, manager):
         """
         Poll the Release PR and wait until all checkboxes are checked off
 
         Args:
             repo_info (RepoInfo): Information for a repo
+            manager (str): User id for the release manager
         """
         channel_id = repo_info.channel_id
         await self.say(
@@ -286,12 +328,11 @@ class Bot:
         )
         org, repo = get_org_and_repo(repo_info.repo_url)
         await wait_for_checkboxes(self.github_access_token, org, repo)
-        release_manager = release_manager_name()
         pr = get_release_pr(self.github_access_token, org, repo)
         await self.say(
             channel_id,
-            "All checkboxes checked off. Release {version} is ready for the Merginator{name}!".format(
-                name=' {}'.format(self.translate_slack_usernames([release_manager])[0]) if release_manager else '',
+            "All checkboxes checked off. Release {version} is ready for the Merginator {name}!".format(
+                name=format_user_id(manager),
                 version=pr.version
             )
         )
@@ -339,6 +380,22 @@ class Bot:
                 project=repo_info.name,
             )
         )
+
+    async def update_release(self, command_args):
+        """
+        Update an existing release with new commits
+
+        Args:
+            command_args (CommandArgs): The arguments for this command
+        """
+        repo_info = command_args.repo_info
+        repo_url = repo_info.repo_url
+        org, repo = get_org_and_repo(repo_url)
+        pr = get_release_pr(self.github_access_token, org, repo)
+        if not pr:
+            raise ReleaseException("No release is in progress, nothing to update")
+
+        await self.release(repo_info, pr.version, command_args.manager)
 
     async def report_version(self, command_args):
         """
@@ -406,7 +463,7 @@ class Bot:
         Args:
             repo_info (RepoInfo): The info for a repo
         """
-        now = datetime.now()
+        now = datetime.now(tz=self.timezone)
         tomorrow_at_10 = next_workday_at_10(now)
         await asyncio.sleep((tomorrow_at_10 - now).total_seconds())
         await self.message_if_unchecked(repo_info)
@@ -521,6 +578,12 @@ class Bot:
                 description='Finish a release',
             ),
             Command(
+                command='update release',
+                parsers=[],
+                command_func=self.update_release,
+                description='Update the current release',
+            ),
+            Command(
                 command='wait for checkboxes',
                 parsers=[],
                 command_func=self.wait_for_checkboxes_command,
@@ -558,11 +621,13 @@ class Bot:
             ),
         ]
 
-    async def run_command(self, channel_id, repo_info, words, loop):  # pylint: disable=too-many-locals
+    # pylint: disable=too-many-locals
+    async def run_command(self, manager, channel_id, repo_info, words, loop):
         """
         Run a command
 
         Args:
+            manager (str): The user id for the person giving the command
             channel_id (str): The channel id
             repo_info (RepoInfo): The repo info, if the channel id can be found for that repo
             words (list of str): the words making up a command
@@ -603,7 +668,7 @@ class Bot:
                         repo_info=repo_info,
                         channel_id=channel_id,
                         args=parsed_args,
-                        loop=loop,
+                        manager=manager,
                     )
                 )
                 return
@@ -616,18 +681,19 @@ class Bot:
             " Y'know, unless, one of you happens to be really good with computers."
         )
 
-    async def handle_message(self, channel_id, repo_info, words, loop):
+    async def handle_message(self, manager, channel_id, repo_info, words, loop):
         """
         Handle the message
 
         Args:
+            manager (str): The user id for the person giving the command
             channel_id (str): The channel id
             repo_info (RepoInfo): The repo info, if the channel id can be found for that repo
             words (list of str): the words making up a command
             loop (asyncio.events.AbstractEventLoop): The asyncio event loop
         """
         try:
-            await self.run_command(channel_id, repo_info, words, loop)
+            await self.run_command(manager, channel_id, repo_info, words, loop)
         except (InputException, ReleaseException) as ex:
             log.exception("A BotException was raised:")
             await self.say(channel_id, "Oops! {}".format(ex))
@@ -691,7 +757,13 @@ def main():
     async def connect_to_message_server(loop):
         """Setup connection with websocket server"""
         async with websockets.connect(resp.json()['url']) as websocket:
-            bot = Bot(websocket, envs['SLACK_ACCESS_TOKEN'], envs['GITHUB_ACCESS_TOKEN'])
+            bot = Bot(
+                websocket=websocket,
+                slack_access_token=envs['SLACK_ACCESS_TOKEN'],
+                github_access_token=envs['GITHUB_ACCESS_TOKEN'],
+                timezone=pytz.timezone(envs['TIMEZONE']),
+                loop=loop,
+            )
             while True:
                 message = await websocket.recv()
                 print(message)
@@ -714,7 +786,7 @@ def main():
                     message_handle, *words = all_words
                     if message_handle in ("<@{}>".format(doof_id), "@doof"):
                         loop.create_task(
-                            bot.handle_message(channel_id, channel_repo_info, words, loop)
+                            bot.handle_message(message['user'], channel_id, channel_repo_info, words, loop)
                         )
 
     loop = asyncio.get_event_loop()

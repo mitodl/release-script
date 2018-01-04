@@ -52,12 +52,17 @@ def main():
     except IndexError:
         repo_info = None
 
-    bot = Bot(FakeConsoleSocket(channel_id), envs['SLACK_ACCESS_TOKEN'], envs['GITHUB_ACCESS_TOKEN'])
+    bot = Bot(
+        websocket=FakeConsoleSocket(channel_id),
+        slack_access_token=envs['SLACK_ACCESS_TOKEN'],
+        github_access_token=envs['GITHUB_ACCESS_TOKEN'],
+        timezone=envs['TIMEZONE'],
+    )
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(
         loop.create_task(
-            bot.handle_message(channel_id, repo_info, words, loop)
+            bot.handle_message('mitodl_user', channel_id, repo_info, words, loop)
         )
     )
 
