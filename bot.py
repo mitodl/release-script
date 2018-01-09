@@ -193,7 +193,6 @@ class Bot:
         resp = requests.post('https://slack.com/api/chat.postMessage', data={
             "token": self.slack_access_token,
             "channel": channel_id,
-            "as_user": True,
             **text_dict,
             **attachments_dict,
             **message_type_dict,
