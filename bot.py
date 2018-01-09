@@ -728,7 +728,6 @@ def main():
                 if message.get('subtype') == 'message_changed':
                     # A user edits their message
                     # content = message.get('message', {}).get('text')
-                    # TODO: fix strange behavior when restarting doof
                     content = None
                 else:
                     content = message.get('text')
