@@ -110,7 +110,7 @@ async def test_release(doof, repo_info, event_loop, mocker, command):
     get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True, side_effect=[None, pr, pr])
     release_mock = mocker.patch('bot.release', autospec=True)
 
-    wait_for_deploy_sync_mock = Mock()
+    wait_for_deploy_sync_mock = mocker.Mock()
 
     async def wait_for_deploy_fake(*args, **kwargs):
         """await cannot be used with mock objects"""
@@ -120,7 +120,7 @@ async def test_release(doof, repo_info, event_loop, mocker, command):
     authors = ['author1', 'author2']
     mocker.patch('bot.get_unchecked_authors', return_value=authors)
 
-    wait_for_checkboxes_sync_mock = Mock()
+    wait_for_checkboxes_sync_mock = mocker.Mock()
     async def wait_for_checkboxes_fake(*args, **kwargs):
         """await cannot be used with mock objects"""
         wait_for_checkboxes_sync_mock(*args, **kwargs)
@@ -143,13 +143,11 @@ async def test_release(doof, repo_info, event_loop, mocker, command):
         hash_url=repo_info.rc_hash_url,
         watch_branch='release-candidate',
     )
-    assert doof.websocket.said(repo_info.channel_id, "Now deploying to RC...")
-    assert doof.websocket.said(
-        repo_info.channel_id, "These people have commits in this release: {}".format(', '.join(authors))
-    )
+    assert doof.said("Now deploying to RC...")
+    assert doof.said("These people have commits in this release: {}".format(', '.join(authors)))
     wait_for_checkboxes_sync_mock.assert_called_once_with(GITHUB_ACCESS, org, repo)
-    assert doof.websocket.said(
-        repo_info.channel_id, "Release {version} is ready for the Merginator {name}".format(
+    assert doof.said(
+        "Release {version} is ready for the Merginator {name}".format(
             version=pr.version,
             name=format_user_id(me),
         )
@@ -182,8 +180,7 @@ async def test_release_bad_version(doof, repo_info, event_loop, command):
     """
     command_words = command.split() + ['a.b.c']
     await doof.run_command('mitodl_user', repo_info.channel_id, repo_info, command_words, event_loop)
-    assert doof.websocket.said(
-        repo_info.channel_id,
+    assert doof.said(
         'having trouble figuring out what that means',
     )
 
@@ -195,8 +192,7 @@ async def test_release_no_args(doof, repo_info, event_loop, command):
     """
     command_words = command.split()
     await doof.run_command('mitodl_user', repo_info.channel_id, repo_info, command_words, event_loop)
-    assert doof.websocket.said(
-        repo_info.channel_id,
+    assert doof.said(
         "Careful, careful. I expected 1 words but you said 0.",
     )
 
@@ -214,7 +210,7 @@ async def test_finish_release(doof, repo_info, event_loop, mocker):
     get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True, return_value=pr)
     finish_release_mock = mocker.patch('bot.finish_release', autospec=True)
 
-    wait_for_deploy_sync_mock = Mock()
+    wait_for_deploy_sync_mock = mocker.Mock()
 
     async def wait_for_deploy_fake(*args, **kwargs):
         """await cannot be used with mock objects"""
@@ -231,14 +227,14 @@ async def test_finish_release(doof, repo_info, event_loop, mocker):
         repo_url=repo_info.repo_url,
         version=version,
     )
-    assert doof.websocket.said(repo_info.channel_id, 'deploying to production...')
+    assert doof.said('deploying to production...')
     wait_for_deploy_sync_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
         repo_url=repo_info.repo_url,
         hash_url=repo_info.prod_hash_url,
         watch_branch='release',
     )
-    assert doof.websocket.said(repo_info.channel_id, 'has been released to production')
+    assert doof.said('has been released to production')
 
 
 async def test_finish_release_no_release(doof, repo_info, event_loop, mocker):
