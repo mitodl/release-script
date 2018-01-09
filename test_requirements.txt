@@ -1,4 +1,5 @@
 codecov
+pdbpp
 pylint==1.6.5
 pytest
 pytest-asyncio
