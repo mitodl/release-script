@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Run the bot locally to test it out"""
 import asyncio
-import json
 import sys
 
 from bot import (
@@ -12,23 +11,15 @@ from bot import (
 )
 
 
-class FakeConsoleSocket:
-    """Fake socket which dumps to stdout"""
-    def __init__(self, channel_id):
-        self.channel_id = channel_id
-
-    async def send(self, payload_json):
-        """Print out data which would get sent"""
-        payload = json.loads(payload_json)
-        if payload.get('channel') != self.channel_id:
-            raise Exception("Unexpected channel for payload: {}".format(payload))
-        if payload.get('type') != 'message':
-            # ignore typing and other unimportant messages
-            return
-        text = payload.get('text')
-        print(
-            "\033[92m{}\033[0m".format(text)
-        )
+class ConsoleBot(Bot):
+    """Fake console bot"""
+    async def say(self, channel_id, text='', attachments=None, message_type=''):
+        """Print messages to stdout"""
+        attachment_text = ''
+        if attachments is not None:
+            attachment_text = attachments[0].get('text', '')
+        line = " ".join(word for word in [text, attachment_text, message_type] if word)
+        print("\033[92m{}\033[0m".format(line))
 
 
 def main():
@@ -52,7 +43,7 @@ def main():
     except IndexError:
         repo_info = None
 
-    bot = Bot(FakeConsoleSocket(channel_id), envs['SLACK_ACCESS_TOKEN'], envs['GITHUB_ACCESS_TOKEN'])
+    bot = ConsoleBot(envs['SLACK_ACCESS_TOKEN'], envs['GITHUB_ACCESS_TOKEN'])
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(

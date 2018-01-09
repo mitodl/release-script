@@ -136,19 +136,16 @@ Parser = namedtuple('Parser', ['func', 'description'])
 class Bot:
     """Slack bot used to manage the release"""
 
-    def __init__(self, websocket, slack_access_token, github_access_token):
+    def __init__(self, slack_access_token, github_access_token):
         """
         Create the slack bot
 
         Args:
-            websocket (websockets.client.WebSocketClientProtocol): websocket for sending/receiving messages
             slack_access_token (str): The OAuth access token used to interact with Slack
             github_access_token (str): The Github access token used to interact with Github
         """
-        self.websocket = websocket
         self.slack_access_token = slack_access_token
         self.github_access_token = github_access_token
-        self.message_count = 0
 
     def lookup_users(self):
         """
@@ -179,20 +176,47 @@ class Bot:
             sys.stderr.write("Error: {}".format(exception))
             return names
 
-    async def say(self, channel_id, text):
+    async def say(self, channel_id, text=None, attachments=None, message_type=None):
         """
         Post a message in the Slack channel
 
         Args:
             channel_id (str): A channel id
             text (str): A message
+            attachments (list of dict): Attachment information
+            message_type (str): The type of message
         """
-        await self.websocket.send(json.dumps({
-            "id": self.message_count,
-            "type": "message",
+        attachments_dict = {"attachments": json.dumps(attachments)} if attachments else {}
+        text_dict = {"text": text} if text else {}
+        message_type_dict = {"type": message_type} if message_type else {}
+
+        resp = requests.post('https://slack.com/api/chat.postMessage', data={
+            "token": self.slack_access_token,
             "channel": channel_id,
-            "text": text}))
-        self.message_count += 1
+            **text_dict,
+            **attachments_dict,
+            **message_type_dict,
+        })
+        resp.raise_for_status()
+
+    async def say_with_attachment(self, channel_id, title, text):
+        """
+        Post a message in the Slack channel, putting the text in an attachment with markdown enabled
+
+        Args:
+            channel_id (channel_id): A channel id
+            title (str): A line of text before the main message
+            text (str): A message
+        """
+        await self.say(
+            channel_id,
+            text=title,
+            attachments=[{
+                "fallback": title,
+                "text": text,
+                "mrkdwn_in": ['text']
+            }]
+        )
 
     async def typing(self, channel_id):
         """
@@ -201,12 +225,7 @@ class Bot:
         Args:
             channel_id (str): A channel id
         """
-        await self.websocket.send(json.dumps({
-            "id": self.message_count,
-            "type": "typing",
-            "channel": channel_id
-        }))
-        self.message_count += 1
+        await self.say(channel_id, message_type="typing")
 
     async def release_command(self, command_args):
         """
@@ -345,7 +364,7 @@ class Bot:
         Report the version that is running in production
 
         Args:
-            command_args (RepoInfo): The arguments for this command
+            command_args (CommandArg): The arguments for this command
         """
         repo_info = command_args.repo_info
         channel_id = repo_info.channel_id
@@ -371,12 +390,11 @@ class Bot:
             last_version = update_version("9.9.9")
 
             release_notes = create_release_notes(last_version, with_checkboxes=False)
-        await self.say(
-            repo_info.channel_id,
-            "Release notes since {version}...\n\n{notes}".format(
-                version=last_version,
-                notes=release_notes,
-            ),
+
+        await self.say_with_attachment(
+            channel_id=repo_info.channel_id,
+            title="Release notes since {}".format(last_version),
+            text=release_notes,
         )
 
     async def message_if_unchecked(self, repo_info):
@@ -421,14 +439,14 @@ class Bot:
         channel_id = command_args.channel_id
         start_date = command_args.args[0]
 
-        await self.say(
-            channel_id,
-            "Pull request karma:\n{}".format(
-                "\n".join(
-                    "  *{name}*: {karma}".format(name=name, karma=karma) for name, karma in
-                    calculate_karma(self.github_access_token, start_date, now_in_utc().date())
-                )
-            )
+        title = "Pull request karma since {}".format(start_date)
+        await self.say_with_attachment(
+            channel_id=channel_id,
+            title=title,
+            text="\n".join(
+                "*{name}*: {karma}".format(name=name, karma=karma)
+                for name, karma in calculate_karma(self.github_access_token, start_date, now_in_utc().date())
+            ),
         )
 
     async def needs_review(self, command_args):
@@ -439,17 +457,17 @@ class Bot:
             command_args (CommandArgs): The arguments for this command
         """
         channel_id = command_args.channel_id
-        await self.say(
-            channel_id,
-            "These PRs need review and are unassigned:\n{}".format(
-                "\n".join(
-                    "  *{repo}*: {title} {url}".format(
-                        repo=repo,
-                        title=title,
-                        url=url,
-                    ) for repo, title, url in
-                    needs_review(self.github_access_token)
-                )
+        title = "These PRs need review and are unassigned"
+        await self.say_with_attachment(
+            channel_id=channel_id,
+            title=title,
+            text="\n".join(
+                "*{repo}*: {title}\n{url}".format(
+                    repo=repo,
+                    title=title,
+                    url=url,
+                ) for repo, title, url in
+                needs_review(self.github_access_token)
             )
         )
 
@@ -475,16 +493,20 @@ class Bot:
             command_args (CommandArgs): The arguments for this command
         """
         channel_id = command_args.channel_id
-        descriptions = ["  *{command}*{join}{parsers}: {description}".format(
+        text = "\n".join("*{command}*{join}{parsers}: {description}".format(
             command=command,
             parsers=" ".join("*<{}>*".format(parser.description) for parser in parsers),
             join=" " if parsers else "",
             description=description,
-        ) for command, parsers, _, description in sorted(self.make_commands())]
-        await self.say(
-            channel_id,
+        ) for command, parsers, _, description in sorted(self.make_commands()))
+        title = (
             "Come on, Perry the Platypus. Let's go home. I talk to you enough, right? "
-            "Yeah, you're right. Maybe too much.\n\n{}".format("\n".join(descriptions))
+            "Yeah, you're right. Maybe too much."
+        )
+        await self.say_with_attachment(
+            channel_id=channel_id,
+            title=title,
+            text=text,
         )
 
     def make_commands(self):
@@ -695,7 +717,7 @@ def main():
     async def connect_to_message_server(loop):
         """Setup connection with websocket server"""
         async with websockets.connect(resp.json()['url']) as websocket:
-            bot = Bot(websocket, envs['SLACK_ACCESS_TOKEN'], envs['GITHUB_ACCESS_TOKEN'])
+            bot = Bot(envs['SLACK_ACCESS_TOKEN'], envs['GITHUB_ACCESS_TOKEN'])
             while True:
                 message = await websocket.recv()
                 print(message)
@@ -703,7 +725,13 @@ def main():
                 if message.get('type') != 'message':
                     continue
 
-                content = message.get('text')
+                if message.get('subtype') == 'message_changed':
+                    # A user edits their message
+                    # content = message.get('message', {}).get('text')
+                    content = None
+                else:
+                    content = message.get('text')
+
                 if content is None:
                     continue
 
@@ -717,6 +745,7 @@ def main():
                 if len(all_words) > 0:
                     message_handle, *words = all_words
                     if message_handle in ("<@{}>".format(doof_id), "@doof"):
+                        print("handling...", words, channel_id, channel_repo_info)
                         loop.create_task(
                             bot.handle_message(message['user'], channel_id, channel_repo_info, words, loop)
                         )
