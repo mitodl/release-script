@@ -43,7 +43,11 @@ def main():
     except IndexError:
         repo_info = None
 
-    bot = ConsoleBot(envs['SLACK_ACCESS_TOKEN'], envs['GITHUB_ACCESS_TOKEN'])
+    bot = Bot(
+        slack_access_token=envs['SLACK_ACCESS_TOKEN'],
+        github_access_token=envs['GITHUB_ACCESS_TOKEN'],
+        timezone=envs['TIMEZONE'],
+    )
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(

@@ -121,7 +121,13 @@ def next_workday_at_10(now):
     while next_weekday.isoweekday() > 5:
         # If Saturday or Sunday, go to next day
         next_weekday += timedelta(days=1)
-    return datetime(next_weekday.year, next_weekday.month, next_weekday.day, 10)
+    return datetime(
+        year=next_weekday.year,
+        month=next_weekday.month,
+        day=next_weekday.day,
+        hour=10,
+        tzinfo=now.tzinfo,
+    )
 
 
 def reformatted_full_name(full_name):
@@ -226,7 +232,7 @@ def now_in_utc():
     Returns:
         Returns current datetime in UTC
     """
-    return datetime.now().replace(tzinfo=timezone.utc)
+    return datetime.now(tz=timezone.utc)
 
 
 def url_with_access_token(github_access_token, repo_url):
