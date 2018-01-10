@@ -277,8 +277,7 @@ async def test_delay_message(doof, repo_info, mocker):
     mocker.patch('bot.get_unchecked_authors', return_value=['author1'])
 
     await doof.delay_message(repo_info)
-    assert doof.websocket.said(
-        repo_info.channel_id,
+    assert doof.said(
         'The following authors have not yet checked off their boxes for doof_repo: author1',
     )
     assert next_workday_mock.call_count == 1
