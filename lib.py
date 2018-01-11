@@ -145,8 +145,7 @@ def reformatted_full_name(full_name):
         return "{} {}".format(pieces[0], pieces[-1])
     elif len(pieces) == 1:
         return pieces[0]
-    else:
-        return ''
+    return ''
 
 
 def format_user_id(user_id):
@@ -185,13 +184,12 @@ def match_user(slack_users, author_name, threshold=0.6):
         ratio = SequenceMatcher(a=lower_author_name, b=lower_name).ratio()
         if ratio >= threshold:
             return ratio
-        else:
-            return 0
+        return 0
 
     slack_matches = [(slack_user, match_for_user(slack_user)) for slack_user in slack_users]
     slack_matches = [(slack_user, match) for (slack_user, match) in slack_matches if match >= threshold]
 
-    if len(slack_matches) > 0:
+    if slack_matches:
         matched_user = max(slack_matches, key=lambda pair: pair[1])[0]
         return format_user_id(matched_user['id'])
     else:
@@ -212,7 +210,7 @@ async def wait_for_checkboxes(github_access_token, org, repo):
     while True:
         try:
             unchecked_authors = get_unchecked_authors(github_access_token, org, repo)
-            if len(unchecked_authors) == 0:
+            if not unchecked_authors:
                 break
 
         except Exception as exception:  # pylint: disable=broad-except

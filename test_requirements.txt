@@ -1,6 +1,6 @@
 codecov
 pdbpp
-pylint==1.6.5
+pylint
 pytest
 pytest-asyncio
 pytest-cov
