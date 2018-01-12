@@ -12,7 +12,7 @@ KARMA_QUERY = """
 query {
 
   organization(login:"mitodl") {
-    repositories(first: 10, orderBy: {
+    repositories(first: 100, orderBy: {
       field: PUSHED_AT,
       direction: DESC
     }) {
@@ -43,7 +43,7 @@ query {
 NEEDS_REVIEW_QUERY = """
 query {
   organization(login:"mitodl") {
-    repositories(first: 10, orderBy: {
+    repositories(first: 100, orderBy: {
       field: PUSHED_AT,
       direction: DESC
     }) {
