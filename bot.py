@@ -129,8 +129,12 @@ def in_script_dir(file_path):
 def get_envs():
     """Get required environment variables"""
     required_keys = (
-        'SLACK_ACCESS_TOKEN', 'BOT_ACCESS_TOKEN', 'GITHUB_ACCESS_TOKEN',
-        'SLACK_WEBHOOK_TOKEN', 'TIMEZONE', 'PORT',
+        'SLACK_ACCESS_TOKEN',
+        'BOT_ACCESS_TOKEN',
+        'GITHUB_ACCESS_TOKEN',
+        'SLACK_WEBHOOK_TOKEN',
+        'TIMEZONE',
+        'PORT',
     )
     env_dict = {key: os.environ.get(key, None) for key in required_keys}
     missing_env_keys = [k for k, v in env_dict.items() if v is None]
