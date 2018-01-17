@@ -19,6 +19,15 @@
     },
     "GITHUB_ACCESS_TOKEN": {
       "description": "Github access token"
+    },
+    "PORT": {
+      "description": "Heroku port number to use for web server"
+    },
+    "TIMEZONE": {
+      "description": "The time zone of the team"
+    },
+    "SLACK_WEBHOOK_TOKEN": {
+      "description": "The token used to authenticate requests to the webhook API"
     }
   },
   "keywords": [

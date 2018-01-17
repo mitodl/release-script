@@ -129,7 +129,12 @@ def in_script_dir(file_path):
 def get_envs():
     """Get required environment variables"""
     required_keys = (
-        'SLACK_ACCESS_TOKEN', 'BOT_ACCESS_TOKEN', 'GITHUB_ACCESS_TOKEN', 'SLACK_WEBHOOK_TOKEN', 'TIMEZONE',
+        'SLACK_ACCESS_TOKEN',
+        'BOT_ACCESS_TOKEN',
+        'GITHUB_ACCESS_TOKEN',
+        'SLACK_WEBHOOK_TOKEN',
+        'TIMEZONE',
+        'PORT',
     )
     env_dict = {key: os.environ.get(key, None) for key in required_keys}
     missing_env_keys = [k for k, v in env_dict.items() if v is None]
@@ -748,6 +753,10 @@ def main():
 
     channels_info = get_channels_info(envs['SLACK_ACCESS_TOKEN'])
     repos_info = load_repos_info(channels_info)
+    try:
+        port = int(envs['PORT'])
+    except ValueError:
+        raise Exception("PORT is invalid")
 
     resp = requests.post("https://slack.com/api/rtm.connect", data={
         "token": envs['BOT_ACCESS_TOKEN'],
@@ -763,7 +772,7 @@ def main():
                 github_access_token=envs['GITHUB_ACCESS_TOKEN'],
                 timezone=pytz.timezone(envs['TIMEZONE']),
             )
-            app = make_app(token=envs['SLACK_WEBHOOK_TOKEN'], bot=bot, repos_info=repos_info)
+            app = make_app(token=envs['SLACK_WEBHOOK_TOKEN'], bot=bot, repos_info=repos_info, port=port)
             try:
                 while True:
                     message = await websocket.recv()
