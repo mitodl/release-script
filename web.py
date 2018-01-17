@@ -35,7 +35,7 @@ class ButtonHandler(RequestHandler):
         self.finish("")
 
 
-def make_app(token, bot, repos_info, port=8999):
+def make_app(token, bot, repos_info, port):
     """Create the application handling the webhook requests"""
     app = Application([
         (r'/api/v0/buttons/', ButtonHandler, {'token': token, 'bot': bot, 'repos_info': repos_info}),
