@@ -690,25 +690,27 @@ class Bot:
                 "No! Perry the Platypus, don't do it! Don't push the self-destruct button. This one right here.",
             )
 
-    async def handle_webhook(self, channel_id, repo_info, payload):
+    async def handle_webhook(self, channel_id, user_id, repo_info, callback_id):
         """
         Handle a webhook coming from Slack. The payload has already been verified at this point.
 
         Args:
             channel_id (str): The channel id where the button was originally pressed
+            user_id (str): The user pressing the button
             repo_info (RepoInfo): Repository information for the channel, if any
-            payload (dict): The webhook information
+            callback_id (str): What kind of button was pressed
         """
-        callback_id = payload['callback_id']
+
         if callback_id == FINISH_RELEASE_ID:
             await self.finish_release(CommandArgs(
                 channel_id=channel_id,
                 repo_info=repo_info,
                 args=[],
                 loop=asyncio.get_event_loop(),
+                manager=user_id,
             ))
         else:
-            log.error("Invalid payload callback id: %s", payload)
+            log.warning("Unknown callback id: %s", callback_id)
 
 
 def get_version_number(text):
@@ -772,7 +774,8 @@ def main():
                 github_access_token=envs['GITHUB_ACCESS_TOKEN'],
                 timezone=pytz.timezone(envs['TIMEZONE']),
             )
-            app = make_app(token=envs['SLACK_WEBHOOK_TOKEN'], bot=bot, repos_info=repos_info, port=port)
+            app = make_app(token=envs['SLACK_WEBHOOK_TOKEN'], bot=bot, repos_info=repos_info)
+            app.listen(port)
             try:
                 while True:
                     message = await websocket.recv()
