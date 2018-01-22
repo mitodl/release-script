@@ -774,7 +774,7 @@ def main():
                 github_access_token=envs['GITHUB_ACCESS_TOKEN'],
                 timezone=pytz.timezone(envs['TIMEZONE']),
             )
-            app = make_app(token=envs['SLACK_WEBHOOK_TOKEN'], bot=bot, repos_info=repos_info)
+            app = make_app(token=envs['SLACK_WEBHOOK_TOKEN'], bot=bot, repos_info=repos_info, loop=loop)
             app.listen(port)
             try:
                 while True:

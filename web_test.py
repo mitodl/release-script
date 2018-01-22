@@ -1,4 +1,5 @@
 """Tests for the web server"""
+import asyncio
 import json
 from unittest.mock import Mock, patch
 import urllib.parse
@@ -31,7 +32,8 @@ class FinishReleaseTests(AsyncHTTPTestCase):
             )
         ]
         self.doof = DoofSpoof()
-        self.app = make_app(self.token, self.doof, self.repos_info)
+        self.loop = asyncio.get_event_loop()
+        self.app = make_app(self.token, self.doof, self.repos_info, self.loop)
 
         super().setUp()
 
@@ -70,6 +72,11 @@ class FinishReleaseTests(AsyncHTTPTestCase):
                     }
                 }),
             }))
+
+            # Wait until tasks complete
+            pending = asyncio.Task.all_tasks()
+            self.loop.run_until_complete(asyncio.gather(*pending))
+
         assert finish_release_mock.called is False
 
         assert response.code == 200
@@ -104,10 +111,12 @@ class FinishReleaseTests(AsyncHTTPTestCase):
                 }),
             }))
 
+            # Wait until tasks complete
+            pending = asyncio.Task.all_tasks()
+            self.loop.run_until_complete(asyncio.gather(*pending))
+
         assert response.code == 200
+
         assert wait_for_deploy_sync_mock.called is True
         assert get_release_pr_mock.called is True
         assert finish_release_mock.called is True
-
-        assert self.doof.said('deploying to production...')
-        assert self.doof.said('has been released to production')
