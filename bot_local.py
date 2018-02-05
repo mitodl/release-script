@@ -13,7 +13,7 @@ from bot import (
 
 class ConsoleBot(Bot):
     """Fake console bot"""
-    async def say(self, channel_id, text='', attachments=None, message_type=''):
+    async def say(self, *, channel_id, text='', attachments=None, message_type=''):  # pylint: disable=unused-argument
         """Print messages to stdout"""
         attachment_text = ''
         if attachments is not None:
@@ -38,21 +38,23 @@ def main():
         raise Exception("Unable to find channel by name {}".format(channel_name))
 
     repos_info = load_repos_info(channels_info)
-    try:
-        repo_info = [repo_info for repo_info in repos_info if repo_info.channel_id == channel_id][0]
-    except IndexError:
-        repo_info = None
 
     bot = Bot(
         slack_access_token=envs['SLACK_ACCESS_TOKEN'],
         github_access_token=envs['GITHUB_ACCESS_TOKEN'],
         timezone=envs['TIMEZONE'],
+        repos_info=repos_info
     )
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(
         loop.create_task(
-            bot.handle_message('mitodl_user', channel_id, repo_info, words, loop)
+            bot.handle_message(
+                manager='mitodl_user',
+                channel_id=channel_id,
+                words=words,
+                loop=loop,
+            )
         )
     )
 

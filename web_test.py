@@ -10,7 +10,6 @@ from tornado.testing import AsyncHTTPTestCase
 
 from bot import FINISH_RELEASE_ID
 from bot_test import DoofSpoof
-from repo_info import RepoInfo
 from web import make_app
 
 
@@ -22,18 +21,9 @@ class FinishReleaseTests(AsyncHTTPTestCase):
 
     def setUp(self):
         self.token = uuid.uuid4().hex
-        self.repos_info = [
-            RepoInfo(
-                name='doof_repo',
-                repo_url='http://github.com/mitodl/doof.git',
-                prod_hash_url='http://doof.example.com/hash.txt',
-                rc_hash_url='http://doof-rc.example.com/hash.txt',
-                channel_id='doof',
-            )
-        ]
         self.doof = DoofSpoof()
         self.loop = asyncio.get_event_loop()
-        self.app = make_app(self.token, self.doof, self.repos_info, self.loop)
+        self.app = make_app(self.token, self.doof, self.loop)
 
         super().setUp()
 
