@@ -226,6 +226,28 @@ class Bot:
         })
         resp.raise_for_status()
 
+    async def update_message(self, *, channel_id, timestamp, text=None, attachments=None):
+        """
+        Update an existing message in slack
+
+        Args:
+            channel_id (str): The channel id
+            timestamp (str): The timestamp of the message to update
+            text (str): New text for the message
+            attachments (list of dict): New attachments for the message
+        """
+        attachments_dict = {"attachments": json.dumps(attachments)} if attachments else {}
+        text_dict = {"text": text} if text else {}
+
+        resp = requests.post('https://slack.com/api/chat.update', data={
+            "token": self.slack_access_token,
+            "channel": channel_id,
+            "ts": timestamp,
+            **text_dict,
+            **attachments_dict,
+        })
+        resp.raise_for_status()
+
     async def say_with_attachment(self, *, channel_id, title, text):
         """
         Post a message in the Slack channel, putting the text in an attachment with markdown enabled
@@ -724,16 +746,37 @@ class Bot:
         channel_id = webhook_dict['channel']['id']
         user_id = webhook_dict['user']['id']
         callback_id = webhook_dict['callback_id']
+        timestamp = webhook_dict['message_ts']
+        original_text = webhook_dict['original_message']['text']
 
         if callback_id == FINISH_RELEASE_ID:
             repo_info = self.get_repo_info(channel_id)
-            await self.finish_release(CommandArgs(
+            await self.update_message(
                 channel_id=channel_id,
-                repo_info=repo_info,
-                args=[],
-                loop=loop,
-                manager=user_id,
-            ))
+                timestamp=timestamp,
+                text=original_text,
+                attachments=[{
+                    "title": "Merging..."
+                }],
+            )
+            try:
+                await self.finish_release(CommandArgs(
+                    channel_id=channel_id,
+                    repo_info=repo_info,
+                    args=[],
+                    loop=loop,
+                    manager=user_id,
+                ))
+            except:
+                await self.update_message(
+                    channel_id=channel_id,
+                    timestamp=timestamp,
+                    text=original_text,
+                    attachments=[{
+                        "title": "Error merging release"
+                    }],
+                )
+                raise
 
         else:
             log.warning("Unknown callback id: %s", callback_id)

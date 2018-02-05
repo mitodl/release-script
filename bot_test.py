@@ -5,7 +5,7 @@ from unittest.mock import Mock
 import pytest
 import pytz
 
-from bot import Bot
+from bot import Bot, FINISH_RELEASE_ID
 from exception import ReleaseException
 from github import get_org_and_repo
 from lib import (
@@ -55,6 +55,12 @@ class DoofSpoof(Bot):
     async def say(self, *, channel_id, text=None, attachments=None, message_type=None):
         """Quick and dirty message recording"""
         self.messages.append("{} {} {} {}".format(channel_id, text, attachments, message_type))
+
+    async def update_message(self, *, channel_id, timestamp, text=None, attachments=None):
+        """
+        Record message updates
+        """
+        self.messages.append("{} {} {} {}".format(channel_id, text, attachments, timestamp))
 
     def said(self, text):
         """Did doof say this thing?"""
@@ -331,3 +337,102 @@ async def test_delay_message(doof, repo_info, mocker):
     assert next_workday_mock.call_args[0][0].tzinfo.zone == doof.timezone.zone
     assert sleep_sync_mock.call_count == 1
     assert abs(seconds_diff - sleep_sync_mock.call_args[0][0]) < 1  # pylint: disable=unsubscriptable-object
+
+
+async def test_webhook_different_callback_id(doof, event_loop, mocker):
+    """
+    If the callback id doesn't match nothing should be done
+    """
+    finish_release_mock = mocker.patch(
+        'bot.finish_release', autospec=True
+    )
+    await doof.handle_webhook(
+        loop=event_loop,
+        webhook_dict={
+            "token": "token",
+            "callback_id": "xyz",
+            "channel": {
+                "id": "doof"
+            },
+            "user": {
+                "id": "doofenshmirtz"
+            },
+            "message_ts": "123.45",
+            "original_message": {
+                "text": "Doof's original text",
+            }
+        },
+    )
+
+    assert finish_release_mock.called is False
+
+
+async def test_webhook_finish_release(doof, event_loop, mocker):
+    """
+    Finish the release
+    """
+    wait_for_deploy_sync_mock = Mock()
+
+    async def wait_for_deploy_fake(*args, **kwargs):
+        """await cannot be used with mock objects"""
+        wait_for_deploy_sync_mock(*args, **kwargs)
+
+    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True)
+    finish_release_mock = mocker.patch('bot.finish_release', autospec=True)
+    mocker.patch('bot.wait_for_deploy', wait_for_deploy_fake)
+
+    await doof.handle_webhook(
+        loop=event_loop,
+        webhook_dict={
+            "token": "token",
+            "callback_id": FINISH_RELEASE_ID,
+            "channel": {
+                "id": "doof"
+            },
+            "user": {
+                "id": "doofenshmirtz"
+            },
+            "message_ts": "123.45",
+            "original_message": {
+                "text": "Doof's original text",
+            }
+        },
+    )
+
+    assert wait_for_deploy_sync_mock.called is True
+    assert get_release_pr_mock.called is True
+    assert finish_release_mock.called is True
+    assert doof.said("Merging...")
+    assert not doof.said("Error")
+
+
+async def test_webhook_finish_release_fail(doof, event_loop, mocker):
+    """
+    If finishing the release fails we should update the button to show the error
+    """
+    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True)
+    finish_release_mock = mocker.patch('bot.finish_release', autospec=True, side_effect=KeyError)
+
+    with pytest.raises(KeyError):
+        await doof.handle_webhook(
+            loop=event_loop,
+            webhook_dict={
+                "token": "token",
+                "callback_id": FINISH_RELEASE_ID,
+                "channel": {
+                    "id": "doof"
+                },
+                "user": {
+                    "id": "doofenshmirtz"
+                },
+                "message_ts": "123.45",
+                "original_message": {
+                    "text": "Doof's original text",
+                }
+            },
+        )
+
+    assert get_release_pr_mock.called is True
+    assert finish_release_mock.called is True
+    assert doof.said("Merging...")
+    assert doof.said("Error")
