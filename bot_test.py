@@ -5,7 +5,7 @@ from unittest.mock import Mock
 import pytest
 import pytz
 
-from bot import Bot
+from bot import Bot, FINISH_RELEASE_ID
 from exception import ReleaseException
 from github import get_org_and_repo
 from lib import (
@@ -22,6 +22,17 @@ GITHUB_ACCESS = 'github'
 SLACK_ACCESS = 'slack'
 
 
+TEST_REPOS_INFO = [
+    RepoInfo(
+        name='doof_repo',
+        repo_url='http://github.com/mitodl/doof.git',
+        prod_hash_url='http://doof.example.com/hash.txt',
+        rc_hash_url='http://doof-rc.example.com/hash.txt',
+        channel_id='doof',
+    )
+]
+
+
 # pylint: disable=redefined-outer-name
 class DoofSpoof(Bot):
     """Testing bot"""
@@ -31,6 +42,7 @@ class DoofSpoof(Bot):
             slack_access_token=SLACK_ACCESS,
             github_access_token=GITHUB_ACCESS,
             timezone=pytz.timezone("America/New_York"),
+            repos_info=TEST_REPOS_INFO,
         )
 
         self.slack_users = []
@@ -40,9 +52,15 @@ class DoofSpoof(Bot):
         """Users in the channel"""
         return self.slack_users
 
-    async def say(self, channel_id, text=None, attachments=None, message_type=None):
+    async def say(self, *, channel_id, text=None, attachments=None, message_type=None):
         """Quick and dirty message recording"""
         self.messages.append("{} {} {} {}".format(channel_id, text, attachments, message_type))
+
+    async def update_message(self, *, channel_id, timestamp, text=None, attachments=None):
+        """
+        Record message updates
+        """
+        self.messages.append("{} {} {} {}".format(channel_id, text, attachments, timestamp))
 
     def said(self, text):
         """Did doof say this thing?"""
@@ -61,13 +79,7 @@ def doof():
 @pytest.fixture
 def repo_info():
     """Our fake repository info"""
-    yield RepoInfo(
-        name='doof_repo',
-        repo_url='http://github.com/mitodl/doof.git',
-        prod_hash_url='http://doof.example.com/hash.txt',
-        rc_hash_url='http://doof-rc.example.com/hash.txt',
-        channel_id='doof',
-    )
+    return TEST_REPOS_INFO[0]
 
 
 async def test_release_notes(doof, repo_info, event_loop, mocker):
@@ -77,7 +89,12 @@ async def test_release_notes(doof, repo_info, event_loop, mocker):
     notes = "some notes"
     create_release_notes_mock = mocker.patch('bot.create_release_notes', autospec=True, return_value=notes)
 
-    await doof.run_command('mitodl_user', repo_info.channel_id, repo_info, ['release', 'notes'], event_loop)
+    await doof.run_command(
+        manager='mitodl_user',
+        channel_id=repo_info.channel_id,
+        words=['release', 'notes'],
+        loop=event_loop,
+    )
 
     update_version_mock.assert_called_once_with("9.9.9")
     create_release_notes_mock.assert_called_once_with(old_version, with_checkboxes=False)
@@ -94,7 +111,12 @@ async def test_version(doof, repo_info, event_loop, mocker):
     version = '1.2.3'
     fetch_release_hash_mock = mocker.patch('bot.fetch_release_hash', autospec=True, return_value=a_hash)
     get_version_tag_mock = mocker.patch('bot.get_version_tag', autospec=True, return_value="v{}".format(version))
-    await doof.run_command('mitodl_user', repo_info.channel_id, repo_info, ['version'], event_loop)
+    await doof.run_command(
+        manager='mitodl_user',
+        channel_id=repo_info.channel_id,
+        words=['version'],
+        loop=event_loop,
+    )
     assert doof.said(
         "Wait a minute! My evil scheme is at version {}!".format(version)
     )
@@ -136,7 +158,12 @@ async def test_release(doof, repo_info, event_loop, mocker, command):
 
     command_words = command.split() + [version]
     me = 'mitodl_user'
-    await doof.run_command(me, repo_info.channel_id, repo_info, command_words, event_loop)
+    await doof.run_command(
+        manager=me,
+        channel_id=repo_info.channel_id,
+        words=command_words,
+        loop=event_loop,
+    )
 
     org, repo = get_org_and_repo(repo_info.repo_url)
     get_release_pr_mock.assert_any_call(GITHUB_ACCESS, org, repo)
@@ -177,7 +204,12 @@ async def test_release_in_progress(doof, repo_info, event_loop, mocker, command)
 
     command_words = command.split() + [version]
     with pytest.raises(ReleaseException) as ex:
-        await doof.run_command('mitodl_user', repo_info.channel_id, repo_info, command_words, event_loop)
+        await doof.run_command(
+            manager='mitodl_user',
+            channel_id=repo_info.channel_id,
+            words=command_words,
+            loop=event_loop,
+        )
     assert ex.value.args[0] == "A release is already in progress: {}".format(url)
 
 
@@ -187,7 +219,12 @@ async def test_release_bad_version(doof, repo_info, event_loop, command):
     If the version doesn't parse correctly doof should fail
     """
     command_words = command.split() + ['a.b.c']
-    await doof.run_command('mitodl_user', repo_info.channel_id, repo_info, command_words, event_loop)
+    await doof.run_command(
+        manager='mitodl_user',
+        channel_id=repo_info.channel_id,
+        words=command_words,
+        loop=event_loop,
+    )
     assert doof.said(
         'having trouble figuring out what that means',
     )
@@ -199,7 +236,12 @@ async def test_release_no_args(doof, repo_info, event_loop, command):
     If no version is given doof should complain
     """
     command_words = command.split()
-    await doof.run_command('mitodl_user', repo_info.channel_id, repo_info, command_words, event_loop)
+    await doof.run_command(
+        manager='mitodl_user',
+        channel_id=repo_info.channel_id,
+        words=command_words,
+        loop=event_loop,
+    )
     assert doof.said(
         "Careful, careful. I expected 1 words but you said 0.",
     )
@@ -226,7 +268,12 @@ async def test_finish_release(doof, repo_info, event_loop, mocker):
 
     mocker.patch('bot.wait_for_deploy', wait_for_deploy_fake)
 
-    await doof.run_command('mitodl_user', repo_info.channel_id, repo_info, ['finish', 'release'], event_loop)
+    await doof.run_command(
+        manager='mitodl_user',
+        channel_id=repo_info.channel_id,
+        words=['finish', 'release'],
+        loop=event_loop,
+    )
 
     org, repo = get_org_and_repo(repo_info.repo_url)
     get_release_pr_mock.assert_called_once_with(GITHUB_ACCESS, org, repo)
@@ -251,7 +298,12 @@ async def test_finish_release_no_release(doof, repo_info, event_loop, mocker):
     """
     get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True, return_value=None)
     with pytest.raises(ReleaseException) as ex:
-        await doof.run_command('mitodl_user', repo_info.channel_id, repo_info, ['finish', 'release'], event_loop)
+        await doof.run_command(
+            manager='mitodl_user',
+            channel_id=repo_info.channel_id,
+            words=['finish', 'release'],
+            loop=event_loop,
+        )
     assert 'No release currently in progress' in ex.value.args[0]
     org, repo = get_org_and_repo(repo_info.repo_url)
     get_release_pr_mock.assert_called_once_with(GITHUB_ACCESS, org, repo)
@@ -285,3 +337,102 @@ async def test_delay_message(doof, repo_info, mocker):
     assert next_workday_mock.call_args[0][0].tzinfo.zone == doof.timezone.zone
     assert sleep_sync_mock.call_count == 1
     assert abs(seconds_diff - sleep_sync_mock.call_args[0][0]) < 1  # pylint: disable=unsubscriptable-object
+
+
+async def test_webhook_different_callback_id(doof, event_loop, mocker):
+    """
+    If the callback id doesn't match nothing should be done
+    """
+    finish_release_mock = mocker.patch(
+        'bot.finish_release', autospec=True
+    )
+    await doof.handle_webhook(
+        loop=event_loop,
+        webhook_dict={
+            "token": "token",
+            "callback_id": "xyz",
+            "channel": {
+                "id": "doof"
+            },
+            "user": {
+                "id": "doofenshmirtz"
+            },
+            "message_ts": "123.45",
+            "original_message": {
+                "text": "Doof's original text",
+            }
+        },
+    )
+
+    assert finish_release_mock.called is False
+
+
+async def test_webhook_finish_release(doof, event_loop, mocker):
+    """
+    Finish the release
+    """
+    wait_for_deploy_sync_mock = Mock()
+
+    async def wait_for_deploy_fake(*args, **kwargs):
+        """await cannot be used with mock objects"""
+        wait_for_deploy_sync_mock(*args, **kwargs)
+
+    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True)
+    finish_release_mock = mocker.patch('bot.finish_release', autospec=True)
+    mocker.patch('bot.wait_for_deploy', wait_for_deploy_fake)
+
+    await doof.handle_webhook(
+        loop=event_loop,
+        webhook_dict={
+            "token": "token",
+            "callback_id": FINISH_RELEASE_ID,
+            "channel": {
+                "id": "doof"
+            },
+            "user": {
+                "id": "doofenshmirtz"
+            },
+            "message_ts": "123.45",
+            "original_message": {
+                "text": "Doof's original text",
+            }
+        },
+    )
+
+    assert wait_for_deploy_sync_mock.called is True
+    assert get_release_pr_mock.called is True
+    assert finish_release_mock.called is True
+    assert doof.said("Merging...")
+    assert not doof.said("Error")
+
+
+async def test_webhook_finish_release_fail(doof, event_loop, mocker):
+    """
+    If finishing the release fails we should update the button to show the error
+    """
+    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True)
+    finish_release_mock = mocker.patch('bot.finish_release', autospec=True, side_effect=KeyError)
+
+    with pytest.raises(KeyError):
+        await doof.handle_webhook(
+            loop=event_loop,
+            webhook_dict={
+                "token": "token",
+                "callback_id": FINISH_RELEASE_ID,
+                "channel": {
+                    "id": "doof"
+                },
+                "user": {
+                    "id": "doofenshmirtz"
+                },
+                "message_ts": "123.45",
+                "original_message": {
+                    "text": "Doof's original text",
+                }
+            },
+        )
+
+    assert get_release_pr_mock.called is True
+    assert finish_release_mock.called is True
+    assert doof.said("Merging...")
+    assert doof.said("Error")

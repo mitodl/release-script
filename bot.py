@@ -147,7 +147,7 @@ def get_envs():
 class Bot:
     """Slack bot used to manage the release"""
 
-    def __init__(self, slack_access_token, github_access_token, timezone):
+    def __init__(self, *, slack_access_token, github_access_token, timezone, repos_info):
         """
         Create the slack bot
 
@@ -155,10 +155,12 @@ class Bot:
             slack_access_token (str): The OAuth access token used to interact with Slack
             github_access_token (str): The Github access token used to interact with Github
             timezone (tzinfo): The time zone of the team interacting with the bot
+            repos_info (list of RepoInfo): Information about the repositories connected to channels
         """
         self.slack_access_token = slack_access_token
         self.github_access_token = github_access_token
         self.timezone = timezone
+        self.repos_info = repos_info
 
     def lookup_users(self):
         """
@@ -189,7 +191,19 @@ class Bot:
             sys.stderr.write("Error: {}".format(exception))
             return names
 
-    async def say(self, channel_id, text=None, attachments=None, message_type=None):
+    def get_repo_info(self, channel_id):
+        """
+        Get the repo info for a channel, or return None if no channel matches
+
+        Args:
+            channel_id (str): The channel id
+        """
+        for repo_info in self.repos_info:
+            if repo_info.channel_id == channel_id:
+                return repo_info
+        return None
+
+    async def say(self, *, channel_id, text=None, attachments=None, message_type=None):
         """
         Post a message in the Slack channel
 
@@ -212,7 +226,29 @@ class Bot:
         })
         resp.raise_for_status()
 
-    async def say_with_attachment(self, channel_id, title, text):
+    async def update_message(self, *, channel_id, timestamp, text=None, attachments=None):
+        """
+        Update an existing message in slack
+
+        Args:
+            channel_id (str): The channel id
+            timestamp (str): The timestamp of the message to update
+            text (str): New text for the message
+            attachments (list of dict): New attachments for the message
+        """
+        attachments_dict = {"attachments": json.dumps(attachments)} if attachments else {}
+        text_dict = {"text": text} if text else {}
+
+        resp = requests.post('https://slack.com/api/chat.update', data={
+            "token": self.slack_access_token,
+            "channel": channel_id,
+            "ts": timestamp,
+            **text_dict,
+            **attachments_dict,
+        })
+        resp.raise_for_status()
+
+    async def say_with_attachment(self, *, channel_id, title, text):
         """
         Post a message in the Slack channel, putting the text in an attachment with markdown enabled
 
@@ -222,7 +258,7 @@ class Bot:
             text (str): A message
         """
         await self.say(
-            channel_id,
+            channel_id=channel_id,
             text=title,
             attachments=[{
                 "fallback": title,
@@ -238,7 +274,7 @@ class Bot:
         Args:
             channel_id (str): A channel id
         """
-        await self.say(channel_id, message_type="typing")
+        await self.say(channel_id=channel_id, message_type="typing")
 
     async def release_command(self, command_args):
         """
@@ -262,8 +298,8 @@ class Bot:
         )
 
         await self.say(
-            channel_id,
-            "Behold, my new evil scheme - release {version} for {project}! Now deploying to RC...".format(
+            channel_id=channel_id,
+            text="Behold, my new evil scheme - release {version} for {project}! Now deploying to RC...".format(
                 version=version,
                 project=repo_info.name,
             ),
@@ -279,8 +315,8 @@ class Bot:
         slack_usernames = self.translate_slack_usernames(unchecked_authors)
         pr = get_release_pr(self.github_access_token, org, repo)
         await self.say(
-            channel_id,
-            "Release {version} for {project} was deployed! PR is up at {pr_url}."
+            channel_id=channel_id,
+            text="Release {version} for {project} was deployed! PR is up at {pr_url}."
             " These people have commits in this release: {authors}".format(
                 version=version,
                 authors=", ".join(slack_usernames),
@@ -311,8 +347,8 @@ class Bot:
         """
         channel_id = repo_info.channel_id
         await self.say(
-            channel_id,
-            "Wait, wait. Time out. My evil plan for {project} isn't evil enough "
+            channel_id=channel_id,
+            text="Wait, wait. Time out. My evil plan for {project} isn't evil enough "
             "until all the checkboxes are checked...".format(
                 project=repo_info.name,
             )
@@ -321,7 +357,7 @@ class Bot:
         await wait_for_checkboxes(self.github_access_token, org, repo)
         pr = get_release_pr(self.github_access_token, org, repo)
         await self.say(
-            channel_id,
+            channel_id=channel_id,
             text="All checkboxes checked off. Release {version} is ready for the Merginator {name}!".format(
                 name=format_user_id(manager),
                 version=pr.version
@@ -364,8 +400,8 @@ class Bot:
         )
 
         await self.say(
-            channel_id,
-            "Merged evil scheme {version} for {project}! Now deploying to production...".format(
+            channel_id=channel_id,
+            text="Merged evil scheme {version} for {project}! Now deploying to production...".format(
                 version=version,
                 project=repo_info.name,
             ),
@@ -377,8 +413,8 @@ class Bot:
             watch_branch="release",
         )
         await self.say(
-            channel_id,
-            "My evil scheme {version} for {project} has been released to production. "
+            channel_id=channel_id,
+            text="My evil scheme {version} for {project} has been released to production. "
             "And by 'released', I mean completely...um...leased.".format(
                 version=version,
                 project=repo_info.name,
@@ -400,8 +436,8 @@ class Bot:
 
         version = get_version_tag(self.github_access_token, repo_url, commit_hash)
         await self.say(
-            channel_id,
-            "Wait a minute! My evil scheme is at version {version}!".format(version=version[1:])
+            channel_id=channel_id,
+            text="Wait a minute! My evil scheme is at version {version}!".format(version=version[1:])
         )
 
     async def commits_since_last_release(self, command_args):
@@ -435,8 +471,8 @@ class Bot:
         if unchecked_authors:
             slack_usernames = self.translate_slack_usernames(unchecked_authors)
             await self.say(
-                repo_info.channel_id,
-                "What an unexpected surprise! "
+                channel_id=repo_info.channel_id,
+                text="What an unexpected surprise! "
                 "The following authors have not yet checked off their boxes for {project}: {names}".format(
                     names=", ".join(slack_usernames),
                     project=repo_info.name,
@@ -506,8 +542,8 @@ class Bot:
         """
         channel_id = command_args.channel_id
         await self.say(
-            channel_id,
-            "A Mongol army? Really? Uh, I must have had the dial set for"
+            channel_id=channel_id,
+            text="A Mongol army? Really? Uh, I must have had the dial set for"
             " 'Hun.' Oh, well, you don't look a gift horde in the mouth, so... hello! "
         )
 
@@ -607,14 +643,13 @@ class Bot:
         ]
 
     # pylint: disable=too-many-locals
-    async def run_command(self, manager, channel_id, repo_info, words, loop):
+    async def run_command(self, *, manager, channel_id, words, loop):
         """
         Run a command
 
         Args:
             manager (str): The user id for the person giving the command
             channel_id (str): The channel id
-            repo_info (RepoInfo): The repo info, if the channel id can be found for that repo
             words (list of str): the words making up a command
             loop (asyncio.events.AbstractEventLoop): The asyncio event loop
         """
@@ -626,8 +661,8 @@ class Bot:
                 args = words[len(command_words):]
                 if len(args) != len(parsers):
                     await self.say(
-                        channel_id,
-                        "Careful, careful. I expected {expected_num} words but you said {actual_num}.".format(
+                        channel_id=channel_id,
+                        text="Careful, careful. I expected {expected_num} words but you said {actual_num}.".format(
                             expected_num=len(parsers),
                             actual_num=len(args),
                         )
@@ -641,13 +676,17 @@ class Bot:
                     except:  # pylint: disable=bare-except
                         log.exception("Parser exception")
                         await self.say(
-                            channel_id,
-                            "Oh dear! You said `{word}` but I'm having trouble figuring out what that means.".format(
-                                word=arg,
+                            channel_id=channel_id,
+                            text=(
+                                "Oh dear! You said `{word}` but I'm having trouble"
+                                " figuring out what that means.".format(
+                                    word=arg,
+                                )
                             )
                         )
                         return
 
+                repo_info = self.get_repo_info(channel_id)
                 await command_func(
                     CommandArgs(
                         repo_info=repo_info,
@@ -661,54 +700,84 @@ class Bot:
 
         # No command matched
         await self.say(
-            channel_id,
-            "You're both persistent, I'll give ya that, but the security system "
+            channel_id=channel_id,
+            text="You're both persistent, I'll give ya that, but the security system "
             "is offline and there's nothing you or your little dog friend can do about it!"
             " Y'know, unless, one of you happens to be really good with computers."
         )
 
-    async def handle_message(self, manager, channel_id, repo_info, words, loop):
+    async def handle_message(self, *, manager, channel_id, words, loop):
         """
         Handle the message
 
         Args:
             manager (str): The user id for the person giving the command
             channel_id (str): The channel id
-            repo_info (RepoInfo): The repo info, if the channel id can be found for that repo
             words (list of str): the words making up a command
             loop (asyncio.events.AbstractEventLoop): The asyncio event loop
         """
         try:
-            await self.run_command(manager, channel_id, repo_info, words, loop)
+            await self.run_command(
+                manager=manager,
+                channel_id=channel_id,
+                words=words,
+                loop=loop
+            )
         except (InputException, ReleaseException) as ex:
             log.exception("A BotException was raised:")
-            await self.say(channel_id, "Oops! {}".format(ex))
+            await self.say(channel_id=channel_id, text="Oops! {}".format(ex))
         except:  # pylint: disable=bare-except
             log.exception("Exception found when handling a message")
             await self.say(
-                channel_id,
-                "No! Perry the Platypus, don't do it! Don't push the self-destruct button. This one right here.",
+                channel_id=channel_id,
+                text="No! Perry the Platypus, don't do it! "
+                     "Don't push the self-destruct button. This one right here.",
             )
 
-    async def handle_webhook(self, channel_id, user_id, repo_info, callback_id):
+    async def handle_webhook(self, *, webhook_dict, loop):
         """
         Handle a webhook coming from Slack. The payload has already been verified at this point.
 
         Args:
-            channel_id (str): The channel id where the button was originally pressed
-            user_id (str): The user pressing the button
-            repo_info (RepoInfo): Repository information for the channel, if any
-            callback_id (str): What kind of button was pressed
+            webhook_dict (dict): The dict from Slack containing the webhook information
+            loop (asyncio.events.AbstractEventLoop): The asyncio event loop
         """
 
+        channel_id = webhook_dict['channel']['id']
+        user_id = webhook_dict['user']['id']
+        callback_id = webhook_dict['callback_id']
+        timestamp = webhook_dict['message_ts']
+        original_text = webhook_dict['original_message']['text']
+
         if callback_id == FINISH_RELEASE_ID:
-            await self.finish_release(CommandArgs(
+            repo_info = self.get_repo_info(channel_id)
+            await self.update_message(
                 channel_id=channel_id,
-                repo_info=repo_info,
-                args=[],
-                loop=asyncio.get_event_loop(),
-                manager=user_id,
-            ))
+                timestamp=timestamp,
+                text=original_text,
+                attachments=[{
+                    "title": "Merging..."
+                }],
+            )
+            try:
+                await self.finish_release(CommandArgs(
+                    channel_id=channel_id,
+                    repo_info=repo_info,
+                    args=[],
+                    loop=loop,
+                    manager=user_id,
+                ))
+            except:
+                await self.update_message(
+                    channel_id=channel_id,
+                    timestamp=timestamp,
+                    text=original_text,
+                    attachments=[{
+                        "title": "Error merging release"
+                    }],
+                )
+                raise
+
         else:
             log.warning("Unknown callback id: %s", callback_id)
 
@@ -773,8 +842,9 @@ def main():
                 slack_access_token=envs['SLACK_ACCESS_TOKEN'],
                 github_access_token=envs['GITHUB_ACCESS_TOKEN'],
                 timezone=pytz.timezone(envs['TIMEZONE']),
+                repos_info=repos_info,
             )
-            app = make_app(token=envs['SLACK_WEBHOOK_TOKEN'], bot=bot, repos_info=repos_info, loop=loop)
+            app = make_app(token=envs['SLACK_WEBHOOK_TOKEN'], bot=bot, loop=loop)
             app.listen(port)
             try:
                 while True:
@@ -795,18 +865,19 @@ def main():
                         continue
 
                     channel_id = message.get('channel')
-                    channel_repo_info = None
-                    for repo_info in repos_info:
-                        if repo_info.channel_id == channel_id:
-                            channel_repo_info = repo_info
 
                     all_words = content.strip().split()
                     if len(all_words) > 0:
                         message_handle, *words = all_words
                         if message_handle in ("<@{}>".format(doof_id), "@doof"):
-                            print("handling...", words, channel_id, channel_repo_info)
+                            print("handling...", words, channel_id)
                             loop.create_task(
-                                bot.handle_message(message['user'], channel_id, channel_repo_info, words, loop)
+                                bot.handle_message(
+                                    manager=message['user'],
+                                    channel_id=channel_id,
+                                    words=words,
+                                    loop=loop,
+                                )
                             )
             finally:
                 app.stop()
