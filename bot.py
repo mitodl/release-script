@@ -147,20 +147,25 @@ def get_envs():
 class Bot:
     """Slack bot used to manage the release"""
 
-    def __init__(self, *, slack_access_token, github_access_token, timezone, repos_info):
+    def __init__(self, *, websocket, slack_access_token, github_access_token, timezone, repos_info):
         """
         Create the slack bot
 
         Args:
+            websocket (websockets.client.WebSocketClientProtocol): websocket for sending/receiving messages
             slack_access_token (str): The OAuth access token used to interact with Slack
             github_access_token (str): The Github access token used to interact with Github
             timezone (tzinfo): The time zone of the team interacting with the bot
             repos_info (list of RepoInfo): Information about the repositories connected to channels
         """
+        self.websocket = websocket
         self.slack_access_token = slack_access_token
         self.github_access_token = github_access_token
         self.timezone = timezone
         self.repos_info = repos_info
+
+        # Used for only websocket messages
+        self.message_count = 0
 
     def lookup_users(self):
         """
@@ -274,7 +279,12 @@ class Bot:
         Args:
             channel_id (str): A channel id
         """
-        await self.say(channel_id=channel_id, message_type="typing")
+        await self.websocket.send(json.dumps({
+            "id": self.message_count,
+            "type": "typing",
+            "channel": channel_id,
+        }))
+        self.message_count += 1
 
     async def release_command(self, command_args):
         """
@@ -839,6 +849,7 @@ def main():
         """Setup connection with websocket server"""
         async with websockets.connect(resp.json()['url']) as websocket:
             bot = Bot(
+                websocket=websocket,
                 slack_access_token=envs['SLACK_ACCESS_TOKEN'],
                 github_access_token=envs['GITHUB_ACCESS_TOKEN'],
                 timezone=pytz.timezone(envs['TIMEZONE']),
