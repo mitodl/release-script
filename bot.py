@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Slack bot for managing releases"""
+import aiohttp
 import asyncio
 from collections import namedtuple
 from datetime import datetime
@@ -9,7 +10,6 @@ import logging
 import json
 import re
 
-import requests
 import pytz
 from tornado.platform.asyncio import AsyncIOMainLoop
 from websockets.exceptions import ConnectionClosed
@@ -49,7 +49,7 @@ from wait_for_deploy import (
     wait_for_deploy,
 )
 from version import get_version_tag
-from web import make_app
+from web import run_web_server
 
 
 log = logging.getLogger(__name__)
@@ -61,18 +61,19 @@ Parser = namedtuple('Parser', ['func', 'description'])
 FINISH_RELEASE_ID = 'finish_release'
 
 
-def get_channels_info(slack_access_token):
+async def get_channels_info(*, slack_access_token, client):
     """
     Get channel information from slack
 
     Args:
         slack_access_token (str): Used to authenticate with slack
+        client (aiohttp.ClientSession): A session, used for HTTP requests
 
     Returns:
         dict: A map of channel names to channel ids
     """
     # public channels
-    resp = requests.post("https://slack.com/api/channels.list", data={
+    resp = await client.post("https://slack.com/api/channels.list", data={
         "token": slack_access_token
     })
     resp.raise_for_status()
@@ -80,7 +81,7 @@ def get_channels_info(slack_access_token):
     channels_map = {channel['name']: channel['id'] for channel in channels}
 
     # private channels
-    resp = requests.post("https://slack.com/api/groups.list", data={
+    resp = await client.post("https://slack.com/api/groups.list", data={
         "token": slack_access_token
     })
     resp.raise_for_status()
@@ -147,7 +148,7 @@ def get_envs():
 class Bot:
     """Slack bot used to manage the release"""
 
-    def __init__(self, *, slack_access_token, github_access_token, timezone, repos_info):
+    def __init__(self, *, slack_access_token, github_access_token, timezone, repos_info, client):
         """
         Create the slack bot
 
@@ -156,23 +157,25 @@ class Bot:
             github_access_token (str): The Github access token used to interact with Github
             timezone (tzinfo): The time zone of the team interacting with the bot
             repos_info (list of RepoInfo): Information about the repositories connected to channels
+            client (aiohttp.ClientSession): The HTTP client session
         """
         self.slack_access_token = slack_access_token
         self.github_access_token = github_access_token
         self.timezone = timezone
         self.repos_info = repos_info
+        self.client = client
 
-    def lookup_users(self):
+    async def lookup_users(self):
         """
         Get users list from slack
         """
-        resp = requests.post("https://slack.com/api/users.list", data={
+        resp = await self.client.post("https://slack.com/api/users.list", data={
             "token": self.slack_access_token
         })
         resp.raise_for_status()
         return resp.json()['members']
 
-    def translate_slack_usernames(self, names):
+    async def translate_slack_usernames(self, names):
         """
         Try to match each full name with a slack username.
 
@@ -184,8 +187,11 @@ class Bot:
                 A iterable of either the slack name or a full name if a slack name was not found
         """
         try:
-            slack_users = self.lookup_users()
-            return [match_user(slack_users, author) for author in names]
+            slack_users = await self.lookup_users()
+            return [match_user(
+                slack_users=slack_users,
+                author_name=author,
+            ) for author in names]
 
         except Exception as exception:  # pylint: disable=broad-except
             sys.stderr.write("Error: {}".format(exception))
@@ -217,7 +223,7 @@ class Bot:
         text_dict = {"text": text} if text else {}
         message_type_dict = {"type": message_type} if message_type else {}
 
-        resp = requests.post('https://slack.com/api/chat.postMessage', data={
+        resp = await self.client.post('https://slack.com/api/chat.postMessage', data={
             "token": self.slack_access_token,
             "channel": channel_id,
             **text_dict,
@@ -239,7 +245,7 @@ class Bot:
         attachments_dict = {"attachments": json.dumps(attachments)} if attachments else {}
         text_dict = {"text": text} if text else {}
 
-        resp = requests.post('https://slack.com/api/chat.update', data={
+        resp = await self.client.post('https://slack.com/api/chat.update', data={
             "token": self.slack_access_token,
             "channel": channel_id,
             "ts": timestamp,
@@ -288,7 +294,11 @@ class Bot:
         repo_url = repo_info.repo_url
         channel_id = repo_info.channel_id
         org, repo = get_org_and_repo(repo_url)
-        pr = get_release_pr(self.github_access_token, org, repo)
+        pr = get_release_pr(
+            github_access_token=self.github_access_token,
+            org=org,
+            repo=repo,
+        )
         if pr:
             raise ReleaseException("A release is already in progress: {}".format(pr.url))
         release(
@@ -311,9 +321,17 @@ class Bot:
             hash_url=repo_info.rc_hash_url,
             watch_branch="release-candidate",
         )
-        unchecked_authors = get_unchecked_authors(self.github_access_token, org, repo)
-        slack_usernames = self.translate_slack_usernames(unchecked_authors)
-        pr = get_release_pr(self.github_access_token, org, repo)
+        unchecked_authors = get_unchecked_authors(
+            github_access_token=self.github_access_token,
+            org=org,
+            repo=repo,
+        )
+        slack_usernames = await self.translate_slack_usernames(unchecked_authors)
+        pr = get_release_pr(
+            github_access_token=self.github_access_token,
+            org=org,
+            repo=repo,
+        )
         await self.say(
             channel_id=channel_id,
             text="Release {version} for {project} was deployed! PR is up at {pr_url}."
@@ -469,7 +487,7 @@ class Bot:
         org, repo = get_org_and_repo(repo_info.repo_url)
         unchecked_authors = get_unchecked_authors(self.github_access_token, org, repo)
         if unchecked_authors:
-            slack_usernames = self.translate_slack_usernames(unchecked_authors)
+            slack_usernames = await self.translate_slack_usernames(unchecked_authors)
             await self.say(
                 channel_id=repo_info.channel_id,
                 text="What an unexpected surprise! "
@@ -818,82 +836,126 @@ def has_command(command_words, input_words):
     return command_words == input_words[:len(command_words)]
 
 
-def main():
-    """main function for bot command"""
-    envs = get_envs()
+async def connect_to_message_server(
+    *, rtm_url, doof_id, slack_access_token, slack_webhook_token,
+    github_access_token, timezone, repos_info, port, client, loop
+):
+    """
+    Setup connection with websocket server and handle messages
 
-    channels_info = get_channels_info(envs['SLACK_ACCESS_TOKEN'])
-    repos_info = load_repos_info(channels_info)
+    Args:
+        rtm_url (str): The URL for the websocket connection with Slack
+        doof_id (str): The doof id
+        slack_access_token (str): The slack access token
+        slack_webhook_token (str): The slack webhook token
+        github_access_token (str): The github access token
+        timezone (datetime.tzinfo): A timezone object representing the team's time zone
+        repos_info (list of RepoInfo): Repository information
+        port (int): The port number for the webserver
+        client (aiohttp.ClientSession): The HTTP client session
+        loop (asyncio.events.AbstractEventLoop): The asyncio event loop
+    """
+    async with websockets.connect(rtm_url) as websocket:
+        bot = Bot(
+            slack_access_token=slack_access_token,
+            github_access_token=github_access_token,
+            timezone=timezone,
+            repos_info=repos_info,
+            client=client,
+        )
+        with run_web_server(
+            token=slack_webhook_token,
+            bot=bot,
+            loop=loop,
+            port=port,
+        ):
+            while True:
+                message = await websocket.recv()
+                print(message)
+                message = json.loads(message)
+                if message.get('type') != 'message':
+                    continue
+
+                if message.get('subtype') == 'message_changed':
+                    # A user edits their message
+                    # content = message.get('message', {}).get('text')
+                    content = None
+                else:
+                    content = message.get('text')
+
+                if content is None:
+                    continue
+
+                channel_id = message.get('channel')
+
+                all_words = content.strip().split()
+                if len(all_words) > 0:
+                    message_handle, *words = all_words
+                    if message_handle in ("<@{}>".format(doof_id), "@doof"):
+                        print("handling...", words, channel_id)
+                        loop.create_task(
+                            bot.handle_message(
+                                manager=message['user'],
+                                channel_id=channel_id,
+                                words=words,
+                                loop=loop,
+                            )
+                        )
+
+
+async def amain():
+    """
+    main function for bot command
+    """
+    envs = get_envs()
+    loop = asyncio.get_event_loop()
+
     try:
         port = int(envs['PORT'])
     except ValueError:
         raise Exception("PORT is invalid")
 
-    resp = requests.post("https://slack.com/api/rtm.connect", data={
-        "token": envs['BOT_ACCESS_TOKEN'],
-    })
-    resp.raise_for_status()
-    doof_id = resp.json()['self']['id']
+    slack_access_token = envs['SLACK_ACCESS_TOKEN']
+    slack_webhook_token = envs['SLACK_WEBHOOK_TOKEN']
+    github_access_token = envs['GITHUB_ACCESS_TOKEN']
+    timezone = pytz.timezone(envs['TIMEZONE'])
 
-    async def connect_to_message_server(loop):
-        """Setup connection with websocket server"""
-        async with websockets.connect(resp.json()['url']) as websocket:
-            bot = Bot(
-                slack_access_token=envs['SLACK_ACCESS_TOKEN'],
-                github_access_token=envs['GITHUB_ACCESS_TOKEN'],
-                timezone=pytz.timezone(envs['TIMEZONE']),
-                repos_info=repos_info,
-            )
-            app = make_app(token=envs['SLACK_WEBHOOK_TOKEN'], bot=bot, loop=loop)
-            app.listen(port)
+    async with aiohttp.ClientSession() as client:
+        channels_info = await get_channels_info(
+            client=client,
+            slack_access_token=envs['SLACK_ACCESS_TOKEN'],
+        )
+        repos_info = load_repos_info(channels_info)
+
+        resp = await client.post("https://slack.com/api/rtm.connect", data={
+            "token": envs['BOT_ACCESS_TOKEN'],
+        })
+        resp.raise_for_status()
+        rtm_url = resp.json()['url']
+        doof_id = resp.json()['self']['id']
+
+        # Start tornado and link it to the main event loop
+        AsyncIOMainLoop().install()
+
+        while True:
             try:
-                while True:
-                    message = await websocket.recv()
-                    print(message)
-                    message = json.loads(message)
-                    if message.get('type') != 'message':
-                        continue
-
-                    if message.get('subtype') == 'message_changed':
-                        # A user edits their message
-                        # content = message.get('message', {}).get('text')
-                        content = None
-                    else:
-                        content = message.get('text')
-
-                    if content is None:
-                        continue
-
-                    channel_id = message.get('channel')
-
-                    all_words = content.strip().split()
-                    if len(all_words) > 0:
-                        message_handle, *words = all_words
-                        if message_handle in ("<@{}>".format(doof_id), "@doof"):
-                            print("handling...", words, channel_id)
-                            loop.create_task(
-                                bot.handle_message(
-                                    manager=message['user'],
-                                    channel_id=channel_id,
-                                    words=words,
-                                    loop=loop,
-                                )
-                            )
-            finally:
-                app.stop()
-
-    loop = asyncio.get_event_loop()
-
-    # Start tornado and link it to the main event loop
-    AsyncIOMainLoop().install()
-
-    while True:
-        try:
-            loop.run_until_complete(connect_to_message_server(loop))
-        except ConnectionClosed:
-            # wait 15 seconds then try again
-            loop.run_until_complete(asyncio.sleep(15))
+                await connect_to_message_server(
+                    rtm_url=rtm_url,
+                    doof_id=doof_id,
+                    slack_access_token=slack_access_token,
+                    slack_webhook_token=slack_webhook_token,
+                    github_access_token=github_access_token,
+                    timezone=timezone,
+                    repos_info=repos_info,
+                    port=port,
+                    client=client,
+                    loop=loop,
+                )
+            except ConnectionClosed:
+                # wait 15 seconds then try again
+                await asyncio.sleep(15)
 
 
 if __name__ == "__main__":
-    main()
+    _loop = asyncio.get_event_loop()
+    _loop.run_until_complete(amain())

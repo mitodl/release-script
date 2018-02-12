@@ -1,4 +1,4 @@
-requests
+aiohttp
 python-dateutil
 asyncio
 pytz

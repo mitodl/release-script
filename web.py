@@ -1,6 +1,7 @@
 """
 Web server for handling slack webhooks
 """
+from contextlib import contextmanager
 import json
 
 from tornado.web import Application, RequestHandler
@@ -39,22 +40,27 @@ class ButtonHandler(RequestHandler):
         self.finish("")
 
 
-def make_app(token, bot, loop):
+@contextmanager
+def run_web_server(*, token, bot, port, loop):
     """
-    Create the application handling the webhook requests
+    Create the application handling the webhook requests and start it
 
     Args:
         token (str): The slack webhook token used to authenticate
         bot (Bot): The bot
+        port (int): The port number
         loop (asyncio.events.AbstractEventLoop): The event loop
 
     Returns:
         Application: A tornado application
     """
-    return Application([
+    app = Application([
         (r'/api/v0/buttons/', ButtonHandler, {
             'token': token,
             'bot': bot,
             'loop': loop,
         }),
     ])
+    app.listen(port)
+    yield app
+    app.stop()

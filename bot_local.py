@@ -31,7 +31,7 @@ def main():
 
     _, channel_name, *words = sys.argv
 
-    channels_info = get_channels_info(envs['SLACK_ACCESS_TOKEN'])
+    channels_info = await get_channels_info(envs['SLACK_ACCESS_TOKEN'])
     try:
         channel_id = channels_info[channel_name]
     except KeyError:

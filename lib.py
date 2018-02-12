@@ -21,6 +21,12 @@ ReleasePR = namedtuple("ReleasePR", ['version', 'url', 'body'])
 VERSION_RE = r'\d+\.\d+\.\d+'
 
 
+async def as_future(value):
+    """Convert value into a Future of the value"""
+    import pdb; pdb.set_trace()
+    return value
+
+
 def parse_checkmarks(body):
     """
     Parse PR message with checkboxes
@@ -60,7 +66,7 @@ def parse_checkmarks(body):
     return commits
 
 
-def get_release_pr(github_access_token, org, repo):
+async def get_release_pr(*, github_access_token, org, repo, client):
     """
     Look up the pull request information for a release, or return None if it doesn't exist
 
@@ -68,11 +74,18 @@ def get_release_pr(github_access_token, org, repo):
         github_access_token (str): The github access token
         org (str): The github organization (eg mitodl)
         repo (str): The github repository (eg micromasters)
+        client (aiohttp.ClientSession): The HTTP client
 
     Returns:
         ReleasePR: The information about the release pull request, or None if there is no release PR in progress
     """
-    pr = get_pull_request(github_access_token, org, repo, 'release-candidate')
+    pr = await get_pull_request(
+        github_access_token=github_access_token,
+        org=org,
+        repo=repo,
+        branch='release-candidate',
+        client=client,
+    )
     if pr is None:
         return None
 
@@ -89,7 +102,7 @@ def get_release_pr(github_access_token, org, repo):
     )
 
 
-def get_unchecked_authors(github_access_token, org, repo):
+async def get_unchecked_authors(*, github_access_token, org, repo, client):
     """
     Returns list of authors who have not yet checked off their checkboxes
 
@@ -97,8 +110,14 @@ def get_unchecked_authors(github_access_token, org, repo):
         github_access_token (str): The github access token
         org (str): The github organization (eg mitodl)
         repo (str): The github repository (eg micromasters)
+        client (aiohttp.ClientSession): The HTTP client
     """
-    release_pr = get_release_pr(github_access_token, org, repo)
+    release_pr = await get_release_pr(
+        github_access_token=github_access_token,
+        org=org,
+        repo=repo,
+        client=client,
+    )
     if not release_pr:
         raise ReleaseException("No release PR found")
     body = release_pr.body
@@ -161,7 +180,7 @@ def format_user_id(user_id):
     return "<@{id}>".format(id=user_id)
 
 
-def match_user(slack_users, author_name, threshold=0.6):
+def match_user(*, slack_users, author_name, threshold=0.6):
     """
     Do a fuzzy match of author name to full name. If it matches, return a formatted Slack handle. Else return original
     full name.
@@ -196,7 +215,7 @@ def match_user(slack_users, author_name, threshold=0.6):
         return author_name
 
 
-async def wait_for_checkboxes(github_access_token, org, repo):
+async def wait_for_checkboxes(*, github_access_token, org, repo):
     """
     Wait for checkboxes, polling every 60 seconds
 
@@ -209,7 +228,11 @@ async def wait_for_checkboxes(github_access_token, org, repo):
     error_count = 0
     while True:
         try:
-            unchecked_authors = get_unchecked_authors(github_access_token, org, repo)
+            unchecked_authors = get_unchecked_authors(
+                github_access_token=github_access_token,
+                org=org,
+                repo=repo,
+            )
             if not unchecked_authors:
                 break
 
@@ -233,7 +256,7 @@ def now_in_utc():
     return datetime.now(tz=timezone.utc)
 
 
-def url_with_access_token(github_access_token, repo_url):
+def url_with_access_token(*, github_access_token, repo_url):
     """
     Inserts the access token into the URL
 

@@ -5,7 +5,6 @@ import json
 import re
 
 from dateutil.parser import parse
-import requests
 
 
 KARMA_QUERY = """
@@ -75,20 +74,21 @@ query {
 """
 
 
-def run_query(github_access_token, query):
+async def run_query(*, github_access_token, query, client):
     """
     Run a query using Github graphql API
 
     Args:
         github_access_token (str): A github access token
         query (str): A graphql query to run
+        client (aiohttp.ClientSession): The client HTTP session
 
     Returns:
         dict: The results of the query
     """
     endpoint = "https://api.github.com/graphql"
     query = json.dumps({"query": query})
-    resp = requests.post(endpoint, data=query, headers={
+    resp = await client.post(endpoint, data=query, headers={
         "Authorization": "Bearer {}".format(github_access_token)
     })
     resp.raise_for_status()
@@ -112,7 +112,7 @@ def github_auth_headers(github_access_token):
     }
 
 
-def create_pr(github_access_token, repo_url, title, body, head, base):  # pylint: disable=too-many-arguments
+async def create_pr(*, client, github_access_token, repo_url, title, body, head, base):  # pylint: disable=too-many-arguments
     """
     Create a pull request
 
@@ -123,6 +123,7 @@ def create_pr(github_access_token, repo_url, title, body, head, base):  # pylint
         body (str): The body of the PR
         head (str): The head branch for the PR
         base (str): The base branch for the PR
+        client (aiohttp.ClientSession): The client HTTP session
     """
 
     org, repo = get_org_and_repo(repo_url)
@@ -131,7 +132,7 @@ def create_pr(github_access_token, repo_url, title, body, head, base):  # pylint
         repo=repo,
     )
 
-    resp = requests.post(
+    resp = await client.post(
         endpoint,
         headers=github_auth_headers(github_access_token),
         data=json.dumps({
@@ -144,11 +145,12 @@ def create_pr(github_access_token, repo_url, title, body, head, base):  # pylint
     resp.raise_for_status()
 
 
-def get_pull_request(github_access_token, org, repo, branch):
+async def get_pull_request(*, client, github_access_token, org, repo, branch):
     """
     Look up the pull request for a branch
 
     Args:
+        client (aiohttp.ClientSession): The client HTTP session
         github_access_token (str): The github access token
         org (str): The github organization (eg mitodl)
         repo (str): The github repository (eg micromasters)
@@ -162,7 +164,7 @@ def get_pull_request(github_access_token, org, repo, branch):
         repo=repo,
     )
 
-    response = requests.get(
+    response = await client.get(
         endpoint,
         headers=github_auth_headers(github_access_token),
     )
@@ -178,7 +180,7 @@ def get_pull_request(github_access_token, org, repo, branch):
     return pulls[0]
 
 
-def calculate_karma(github_access_token, begin_date, end_date):
+async def calculate_karma(*, github_access_token, begin_date, end_date, client):
     """
     Calculate number of merged pull requests by assigned reviewer
 
@@ -186,11 +188,16 @@ def calculate_karma(github_access_token, begin_date, end_date):
         github_access_token (str): A Github access token
         begin_date (datetime.date): Start date for the range to look in
         end_date (datetime.date): The end date for the range to look in
+        client (aiohttp.ClientSession): The client HTTP session
 
     Returns:
         list of tuple: (assignee, karma count) sorted from most karma to least
     """
-    data = run_query(github_access_token, KARMA_QUERY)
+    data = await run_query(
+        github_access_token=github_access_token,
+        query=KARMA_QUERY,
+        client=client,
+    )
 
     karma = defaultdict(lambda: 0)
     for repository in data['data']['organization']['repositories']['nodes']:
@@ -227,17 +234,22 @@ def calculate_karma(github_access_token, begin_date, end_date):
     return karma_list
 
 
-def needs_review(github_access_token):
+async def needs_review(*, github_access_token, client):
     """
     Calculate which PRs need review
 
     Args:
         github_access_token (str): A Github access token
+        client (aiohttp.ClientSession): An HTTP client
 
     Returns:
         list of tuple: A list of (repo name, pr title, pr url) for PRs that need review and are unassigned
     """
-    data = run_query(github_access_token, NEEDS_REVIEW_QUERY)
+    data = await run_query(
+        github_access_token=github_access_token,
+        query=NEEDS_REVIEW_QUERY,
+        client=client,
+    )
     prs_needing_review = []
     # Query will show all open PRs, we need to filter on assignee and label
     for repository in data['data']['organization']['repositories']['nodes']:

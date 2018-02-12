@@ -1,15 +1,12 @@
 """Tests for lib"""
 from datetime import datetime, timezone
-from unittest.mock import (
-    Mock,
-    patch,
-)
+from unittest.mock import patch
 
-from requests import Response, HTTPError
 import pytest
 
 from github import github_auth_headers
 from lib import (
+    as_future,
     get_release_pr,
     get_unchecked_authors,
     match_user,
@@ -19,6 +16,9 @@ from lib import (
     ReleasePR,
     url_with_access_token,
 )
+
+
+pytestmark = pytest.mark.asyncio
 
 
 FAKE_RELEASE_PR_BODY = """
@@ -74,15 +74,20 @@ def test_parse_checkmarks():
     ]
 
 
-def test_get_release_pr():
+async def test_get_release_pr(client):
     """get_release_pr should grab a release from GitHub's API"""
     org = 'org'
     repo = 'repo'
     access_token = 'access'
+    client.get_sync.return_value.json.return_value = FAKE_PULLS
 
-    with patch('github.requests.get', return_value=Mock(json=Mock(return_value=FAKE_PULLS))) as get_mock:
-        pr = get_release_pr(access_token, org, repo)
-    get_mock.assert_called_once_with("https://api.github.com/repos/{org}/{repo}/pulls".format(
+    pr = await get_release_pr(
+        github_access_token=access_token,
+        org=org,
+        repo=repo,
+        client=client,
+    )
+    client.get_sync.assert_called_once_with("https://api.github.com/repos/{org}/{repo}/pulls".format(
         org=org,
         repo=repo,
     ), headers=github_auth_headers(access_token))
@@ -91,38 +96,48 @@ def test_get_release_pr():
     assert pr.version == '0.53.3'
 
 
-def test_get_release_pr_no_pulls():
+def test_get_release_pr_no_pulls(client):
     """If there is no release PR it should return None"""
-    with patch(
-        'github.requests.get', return_value=Mock(json=Mock(return_value=[OTHER_PR]))
-    ):
-        assert get_release_pr('access_token', 'org', 'repo-missing') is None
+    client.get_sync.return_value.json.return_value = [OTHER_PR]
+    assert get_release_pr(
+        github_access_token='access_token',
+        org='org',
+        repo='repo-missing',
+        client=client,
+    ) is None
 
 
-def test_too_many_releases():
+def test_too_many_releases(client):
     """If there is no release PR, an exception should be raised"""
     pulls = [RELEASE_PR, RELEASE_PR]
-    with pytest.raises(Exception) as ex, patch(
-        'github.requests.get', return_value=Mock(json=Mock(return_value=pulls))
-    ):
-        get_release_pr('access_token', 'org', 'repo')
+    client.get_sync.return_value.json.return_value = pulls
+    with pytest.raises(Exception) as ex:
+        get_release_pr(
+            github_access_token='access_token',
+            org='org',
+            repo='repo',
+            client=client,
+        )
 
     assert ex.value.args[0] == "More than one pull request for the branch release-candidate"
 
 
-def test_no_release_wrong_repo():
+def test_no_release_wrong_repo(client):
     """If there is no repo accessible, an exception should be raised"""
-    response_404 = Response()
-    response_404.status_code = 404
-    with pytest.raises(HTTPError) as ex, patch(
-        'github.requests.get', return_value=response_404
-    ):
-        get_release_pr('access_token', 'org', 'repo')
+    client.get_sync.return_value.status_code = 404
 
-    assert ex.value.response.status_code == 404
+    get_release_pr(
+        github_access_token='access_token',
+        org='org',
+        repo='repo',
+        client=client,
+    )
+
+    raise Exception("What does it raise?")
+    #assert ex.value.response.status_code == 404
 
 
-def test_get_unchecked_authors():
+async def test_get_unchecked_authors(client):
     """
     get_unchecked_authors should download the PR body, parse it,
     filter out checked authors and leave only unchecked ones
@@ -131,12 +146,17 @@ def test_get_unchecked_authors():
     repo = 'repo'
     access_token = 'all-access'
 
-    with patch('lib.get_release_pr', autospec=True, return_value=ReleasePR(
+    with patch('lib.get_release_pr', autospec=True, return_value=as_future(ReleasePR(
         body=FAKE_RELEASE_PR_BODY,
         version='1.2.3',
         url='http://url'
-    )) as get_release_pr_mock:
-        unchecked = get_unchecked_authors(access_token, org, repo)
+    ))) as get_release_pr_mock:
+        unchecked = await get_unchecked_authors(
+            github_access_token=access_token,
+            org=org,
+            repo=repo,
+            client=client,
+        )
     assert unchecked == {"Alice Pote"}
     get_release_pr_mock.assert_called_once_with(access_token, org, repo)
 
@@ -171,13 +191,23 @@ FAKE_SLACK_USERS = [
 
 def test_match_users():
     """match_users should use the Levensthein distance to compare usernames"""
-    assert match_user(FAKE_SLACK_USERS, "George Schneeloch") == "<@U12345>"
-    assert match_user(FAKE_SLACK_USERS, "George Schneelock") == "<@U12345>"
-    assert match_user(FAKE_SLACK_USERS, "George") == "George"
+    assert match_user(
+        slack_users=FAKE_SLACK_USERS,
+        author_name="George Schneeloch",
+    ) == "<@U12345>"
+    assert match_user(
+        slack_users=FAKE_SLACK_USERS,
+        author_name="George Schneelock",
+    ) == "<@U12345>"
+    assert match_user(
+        slack_users=FAKE_SLACK_USERS,
+        author_name="George",
+    ) == "George"
 
 
 def test_url_with_access_token():
     """url_with_access_token should insert the access token into the url"""
     assert url_with_access_token(
-        "access", "http://github.com/mitodl/release-script.git"
+        github_access_token="access",
+        repo_url="http://github.com/mitodl/release-script.git",
     ) == "https://access@github.com/mitodl/release-script.git"
