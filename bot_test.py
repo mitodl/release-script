@@ -39,6 +39,7 @@ class DoofSpoof(Bot):
     def __init__(self):
         """Since the testing bot isn't contacting slack or github we don't need these tokens here"""
         super().__init__(
+            websocket=Mock(),
             slack_access_token=SLACK_ACCESS,
             github_access_token=GITHUB_ACCESS,
             timezone=pytz.timezone("America/New_York"),
@@ -55,6 +56,9 @@ class DoofSpoof(Bot):
     async def say(self, *, channel_id, text=None, attachments=None, message_type=None):
         """Quick and dirty message recording"""
         self.messages.append("{} {} {} {}".format(channel_id, text, attachments, message_type))
+
+    async def typing(self, channel_id):
+        """Ignore typing"""
 
     async def update_message(self, *, channel_id, timestamp, text=None, attachments=None):
         """
@@ -123,6 +127,27 @@ async def test_version(doof, repo_info, event_loop, mocker):
 
     fetch_release_hash_mock.assert_called_once_with(repo_info.prod_hash_url)
     get_version_tag_mock.assert_called_once_with(GITHUB_ACCESS, repo_info.repo_url, a_hash)
+
+
+async def test_typing(doof, repo_info, event_loop, mocker):
+    """
+    Doof should signal typing before any arbitrary command
+    """
+    typing_sync = mocker.Mock()
+
+    async def typing_async(*args, **kwargs):
+        """Wrap sync method to allow mocking"""
+        typing_sync(*args, **kwargs)
+
+    mocker.patch.object(doof, 'typing', typing_async)
+    await doof.run_command(
+        manager='mitodl_user',
+        channel_id=repo_info.channel_id,
+        words=['hi'],
+        loop=event_loop,
+    )
+    assert doof.said("hello!")
+    typing_sync.assert_called_once_with(repo_info.channel_id)
 
 
 # pylint: disable=too-many-locals
