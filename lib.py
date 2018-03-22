@@ -161,7 +161,7 @@ def format_user_id(user_id):
     return "<@{id}>".format(id=user_id)
 
 
-def match_user(slack_users, author_name, threshold=0.6):
+def match_user(slack_users, author_name, threshold=0.8):
     """
     Do a fuzzy match of author name to full name. If it matches, return a formatted Slack handle. Else return original
     full name.
@@ -180,7 +180,12 @@ def match_user(slack_users, author_name, threshold=0.6):
 
     def match_for_user(slack_user):
         """Get match ratio for slack user, or 0 if below threshold"""
-        lower_name = reformatted_full_name(slack_user['profile']['real_name'])
+        real_name = slack_user['profile']['real_name']
+        lower_name = reformatted_full_name(real_name)
+
+        if " " not in lower_author_name:
+            lower_name = lower_name.split()[0]
+
         ratio = SequenceMatcher(a=lower_author_name, b=lower_name).ratio()
         if ratio >= threshold:
             return ratio
