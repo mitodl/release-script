@@ -1,6 +1,5 @@
 requests
 python-dateutil
-asyncio
 pytz
 websockets
 tornado

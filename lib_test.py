@@ -165,7 +165,21 @@ FAKE_SLACK_USERS = [
         },
         'name': 'gschneel',
         'id': 'U12345',
-    }
+    },
+    {
+        'profile': {
+            'real_name': 'Sar Haidar'
+        },
+        'name': 'shaidar',
+        'id': 'U65432'
+    },
+    {
+        'profile': {
+            'real_name': 'Sarah H'
+        },
+        'name': 'sarahh',
+        'id': 'U13986'
+    },
 ]
 
 
@@ -173,7 +187,8 @@ def test_match_users():
     """match_users should use the Levensthein distance to compare usernames"""
     assert match_user(FAKE_SLACK_USERS, "George Schneeloch") == "<@U12345>"
     assert match_user(FAKE_SLACK_USERS, "George Schneelock") == "<@U12345>"
-    assert match_user(FAKE_SLACK_USERS, "George") == "George"
+    assert match_user(FAKE_SLACK_USERS, "George") == "<@U12345>"
+    assert match_user(FAKE_SLACK_USERS, 'sar') == '<@U65432>'
 
 
 def test_url_with_access_token():
