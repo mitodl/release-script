@@ -46,8 +46,6 @@ class FinishReleaseTests(AsyncHTTPTestCase):
         """
         If the token validates, we should call handle_webhook on Bot
         """
-        assert len(asyncio.Task.all_tasks()) == 0
-
         payload = {
             "token": self.token
         }
@@ -61,6 +59,3 @@ class FinishReleaseTests(AsyncHTTPTestCase):
             loop=self.loop,
             webhook_dict=payload,
         )
-
-        # make sure we scheduled this one
-        assert len(asyncio.Task.all_tasks()) == 1
