@@ -54,7 +54,7 @@ def init_working_dir(github_access_token, repo_url):
             # from http://stackoverflow.com/questions/2411031/how-do-i-clone-into-a-non-empty-directory
             check_call(["git", "init"])
             check_call(["git", "remote", "add", "origin", url])
-            check_call(["git", "fetch"])
+            check_call(["git", "fetch", "--tags"])
             check_call(["git", "checkout", "-t", "origin/master"])
             yield directory
     finally:
@@ -171,7 +171,7 @@ def any_new_commits(version):
     Returns:
         bool: True if there are new commits
     """
-    return int(check_output(["git", "rev-list", "--count", "v{}..master".format(version)])) != 0
+    return int(check_output(["git", "rev-list", "--count", "v{}..master".format(version), "--"])) != 0
 
 
 def create_release_notes(old_version, with_checkboxes):

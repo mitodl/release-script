@@ -247,7 +247,7 @@ def test_init_working_dir():
     assert [call[0][0] for call in calls] == [
         ['git', 'init'],
         ['git', 'remote', 'add', 'origin', url_with_access_token(access_token, repo_url)],
-        ['git', 'fetch'],
+        ['git', 'fetch', '--tags'],
         ['git', 'checkout', '-t', 'origin/master'],
     ]
 
