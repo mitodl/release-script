@@ -72,7 +72,12 @@ def get_release_pr(github_access_token, org, repo):
     Returns:
         ReleasePR: The information about the release pull request, or None if there is no release PR in progress
     """
-    pr = get_pull_request(github_access_token, org, repo, 'release-candidate')
+    pr = get_pull_request(
+        github_access_token=github_access_token,
+        org=org,
+        repo=repo,
+        branch='release-candidate',
+    )
     if pr is None:
         return None
 

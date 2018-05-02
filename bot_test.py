@@ -5,7 +5,16 @@ from unittest.mock import Mock
 import pytest
 import pytz
 
-from bot import Bot, FINISH_RELEASE_ID
+from bot import (
+    Bot,
+    FINISH_RELEASE_ID,
+    LIBRARY_TYPE,
+    WEB_APPLICATION_TYPE,
+)
+from constants import (
+    TRAVIS_FAILURE,
+    TRAVIS_SUCCESS,
+)
 from exception import ReleaseException
 from github import get_org_and_repo
 from lib import (
@@ -29,7 +38,16 @@ TEST_REPOS_INFO = [
         prod_hash_url='http://doof.example.com/hash.txt',
         rc_hash_url='http://doof-rc.example.com/hash.txt',
         channel_id='doof',
-    )
+        project_type=WEB_APPLICATION_TYPE,
+    ),
+    RepoInfo(
+        name='lib_repo',
+        repo_url='http://github.com/mitodl/doof-lib.git',
+        prod_hash_url=None,
+        rc_hash_url=None,
+        channel_id='doof-lib',
+        project_type=LIBRARY_TYPE,
+    ),
 ]
 
 
@@ -83,7 +101,13 @@ def doof():
 @pytest.fixture
 def repo_info():
     """Our fake repository info"""
-    return TEST_REPOS_INFO[0]
+    return [repo for repo in TEST_REPOS_INFO if repo.project_type == WEB_APPLICATION_TYPE][0]
+
+
+@pytest.fixture
+def library_repo_info():
+    """Our fake library project"""
+    return [repo for repo in TEST_REPOS_INFO if repo.project_type == LIBRARY_TYPE][0]
 
 
 async def test_release_notes(doof, repo_info, event_loop, mocker):
@@ -269,6 +293,108 @@ async def test_release_no_args(doof, repo_info, event_loop, command):
     )
     assert doof.said(
         "Careful, careful. I expected 1 words but you said 0.",
+    )
+
+
+async def test_release_library(doof, library_repo_info, event_loop, mocker):
+    """Do a library release"""
+    version = '1.2.3'
+    pr = ReleasePR(
+        version=version,
+        url='http://new.url',
+        body='Release PR body',
+    )
+    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True, side_effect=[None, pr, pr])
+    release_mock = mocker.patch('bot.release', autospec=True)
+    finish_release_mock = mocker.patch('bot.finish_release', autospec=True)
+
+    wait_for_travis_sync_mock = mocker.Mock()
+    wait_for_travis_sync_mock.return_value = TRAVIS_SUCCESS
+
+    async def wait_for_travis_fake(*args, **kwargs):
+        """await cannot be used with mock objects"""
+        return wait_for_travis_sync_mock(*args, **kwargs)
+    mocker.patch('bot.wait_for_travis', wait_for_travis_fake)
+
+    command_words = ['release', version]
+    me = 'mitodl_user'
+    await doof.run_command(
+        manager=me,
+        channel_id=library_repo_info.channel_id,
+        words=command_words,
+        loop=event_loop,
+    )
+
+    org, repo = get_org_and_repo(library_repo_info.repo_url)
+    release_mock.assert_called_once_with(
+        github_access_token=GITHUB_ACCESS,
+        repo_url=library_repo_info.repo_url,
+        new_version=pr.version,
+    )
+    wait_for_travis_sync_mock.assert_called_once_with(
+        github_access_token=GITHUB_ACCESS,
+        org=org,
+        repo=repo,
+        branch='release-candidate',
+    )
+    get_release_pr_mock.assert_called_once_with(GITHUB_ACCESS, org, repo)
+    finish_release_mock.assert_called_once_with(
+        github_access_token=GITHUB_ACCESS,
+        repo_url=library_repo_info.repo_url,
+        version=version,
+    )
+    assert doof.said(
+        "My evil scheme {version} for {project} has been merged!".format(
+            version=pr.version,
+            project=library_repo_info.name,
+        )
+    )
+
+
+async def test_release_library_failure(doof, library_repo_info, event_loop, mocker):
+    """If a library release fails we shouldn't merge it"""
+    version = '1.2.3'
+    pr = ReleasePR(
+        version=version,
+        url='http://new.url',
+        body='Release PR body',
+    )
+    mocker.patch('bot.get_release_pr', autospec=True, side_effect=[None, pr, pr])
+    release_mock = mocker.patch('bot.release', autospec=True)
+    finish_release_mock = mocker.patch('bot.finish_release', autospec=True)
+
+    wait_for_travis_sync_mock = mocker.Mock()
+    wait_for_travis_sync_mock.return_value = TRAVIS_FAILURE
+
+    async def wait_for_travis_fake(*args, **kwargs):
+        """await cannot be used with mock objects"""
+        return wait_for_travis_sync_mock(*args, **kwargs)
+    mocker.patch('bot.wait_for_travis', wait_for_travis_fake)
+
+    command_words = ['release', version]
+    me = 'mitodl_user'
+    await doof.run_command(
+        manager=me,
+        channel_id=library_repo_info.channel_id,
+        words=command_words,
+        loop=event_loop,
+    )
+
+    org, repo = get_org_and_repo(library_repo_info.repo_url)
+    release_mock.assert_called_once_with(
+        github_access_token=GITHUB_ACCESS,
+        repo_url=library_repo_info.repo_url,
+        new_version=pr.version,
+    )
+    wait_for_travis_sync_mock.assert_called_once_with(
+        github_access_token=GITHUB_ACCESS,
+        org=org,
+        repo=repo,
+        branch='release-candidate',
+    )
+    assert finish_release_mock.call_count == 0
+    assert doof.said(
+        "Uh-oh, it looks like, uh, coffee break's over. During the release Travis had a failure."
     )
 
 
