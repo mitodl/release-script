@@ -8,8 +8,10 @@ import pytz
 from bot import (
     Bot,
     FINISH_RELEASE_ID,
-    LIBRARY_TYPE,
-    WEB_APPLICATION_TYPE,
+)
+from conftest import (
+    LIBRARY_TEST_REPO_INFO,
+    WEB_TEST_REPO_INFO,
 )
 from constants import (
     TRAVIS_FAILURE,
@@ -21,7 +23,6 @@ from lib import (
     format_user_id,
     ReleasePR,
 )
-from repo_info import RepoInfo
 
 
 pytestmark = pytest.mark.asyncio
@@ -29,26 +30,6 @@ pytestmark = pytest.mark.asyncio
 
 GITHUB_ACCESS = 'github'
 SLACK_ACCESS = 'slack'
-
-
-TEST_REPOS_INFO = [
-    RepoInfo(
-        name='doof_repo',
-        repo_url='http://github.com/mitodl/doof.git',
-        prod_hash_url='http://doof.example.com/hash.txt',
-        rc_hash_url='http://doof-rc.example.com/hash.txt',
-        channel_id='doof',
-        project_type=WEB_APPLICATION_TYPE,
-    ),
-    RepoInfo(
-        name='lib_repo',
-        repo_url='http://github.com/mitodl/doof-lib.git',
-        prod_hash_url=None,
-        rc_hash_url=None,
-        channel_id='doof-lib',
-        project_type=LIBRARY_TYPE,
-    ),
-]
 
 
 # pylint: disable=redefined-outer-name
@@ -61,7 +42,7 @@ class DoofSpoof(Bot):
             slack_access_token=SLACK_ACCESS,
             github_access_token=GITHUB_ACCESS,
             timezone=pytz.timezone("America/New_York"),
-            repos_info=TEST_REPOS_INFO,
+            repos_info=[WEB_TEST_REPO_INFO, LIBRARY_TEST_REPO_INFO],
         )
 
         self.slack_users = []
@@ -98,19 +79,7 @@ def doof():
     yield DoofSpoof()
 
 
-@pytest.fixture
-def repo_info():
-    """Our fake repository info"""
-    return [repo for repo in TEST_REPOS_INFO if repo.project_type == WEB_APPLICATION_TYPE][0]
-
-
-@pytest.fixture
-def library_repo_info():
-    """Our fake library project"""
-    return [repo for repo in TEST_REPOS_INFO if repo.project_type == LIBRARY_TYPE][0]
-
-
-async def test_release_notes(doof, repo_info, event_loop, mocker):
+async def test_release_notes(doof, test_repo, event_loop, mocker):
     """Doof should respond to 'hi'"""
     old_version = "0.1.2"
     update_version_mock = mocker.patch('bot.update_version', autospec=True, return_value=old_version)
@@ -119,7 +88,7 @@ async def test_release_notes(doof, repo_info, event_loop, mocker):
 
     await doof.run_command(
         manager='mitodl_user',
-        channel_id=repo_info.channel_id,
+        channel_id=test_repo.channel_id,
         words=['release', 'notes'],
         loop=event_loop,
     )
@@ -131,7 +100,7 @@ async def test_release_notes(doof, repo_info, event_loop, mocker):
     assert doof.said(notes)
 
 
-async def test_version(doof, repo_info, event_loop, mocker):
+async def test_version(doof, test_repo, event_loop, mocker):
     """
     Doof should tell you what version the latest release was
     """
@@ -141,7 +110,7 @@ async def test_version(doof, repo_info, event_loop, mocker):
     get_version_tag_mock = mocker.patch('bot.get_version_tag', autospec=True, return_value="v{}".format(version))
     await doof.run_command(
         manager='mitodl_user',
-        channel_id=repo_info.channel_id,
+        channel_id=test_repo.channel_id,
         words=['version'],
         loop=event_loop,
     )
@@ -149,11 +118,11 @@ async def test_version(doof, repo_info, event_loop, mocker):
         "Wait a minute! My evil scheme is at version {}!".format(version)
     )
 
-    fetch_release_hash_mock.assert_called_once_with(repo_info.prod_hash_url)
-    get_version_tag_mock.assert_called_once_with(GITHUB_ACCESS, repo_info.repo_url, a_hash)
+    fetch_release_hash_mock.assert_called_once_with(test_repo.prod_hash_url)
+    get_version_tag_mock.assert_called_once_with(GITHUB_ACCESS, test_repo.repo_url, a_hash)
 
 
-async def test_typing(doof, repo_info, event_loop, mocker):
+async def test_typing(doof, test_repo, event_loop, mocker):
     """
     Doof should signal typing before any arbitrary command
     """
@@ -166,17 +135,17 @@ async def test_typing(doof, repo_info, event_loop, mocker):
     mocker.patch.object(doof, 'typing', typing_async)
     await doof.run_command(
         manager='mitodl_user',
-        channel_id=repo_info.channel_id,
+        channel_id=test_repo.channel_id,
         words=['hi'],
         loop=event_loop,
     )
     assert doof.said("hello!")
-    typing_sync.assert_called_once_with(repo_info.channel_id)
+    typing_sync.assert_called_once_with(test_repo.channel_id)
 
 
 # pylint: disable=too-many-locals
 @pytest.mark.parametrize("command", ['release', 'start release'])
-async def test_release(doof, repo_info, event_loop, mocker, command):
+async def test_release(doof, test_repo, event_loop, mocker, command):
     """
     Doof should do a release when asked
     """
@@ -209,12 +178,12 @@ async def test_release(doof, repo_info, event_loop, mocker, command):
     me = 'mitodl_user'
     await doof.run_command(
         manager=me,
-        channel_id=repo_info.channel_id,
+        channel_id=test_repo.channel_id,
         words=command_words,
         loop=event_loop,
     )
 
-    org, repo = get_org_and_repo(repo_info.repo_url)
+    org, repo = get_org_and_repo(test_repo.repo_url)
     get_release_pr_mock.assert_any_call(
         github_access_token=GITHUB_ACCESS,
         org=org,
@@ -222,13 +191,13 @@ async def test_release(doof, repo_info, event_loop, mocker, command):
     )
     release_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
-        repo_url=repo_info.repo_url,
+        repo_url=test_repo.repo_url,
         new_version=pr.version,
     )
     wait_for_deploy_sync_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
-        repo_url=repo_info.repo_url,
-        hash_url=repo_info.rc_hash_url,
+        repo_url=test_repo.repo_url,
+        hash_url=test_repo.rc_hash_url,
         watch_branch='release-candidate',
     )
     assert doof.said("Now deploying to RC...")
@@ -247,7 +216,7 @@ async def test_release(doof, repo_info, event_loop, mocker, command):
 
 
 @pytest.mark.parametrize("command", ['release', 'start release'])
-async def test_release_in_progress(doof, repo_info, event_loop, mocker, command):
+async def test_release_in_progress(doof, test_repo, event_loop, mocker, command):
     """
     If a release is already in progress doof should fail
     """
@@ -263,7 +232,7 @@ async def test_release_in_progress(doof, repo_info, event_loop, mocker, command)
     with pytest.raises(ReleaseException) as ex:
         await doof.run_command(
             manager='mitodl_user',
-            channel_id=repo_info.channel_id,
+            channel_id=test_repo.channel_id,
             words=command_words,
             loop=event_loop,
         )
@@ -271,14 +240,14 @@ async def test_release_in_progress(doof, repo_info, event_loop, mocker, command)
 
 
 @pytest.mark.parametrize("command", ['release', 'start release'])
-async def test_release_bad_version(doof, repo_info, event_loop, command):
+async def test_release_bad_version(doof, test_repo, event_loop, command):
     """
     If the version doesn't parse correctly doof should fail
     """
     command_words = command.split() + ['a.b.c']
     await doof.run_command(
         manager='mitodl_user',
-        channel_id=repo_info.channel_id,
+        channel_id=test_repo.channel_id,
         words=command_words,
         loop=event_loop,
     )
@@ -288,14 +257,14 @@ async def test_release_bad_version(doof, repo_info, event_loop, command):
 
 
 @pytest.mark.parametrize("command", ['release', 'start release'])
-async def test_release_no_args(doof, repo_info, event_loop, command):
+async def test_release_no_args(doof, test_repo, event_loop, command):
     """
     If no version is given doof should complain
     """
     command_words = command.split()
     await doof.run_command(
         manager='mitodl_user',
-        channel_id=repo_info.channel_id,
+        channel_id=test_repo.channel_id,
         words=command_words,
         loop=event_loop,
     )
@@ -304,7 +273,7 @@ async def test_release_no_args(doof, repo_info, event_loop, command):
     )
 
 
-async def test_release_library(doof, library_repo_info, event_loop, mocker):
+async def test_release_library(doof, library_test_repo, event_loop, mocker):
     """Do a library release"""
     version = '1.2.3'
     pr = ReleasePR(
@@ -328,15 +297,15 @@ async def test_release_library(doof, library_repo_info, event_loop, mocker):
     me = 'mitodl_user'
     await doof.run_command(
         manager=me,
-        channel_id=library_repo_info.channel_id,
+        channel_id=library_test_repo.channel_id,
         words=command_words,
         loop=event_loop,
     )
 
-    org, repo = get_org_and_repo(library_repo_info.repo_url)
+    org, repo = get_org_and_repo(library_test_repo.repo_url)
     release_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
-        repo_url=library_repo_info.repo_url,
+        repo_url=library_test_repo.repo_url,
         new_version=pr.version,
     )
     wait_for_travis_sync_mock.assert_called_once_with(
@@ -352,18 +321,18 @@ async def test_release_library(doof, library_repo_info, event_loop, mocker):
     )
     finish_release_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
-        repo_url=library_repo_info.repo_url,
+        repo_url=library_test_repo.repo_url,
         version=version,
     )
     assert doof.said(
         "My evil scheme {version} for {project} has been merged!".format(
             version=pr.version,
-            project=library_repo_info.name,
+            project=library_test_repo.name,
         )
     )
 
 
-async def test_release_library_failure(doof, library_repo_info, event_loop, mocker):
+async def test_release_library_failure(doof, library_test_repo, event_loop, mocker):
     """If a library release fails we shouldn't merge it"""
     version = '1.2.3'
     pr = ReleasePR(
@@ -387,15 +356,15 @@ async def test_release_library_failure(doof, library_repo_info, event_loop, mock
     me = 'mitodl_user'
     await doof.run_command(
         manager=me,
-        channel_id=library_repo_info.channel_id,
+        channel_id=library_test_repo.channel_id,
         words=command_words,
         loop=event_loop,
     )
 
-    org, repo = get_org_and_repo(library_repo_info.repo_url)
+    org, repo = get_org_and_repo(library_test_repo.repo_url)
     release_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
-        repo_url=library_repo_info.repo_url,
+        repo_url=library_test_repo.repo_url,
         new_version=pr.version,
     )
     wait_for_travis_sync_mock.assert_called_once_with(
@@ -410,7 +379,7 @@ async def test_release_library_failure(doof, library_repo_info, event_loop, mock
     )
 
 
-async def test_finish_release(doof, repo_info, event_loop, mocker):
+async def test_finish_release(doof, test_repo, event_loop, mocker):
     """
     Doof should finish a release when asked
     """
@@ -433,12 +402,12 @@ async def test_finish_release(doof, repo_info, event_loop, mocker):
 
     await doof.run_command(
         manager='mitodl_user',
-        channel_id=repo_info.channel_id,
+        channel_id=test_repo.channel_id,
         words=['finish', 'release'],
         loop=event_loop,
     )
 
-    org, repo = get_org_and_repo(repo_info.repo_url)
+    org, repo = get_org_and_repo(test_repo.repo_url)
     get_release_pr_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
         org=org,
@@ -446,20 +415,20 @@ async def test_finish_release(doof, repo_info, event_loop, mocker):
     )
     finish_release_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
-        repo_url=repo_info.repo_url,
+        repo_url=test_repo.repo_url,
         version=version,
     )
     assert doof.said('deploying to production...')
     wait_for_deploy_sync_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
-        repo_url=repo_info.repo_url,
-        hash_url=repo_info.prod_hash_url,
+        repo_url=test_repo.repo_url,
+        hash_url=test_repo.prod_hash_url,
         watch_branch='release',
     )
     assert doof.said('has been released to production')
 
 
-async def test_finish_release_no_release(doof, repo_info, event_loop, mocker):
+async def test_finish_release_no_release(doof, test_repo, event_loop, mocker):
     """
     If there's no release to finish doof should complain
     """
@@ -467,12 +436,12 @@ async def test_finish_release_no_release(doof, repo_info, event_loop, mocker):
     with pytest.raises(ReleaseException) as ex:
         await doof.run_command(
             manager='mitodl_user',
-            channel_id=repo_info.channel_id,
+            channel_id=test_repo.channel_id,
             words=['finish', 'release'],
             loop=event_loop,
         )
     assert 'No release currently in progress' in ex.value.args[0]
-    org, repo = get_org_and_repo(repo_info.repo_url)
+    org, repo = get_org_and_repo(test_repo.repo_url)
     get_release_pr_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
         org=org,
@@ -480,7 +449,7 @@ async def test_finish_release_no_release(doof, repo_info, event_loop, mocker):
     )
 
 
-async def test_delay_message(doof, repo_info, mocker):
+async def test_delay_message(doof, test_repo, mocker):
     """
     Doof should finish a release when asked
     """
@@ -499,7 +468,7 @@ async def test_delay_message(doof, repo_info, mocker):
 
     mocker.patch('bot.get_unchecked_authors', return_value=['author1'])
 
-    await doof.delay_message(repo_info)
+    await doof.delay_message(test_repo)
     assert doof.said(
         'The following authors have not yet checked off their boxes for doof_repo: author1',
     )

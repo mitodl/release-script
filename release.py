@@ -44,8 +44,11 @@ def dependency_exists(command):
 
 
 @contextmanager
-def init_working_dir(github_access_token, repo_url):
+def init_working_dir(github_access_token, repo_url, *, branch=None):
     """Create a new directory with an empty git repo"""
+    if branch is None:
+        branch = 'master'
+
     pwd = os.getcwd()
     url = url_with_access_token(github_access_token, repo_url)
     try:
@@ -55,7 +58,7 @@ def init_working_dir(github_access_token, repo_url):
             check_call(["git", "init"])
             check_call(["git", "remote", "add", "origin", url])
             check_call(["git", "fetch", "--tags"])
-            check_call(["git", "checkout", "-t", "origin/master"])
+            check_call(["git", "checkout", branch])
             yield directory
     finally:
         os.chdir(pwd)

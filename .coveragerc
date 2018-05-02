@@ -6,6 +6,7 @@ omit =
     ./.tox/*
     *_test.py
     *_tests.py
+    /tmp/*
 
 [report]
 exclude_lines =

@@ -2,7 +2,13 @@
 from collections import namedtuple
 from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
+import os
 import re
+from subprocess import (
+    call,
+    check_call,
+)
+from tempfile import TemporaryDirectory
 
 from dateutil.parser import parse
 
@@ -242,3 +248,52 @@ def parse_date(date_string):
         date: A date object
     """
     return parse(date_string).date()
+
+
+def upload_to_pypi(*, repo_info, testing):
+    """
+    Upload the current dir
+
+    Args:
+        repo_info (RepoInfo): The repository info
+        testing (bool): If true upload to the testing server, else upload to production
+    """
+    # Set up environment variables for uploading to pypi or pypitest
+    twine_env = {
+        **os.environ,
+        'TWINE_USERNAME': os.environ['PYPITEST_USERNAME'] if testing else os.environ['PYPI_USERNAME'],
+        'TWINE_PASSWORD': os.environ['PYPITEST_PASSWORD'] if testing else os.environ['PYPI_PASSWORD'],
+    }
+
+    # This is the python interpreter to use for creating the source distribution or wheel
+    # In particular if a wheel is specific to one version of python we need to use that interpreter to create it.
+    python = "python3" if repo_info.python3 else "python2"
+
+    with TemporaryDirectory() as virtualenv_dir:
+        # Heroku has both Python 2 and 3 installed but the system libraries aren't configured for our use,
+        # so make a virtualenv.
+        check_call(["virtualenv", virtualenv_dir, "-p", python])
+        # Use the virtualenv binaries to act within that environment
+        python_path = os.path.join(virtualenv_dir, "bin", "python")
+        pip_path = os.path.join(virtualenv_dir, "bin", "pip")
+        twine_path = os.path.join(virtualenv_dir, "bin", "twine")
+
+        # Install dependencies. wheel is needed for Python 2. twine uploads the package.
+        check_call([pip_path, "install", "wheel", "twine"])
+
+        # Create source distribution and wheel.
+        call([python_path, "setup.py", "sdist"])
+        universal = ["--universal"] if repo_info.python2 and repo_info.python3 else []
+        build_wheel_args = [python_path, "setup.py", "bdist_wheel", *universal]
+        call(build_wheel_args)
+        dist_files = os.listdir("dist")
+        if len(dist_files) != 2:
+            raise Exception("Expected to find one tarball and one wheel in directory")
+        dist_paths = [os.path.join("dist", name) for name in dist_files]
+
+        # Upload to pypi
+        testing_args = ["--repository-url", "https://test.pypi.org/legacy/"] if testing else []
+        check_call(
+            [twine_path, "upload", *testing_args, *dist_paths],
+            env=twine_env,
+        )

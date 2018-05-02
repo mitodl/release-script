@@ -42,7 +42,7 @@ def main():
 
     repos_info = load_repos_info(channels_info)
 
-    bot = Bot(
+    bot = ConsoleBot(
         websocket=None,
         slack_access_token=envs['SLACK_ACCESS_TOKEN'],
         github_access_token=envs['GITHUB_ACCESS_TOKEN'],

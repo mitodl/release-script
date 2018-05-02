@@ -1,5 +1,7 @@
 """Tests for lib"""
 from datetime import datetime, timezone
+from itertools import product
+from subprocess import call
 from unittest.mock import (
     Mock,
     patch,
@@ -17,8 +19,10 @@ from lib import (
     parse_checkmarks,
     reformatted_full_name,
     ReleasePR,
+    upload_to_pypi,
     url_with_access_token,
 )
+from repo_info import RepoInfo
 
 
 FAKE_RELEASE_PR_BODY = """
@@ -220,3 +224,49 @@ def test_url_with_access_token():
     assert url_with_access_token(
         "access", "http://github.com/mitodl/release-script.git"
     ) == "https://access@github.com/mitodl/release-script.git"
+
+
+@pytest.mark.parametrize("testing,python2,python3", list(product([True, False], repeat=3)))
+def test_upload_to_pypi(testing, python2, python3, mocker, library_test_repo):
+    """upload_to_pypi should create a dist based on a version and upload to pypi or pypitest"""
+
+    twine_env = {
+        'PYPI_USERNAME': 'user',
+        'PYPI_PASSWORD': 'pass',
+        'PYPITEST_USERNAME': 'testuser',
+        'PYPITEST_PASSWORD': 'testpass',
+    }
+    library_test_repo = RepoInfo(**{
+        **library_test_repo._asdict(),
+        'python2': python2,
+        'python3': python3,
+    })
+
+    def check_call_func(*args, **kwargs):
+        """Patch check_call to skip twine"""
+        command_args = args[0]
+        if not command_args[0].endswith("twine"):
+            call(*args, **kwargs)
+
+        if command_args[0].endswith("twine"):
+            # Need to assert twine here since temp directory is random which makes it assert to assert
+            for key, value in twine_env.items():
+                assert kwargs['env'][key] == value
+            assert args[0][1] == 'upload'
+            if testing:
+                assert args[0][2:4] == ["--repository-url", "https://test.pypi.org/legacy/"]
+            dist_files = args[0][-2:]
+            assert len([name for name in dist_files if name.endswith(".whl")]) == 1
+            assert len([name for name in dist_files if name.endswith(".tar.gz")]) == 1
+
+        if command_args[0].endswith("virtualenv"):
+            assert command_args[-1] == ("python3" if python3 else "python2")
+
+        if 'bdist_wheel' in command_args:
+            if python2 and python3:
+                assert "--universal" in command_args
+
+    mocker.patch('lib.check_call', side_effect=check_call_func)
+    mocker.patch('lib.call', side_effect=check_call_func)
+    mocker.patch.dict('os.environ', twine_env, clear=False)
+    upload_to_pypi(repo_info=library_test_repo, testing=testing)

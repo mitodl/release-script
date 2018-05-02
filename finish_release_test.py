@@ -4,10 +4,7 @@ from subprocess import check_call
 import pytest
 
 from release import VersionMismatchException
-from release_test import (  # pylint: disable=unused-import
-    make_empty_commit,
-    test_repo,
-)
+from release_test import make_empty_commit
 from finish_release import (
     check_release_tag,
 )
