@@ -215,7 +215,11 @@ async def test_release(doof, repo_info, event_loop, mocker, command):
     )
 
     org, repo = get_org_and_repo(repo_info.repo_url)
-    get_release_pr_mock.assert_any_call(GITHUB_ACCESS, org, repo)
+    get_release_pr_mock.assert_any_call(
+        github_access_token=GITHUB_ACCESS,
+        org=org,
+        repo=repo,
+    )
     release_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
         repo_url=repo_info.repo_url,
@@ -229,7 +233,11 @@ async def test_release(doof, repo_info, event_loop, mocker, command):
     )
     assert doof.said("Now deploying to RC...")
     assert doof.said("These people have commits in this release: {}".format(', '.join(authors)))
-    wait_for_checkboxes_sync_mock.assert_called_once_with(GITHUB_ACCESS, org, repo)
+    wait_for_checkboxes_sync_mock.assert_called_once_with(
+        github_access_token=GITHUB_ACCESS,
+        org=org,
+        repo=repo,
+    )
     assert doof.said(
         "Release {version} is ready for the Merginator {name}".format(
             version=pr.version,
@@ -427,7 +435,11 @@ async def test_finish_release(doof, repo_info, event_loop, mocker):
     )
 
     org, repo = get_org_and_repo(repo_info.repo_url)
-    get_release_pr_mock.assert_called_once_with(GITHUB_ACCESS, org, repo)
+    get_release_pr_mock.assert_called_once_with(
+        github_access_token=GITHUB_ACCESS,
+        org=org,
+        repo=repo,
+    )
     finish_release_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
         repo_url=repo_info.repo_url,
@@ -457,7 +469,11 @@ async def test_finish_release_no_release(doof, repo_info, event_loop, mocker):
         )
     assert 'No release currently in progress' in ex.value.args[0]
     org, repo = get_org_and_repo(repo_info.repo_url)
-    get_release_pr_mock.assert_called_once_with(GITHUB_ACCESS, org, repo)
+    get_release_pr_mock.assert_called_once_with(
+        github_access_token=GITHUB_ACCESS,
+        org=org,
+        repo=repo,
+    )
 
 
 async def test_delay_message(doof, repo_info, mocker):
@@ -528,7 +544,12 @@ async def test_webhook_finish_release(doof, event_loop, mocker):
         """await cannot be used with mock objects"""
         wait_for_deploy_sync_mock(*args, **kwargs)
 
-    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True)
+    pr_body = ReleasePR(
+        version='version',
+        url='url',
+        body='body',
+    )
+    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True, return_value=pr_body)
     finish_release_mock = mocker.patch('bot.finish_release', autospec=True)
     mocker.patch('bot.wait_for_deploy', wait_for_deploy_fake)
 
@@ -550,9 +571,25 @@ async def test_webhook_finish_release(doof, event_loop, mocker):
         },
     )
 
-    assert wait_for_deploy_sync_mock.called is True
-    assert get_release_pr_mock.called is True
-    assert finish_release_mock.called is True
+    repo_url = TEST_REPOS_INFO[0].repo_url
+    hash_url = TEST_REPOS_INFO[0].prod_hash_url
+    org, repo = get_org_and_repo(repo_url)
+    wait_for_deploy_sync_mock.assert_any_call(
+        github_access_token=doof.github_access_token,
+        hash_url=hash_url,
+        repo_url=repo_url,
+        watch_branch='release',
+    )
+    get_release_pr_mock.assert_any_call(
+        github_access_token=doof.github_access_token,
+        org=org,
+        repo=repo,
+    )
+    finish_release_mock.assert_any_call(
+        github_access_token=doof.github_access_token,
+        repo_url=repo_url,
+        version=pr_body.version,
+    )
     assert doof.said("Merging...")
     assert not doof.said("Error")
 

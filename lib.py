@@ -1,10 +1,8 @@
 """Shared functions for release script Python files"""
-import asyncio
 from collections import namedtuple
 from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
 import re
-import sys
 
 from dateutil.parser import parse
 
@@ -60,7 +58,7 @@ def parse_checkmarks(body):
     return commits
 
 
-def get_release_pr(github_access_token, org, repo):
+def get_release_pr(*, github_access_token, org, repo):
     """
     Look up the pull request information for a release, or return None if it doesn't exist
 
@@ -94,7 +92,7 @@ def get_release_pr(github_access_token, org, repo):
     )
 
 
-def get_unchecked_authors(github_access_token, org, repo):
+def get_unchecked_authors(*, github_access_token, org, repo):
     """
     Returns list of authors who have not yet checked off their checkboxes
 
@@ -103,7 +101,11 @@ def get_unchecked_authors(github_access_token, org, repo):
         org (str): The github organization (eg mitodl)
         repo (str): The github repository (eg micromasters)
     """
-    release_pr = get_release_pr(github_access_token, org, repo)
+    release_pr = get_release_pr(
+        github_access_token=github_access_token,
+        org=org,
+        repo=repo,
+    )
     if not release_pr:
         raise ReleaseException("No release PR found")
     body = release_pr.body
@@ -204,35 +206,6 @@ def match_user(slack_users, author_name, threshold=0.8):
         return format_user_id(matched_user['id'])
     else:
         return author_name
-
-
-async def wait_for_checkboxes(github_access_token, org, repo):
-    """
-    Wait for checkboxes, polling every 60 seconds
-
-    Args:
-        github_access_token (str): The github access token
-        org (str): The github organization (eg mitodl)
-        repo (str): The github repository (eg micromasters)
-    """
-    print("Waiting for checkboxes to be checked. Polling every 60 seconds...")
-    error_count = 0
-    while True:
-        try:
-            unchecked_authors = get_unchecked_authors(github_access_token, org, repo)
-            if not unchecked_authors:
-                break
-
-        except Exception as exception:  # pylint: disable=broad-except
-            sys.stderr.write("Error: {}".format(exception))
-            error_count += 1
-            if error_count >= 5:
-                raise
-
-        await asyncio.sleep(60)
-        print(".", end='')
-        sys.stdout.flush()
-    print("All checkboxes are now checked")
 
 
 def now_in_utc():

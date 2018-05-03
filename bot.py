@@ -42,7 +42,6 @@ from lib import (
     next_workday_at_10,
     parse_date,
     VERSION_RE,
-    wait_for_checkboxes,
 )
 from repo_info import RepoInfo
 from wait_for_deploy import (
@@ -50,6 +49,7 @@ from wait_for_deploy import (
     wait_for_deploy,
 )
 from version import get_version_tag
+from wait_for_checked import wait_for_checkboxes
 from wait_for_travis import wait_for_travis
 from web import make_app
 
@@ -363,9 +363,17 @@ class Bot:
             hash_url=repo_info.rc_hash_url,
             watch_branch="release-candidate",
         )
-        unchecked_authors = get_unchecked_authors(self.github_access_token, org, repo)
+        unchecked_authors = get_unchecked_authors(
+            github_access_token=self.github_access_token,
+            org=org,
+            repo=repo,
+        )
         slack_usernames = self.translate_slack_usernames(unchecked_authors)
-        pr = get_release_pr(self.github_access_token, org, repo)
+        pr = get_release_pr(
+            github_access_token=self.github_access_token,
+            org=org,
+            repo=repo,
+        )
         await self.say(
             channel_id=channel_id,
             text="Release {version} for {project} was deployed! PR is up at {pr_url}."
@@ -390,7 +398,11 @@ class Bot:
         repo_info = command_args.repo_info
         repo_url = repo_info.repo_url
         org, repo = get_org_and_repo(repo_url)
-        pr = get_release_pr(self.github_access_token, org, repo)
+        pr = get_release_pr(
+            github_access_token=self.github_access_token,
+            org=org,
+            repo=repo,
+        )
         if pr:
             raise ReleaseException("A release is already in progress: {}".format(pr.url))
 
@@ -427,8 +439,16 @@ class Bot:
             )
         )
         org, repo = get_org_and_repo(repo_info.repo_url)
-        await wait_for_checkboxes(self.github_access_token, org, repo)
-        pr = get_release_pr(self.github_access_token, org, repo)
+        await wait_for_checkboxes(
+            github_access_token=self.github_access_token,
+            org=org,
+            repo=repo,
+        )
+        pr = get_release_pr(
+            github_access_token=self.github_access_token,
+            org=org,
+            repo=repo,
+        )
         await self.say(
             channel_id=channel_id,
             text="All checkboxes checked off. Release {version} is ready for the Merginator {name}!".format(
@@ -461,7 +481,11 @@ class Bot:
         channel_id = repo_info.channel_id
         repo_url = repo_info.repo_url
         org, repo = get_org_and_repo(repo_url)
-        pr = get_release_pr(self.github_access_token, org, repo)
+        pr = get_release_pr(
+            github_access_token=self.github_access_token,
+            org=org,
+            repo=repo,
+        )
         if not pr:
             raise ReleaseException("No release currently in progress for {project}".format(project=repo_info.name))
         version = pr.version
@@ -540,7 +564,11 @@ class Bot:
             repo_info (RepoInfo): Information for a repo
         """
         org, repo = get_org_and_repo(repo_info.repo_url)
-        unchecked_authors = get_unchecked_authors(self.github_access_token, org, repo)
+        unchecked_authors = get_unchecked_authors(
+            github_access_token=self.github_access_token,
+            org=org,
+            repo=repo,
+        )
         if unchecked_authors:
             slack_usernames = self.translate_slack_usernames(unchecked_authors)
             await self.say(
