@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# pylint: disable=too-many-lines
 """Slack bot for managing releases"""
 import asyncio
 from collections import namedtuple
