@@ -4,12 +4,20 @@ import os
 from unittest.mock import patch
 
 from dateutil.parser import parse
+import pytest
 
 from bot import SCRIPT_DIR
+from constants import (
+    NO_PR_BUILD,
+    TRAVIS_PENDING,
+    TRAVIS_FAILURE,
+    TRAVIS_SUCCESS,
+)
 from github import (
     create_pr,
     calculate_karma,
     get_org_and_repo,
+    get_status_of_pr,
     github_auth_headers,
     needs_review,
     KARMA_QUERY,
@@ -24,10 +32,17 @@ def test_karma():
     github_access_token = 'token'
 
     with patch('github.run_query', autospec=True, return_value=payload) as patched:
-        assert calculate_karma(github_access_token, parse("2017-11-09").date(), parse("2017-11-09").date()) == [
+        assert calculate_karma(
+            github_access_token=github_access_token,
+            begin_date=parse("2017-11-09").date(),
+            end_date=parse("2017-11-09").date(),
+        ) == [
             ('Tobias Macey', 1),
         ]
-    patched.assert_called_once_with(github_access_token, KARMA_QUERY)
+    patched.assert_called_once_with(
+        github_access_token=github_access_token,
+        query=KARMA_QUERY,
+    )
 
 
 def test_needs_review():
@@ -76,7 +91,10 @@ def test_needs_review():
                 'https://github.com/mitodl/edx-platform/pull/41'
             ),
         ]
-    patched.assert_called_once_with(github_access_token, NEEDS_REVIEW_QUERY)
+    patched.assert_called_once_with(
+        github_access_token=github_access_token,
+        query=NEEDS_REVIEW_QUERY,
+    )
 
 
 def test_create_pr():
@@ -90,12 +108,12 @@ def test_create_pr():
     base = 'base'
     with patch('requests.post', autospec=True) as patched:
         create_pr(
-            access_token,
-            'https://github.com/{}/{}.git'.format(org, repo),
-            title,
-            body,
-            head,
-            base,
+            github_access_token=access_token,
+            repo_url='https://github.com/{}/{}.git'.format(org, repo),
+            title=title,
+            body=body,
+            head=head,
+            base=base,
         )
     endpoint = 'https://api.github.com/repos/{}/{}/pulls'.format(org, repo)
     patched.assert_called_once_with(
@@ -128,3 +146,54 @@ def test_get_org_and_repo():
     # get-url
     for git_url in ["git@github.com:mitodl/release-script.git", "https://github.com/mitodl/release-script.git"]:
         assert get_org_and_repo(git_url) == ("mitodl", "release-script")
+
+
+def _load_status(status):
+    """Load statuses from test data"""
+    with open(os.path.join(BASE_DIR, "test_data", "statuses_{}.json".format(status))) as f:
+        return json.load(f)
+
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SUCCESS_DATA = _load_status("success")
+FAILED_DATA = _load_status("failure")
+PENDING_DATA = _load_status("pending")
+NO_PR_BUILD_DATA = _load_status("no_pr_builds")
+
+
+@pytest.mark.parametrize("status_code,status_data, expected_status", [
+    [200, SUCCESS_DATA, TRAVIS_SUCCESS],
+    [404, [], NO_PR_BUILD],
+    [200, [], NO_PR_BUILD],
+    [200, FAILED_DATA, TRAVIS_FAILURE],
+    [200, PENDING_DATA, TRAVIS_PENDING],
+    [200, NO_PR_BUILD_DATA, NO_PR_BUILD],
+])
+def test_get_status_of_pr(status_code, status_data, expected_status):
+    """get_status_of_pr should get the status of a PR"""
+
+    org = 'org'
+    repo = 'repo'
+    token = 'token'
+    branch = 'branch'
+
+    with patch('requests.get', autospec=True) as patched:
+        resp = patched.return_value
+        resp.status_code = status_code
+        resp.json.return_value = status_data
+        assert get_status_of_pr(
+            github_access_token=token,
+            org=org,
+            repo=repo,
+            branch=branch,
+        ) == expected_status
+
+    if status_code != 404:
+        resp.raise_for_status.assert_called_once_with()
+
+    endpoint = "https://api.github.com/repos/{org}/{repo}/commits/{ref}/statuses".format(
+        org=org,
+        repo=repo,
+        ref=branch,
+    )
+    patched.assert_called_once_with(endpoint, headers=github_auth_headers(token))

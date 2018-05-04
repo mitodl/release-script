@@ -15,6 +15,7 @@ from tornado.platform.asyncio import AsyncIOMainLoop
 from websockets.exceptions import ConnectionClosed
 import websockets
 
+from constants import TRAVIS_SUCCESS
 from exception import (
     InputException,
     ReleaseException,
@@ -49,6 +50,7 @@ from wait_for_deploy import (
     wait_for_deploy,
 )
 from version import get_version_tag
+from wait_for_travis import wait_for_travis
 from web import make_app
 
 
@@ -59,6 +61,9 @@ CommandArgs = namedtuple('CommandArgs', ['channel_id', 'repo_info', 'args', 'loo
 Command = namedtuple('Command', ['command', 'parsers', 'command_func', 'description'])
 Parser = namedtuple('Parser', ['func', 'description'])
 FINISH_RELEASE_ID = 'finish_release'
+
+WEB_APPLICATION_TYPE = 'web_application'
+LIBRARY_TYPE = 'library'
 
 
 def get_channels_info(slack_access_token):
@@ -106,9 +111,12 @@ def load_repos_info(channel_lookup):
             RepoInfo(
                 name=repo_info['name'],
                 repo_url=repo_info['repo_url'],
-                rc_hash_url=repo_info['rc_hash_url'],
-                prod_hash_url=repo_info['prod_hash_url'],
+                rc_hash_url=repo_info['rc_hash_url'] if repo_info['project_type'] == WEB_APPLICATION_TYPE else None,
+                prod_hash_url=(
+                    repo_info['prod_hash_url'] if repo_info['project_type'] == WEB_APPLICATION_TYPE else None
+                ),
                 channel_id=channel_lookup[repo_info['channel_name']],
+                project_type=repo_info['project_type'],
             ) for repo_info in repos_info['repos']
         ]
 
@@ -286,27 +294,61 @@ class Bot:
         }))
         self.message_count += 1
 
-    async def release_command(self, command_args):
-        """
-        Start a new release and wait for deployment
-
-        Args:
-            command_args (CommandArgs): The arguments for this command
-        """
+    async def _library_release(self, command_args):
+        """Do a library release"""
         repo_info = command_args.repo_info
         version = command_args.args[0]
         repo_url = repo_info.repo_url
         channel_id = repo_info.channel_id
-        org, repo = get_org_and_repo(repo_url)
-        pr = get_release_pr(self.github_access_token, org, repo)
-        if pr:
-            raise ReleaseException("A release is already in progress: {}".format(pr.url))
+
         release(
             github_access_token=self.github_access_token,
             repo_url=repo_url,
             new_version=version,
         )
 
+        org, repo = get_org_and_repo(repo_url)
+        status = await wait_for_travis(
+            github_access_token=self.github_access_token,
+            org=org,
+            repo=repo,
+            branch="release-candidate",
+        )
+        if status != TRAVIS_SUCCESS:
+            await self.say(
+                channel_id=channel_id,
+                text="Uh-oh, it looks like, uh, coffee break's over. During the release Travis had a {}.".format(
+                    status,
+                )
+            )
+            return
+
+        finish_release(
+            github_access_token=self.github_access_token,
+            repo_url=repo_url,
+            version=version,
+        )
+        await self.say(
+            channel_id=channel_id,
+            text="My evil scheme {version} for {project} has been merged!".format(
+                version=version,
+                project=repo_info.name,
+            )
+        )
+
+    async def _web_application_release(self, command_args):
+        """Do a web application release"""
+        repo_info = command_args.repo_info
+        version = command_args.args[0]
+        repo_url = repo_info.repo_url
+        channel_id = repo_info.channel_id
+        org, repo = get_org_and_repo(repo_url)
+
+        release(
+            github_access_token=self.github_access_token,
+            repo_url=repo_url,
+            new_version=version,
+        )
         await self.say(
             channel_id=channel_id,
             text="Behold, my new evil scheme - release {version} for {project}! Now deploying to RC...".format(
@@ -337,6 +379,27 @@ class Bot:
 
         await self.wait_for_checkboxes(repo_info, command_args.manager)
         command_args.loop.create_task(self.delay_message(repo_info))
+
+    async def release_command(self, command_args):
+        """
+        Start a new release and wait for deployment
+
+        Args:
+            command_args (CommandArgs): The arguments for this command
+        """
+        repo_info = command_args.repo_info
+        repo_url = repo_info.repo_url
+        org, repo = get_org_and_repo(repo_url)
+        pr = get_release_pr(self.github_access_token, org, repo)
+        if pr:
+            raise ReleaseException("A release is already in progress: {}".format(pr.url))
+
+        if repo_info.project_type == LIBRARY_TYPE:
+            await self._library_release(command_args)
+        elif repo_info.project_type == WEB_APPLICATION_TYPE:
+            await self._web_application_release(command_args)
+        else:
+            raise Exception("Configuration error: unknown project type {}".format(repo_info.project_type))
 
     async def wait_for_checkboxes_command(self, command_args):
         """
@@ -517,7 +580,11 @@ class Bot:
             title=title,
             text="\n".join(
                 "*{name}*: {karma}".format(name=name, karma=karma)
-                for name, karma in calculate_karma(self.github_access_token, start_date, now_in_utc().date())
+                for name, karma in calculate_karma(
+                    github_access_token=self.github_access_token,
+                    begin_date=start_date,
+                    end_date=now_in_utc().date(),
+                )
             ),
         )
 
