@@ -345,7 +345,11 @@ async def test_release_library(doof, library_repo_info, event_loop, mocker):
         repo=repo,
         branch='release-candidate',
     )
-    get_release_pr_mock.assert_called_once_with(GITHUB_ACCESS, org, repo)
+    get_release_pr_mock.assert_called_once_with(
+        github_access_token=GITHUB_ACCESS,
+        org=org,
+        repo=repo,
+    )
     finish_release_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
         repo_url=library_repo_info.repo_url,
