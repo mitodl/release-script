@@ -44,7 +44,6 @@ from lib import (
     parse_date,
     VERSION_RE,
     upload_to_pypi,
-    wait_for_checkboxes,
 )
 from repo_info import RepoInfo
 from wait_for_deploy import (

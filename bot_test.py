@@ -544,8 +544,8 @@ async def test_webhook_finish_release(doof, event_loop, mocker):
         },
     )
 
-    repo_url = TEST_REPOS_INFO[0].repo_url
-    hash_url = TEST_REPOS_INFO[0].prod_hash_url
+    repo_url = WEB_TEST_REPO_INFO.repo_url
+    hash_url = WEB_TEST_REPO_INFO.prod_hash_url
     org, repo = get_org_and_repo(repo_url)
     wait_for_deploy_sync_mock.assert_any_call(
         github_access_token=doof.github_access_token,
