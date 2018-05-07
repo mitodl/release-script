@@ -81,7 +81,11 @@ def test_get_release_pr():
     access_token = 'access'
 
     with patch('github.requests.get', return_value=Mock(json=Mock(return_value=FAKE_PULLS))) as get_mock:
-        pr = get_release_pr(access_token, org, repo)
+        pr = get_release_pr(
+            github_access_token=access_token,
+            org=org,
+            repo=repo,
+        )
     get_mock.assert_called_once_with("https://api.github.com/repos/{org}/{repo}/pulls".format(
         org=org,
         repo=repo,
@@ -96,7 +100,11 @@ def test_get_release_pr_no_pulls():
     with patch(
         'github.requests.get', return_value=Mock(json=Mock(return_value=[OTHER_PR]))
     ):
-        assert get_release_pr('access_token', 'org', 'repo-missing') is None
+        assert get_release_pr(
+            github_access_token='access_token',
+            org='org',
+            repo='repo-missing',
+        ) is None
 
 
 def test_too_many_releases():
@@ -105,7 +113,11 @@ def test_too_many_releases():
     with pytest.raises(Exception) as ex, patch(
         'github.requests.get', return_value=Mock(json=Mock(return_value=pulls))
     ):
-        get_release_pr('access_token', 'org', 'repo')
+        get_release_pr(
+            github_access_token='access_token',
+            org='org',
+            repo='repo',
+        )
 
     assert ex.value.args[0] == "More than one pull request for the branch release-candidate"
 
@@ -117,7 +129,11 @@ def test_no_release_wrong_repo():
     with pytest.raises(HTTPError) as ex, patch(
         'github.requests.get', return_value=response_404
     ):
-        get_release_pr('access_token', 'org', 'repo')
+        get_release_pr(
+            github_access_token='access_token',
+            org='org',
+            repo='repo',
+        )
 
     assert ex.value.response.status_code == 404
 
@@ -136,9 +152,17 @@ def test_get_unchecked_authors():
         version='1.2.3',
         url='http://url'
     )) as get_release_pr_mock:
-        unchecked = get_unchecked_authors(access_token, org, repo)
+        unchecked = get_unchecked_authors(
+            github_access_token=access_token,
+            org=org,
+            repo=repo,
+        )
     assert unchecked == {"Alice Pote"}
-    get_release_pr_mock.assert_called_once_with(access_token, org, repo)
+    get_release_pr_mock.assert_called_once_with(
+        github_access_token=access_token,
+        org=org,
+        repo=repo,
+    )
 
 
 def test_next_workday_at_10():

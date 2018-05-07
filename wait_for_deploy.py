@@ -25,7 +25,7 @@ def fetch_release_hash(hash_url):
     return release_hash
 
 
-async def wait_for_deploy(github_access_token, repo_url, hash_url, watch_branch):
+async def wait_for_deploy(*, github_access_token, repo_url, hash_url, watch_branch):
     """Wait until server is finished with the deploy"""
     validate_dependencies()
 
