@@ -2,8 +2,66 @@
 
 [![Build Status](https://travis-ci.org/mitodl/release-script.svg?branch=master)](https://travis-ci.org/mitodl/release-script)
 
-Scripts to automate the release process.
+This repository includes our bot Doof as well as command line scripts to manage various parts of the release process.
 
+## Prerequisite environment variables
+Doof and other scripts require these environment variables to be set. This check is done on startup so if Doof is already running you should
+be all set.
+
+  - `SLACK_ACCESS_TOKEN` - Used to communicate with Slack, for example to post a message or fetch the list of channels.
+  - `BOT_ACCESS_TOKEN` - Used for Doof's communications as a Slack bot.
+  - `GITHUB_ACCESS_TOKEN` - Used to access information about github repos and to create new pull requests.
+  - `SLACK_WEBHOOK_TOKEN` - Used to authenticate requests from Slack to Doof (ie the finish release button.)
+  - `TIMEZONE` - The timezone of the team working with Doof
+  - `PORT` - The port of the webserver, used for receiving webhooks from Slack
+  - `PYPITEST_USERNAME` - The PyPI username to upload testing Python packages
+  - `PYPITEST_PASSWORD` - The PyPI password to upload testing Python packages
+  - `PYPI_USERNAME` - The PyPI username to upload production packages
+  - `PYPI_PASSWORD` - The PyPI password to upload production packages
+
+## Doof
+Our bot Doof helps manage the release process by automating most parts of it and providing a public view so everyone
+knows when a release is happening and what state it's in.
+
+Some Doof commands need to be run in a specific Slack channel. Doof ties each Slack channel to a project
+(see `repos_info.json`). If you type `@doof release 1.2.3` in the `#micromasters-eng` channel it will do a release
+for the micromasters project.
+
+Other Doof commands can be run in any channel. If you want to run a command but don't want to clutter the channel
+chat, you can communicate directly with Doof with a direct message.
+(You will still need to prefix all communication with `@doof` so Doof understands you're talking to him.)
+For a full listing of Doof commands type `@doof help` in Slack.
+
+### Release process
+To start a new release with `@doof`:
+
+  - Pick a Slack channel which is tied to the project you want to make a release for. There is a list in `repos_info.json`.
+  - In that channel type `@doof release notes`. This will show the PRs and commits which have been merged since the last release, if there are any.
+  - Type `@doof release 4.5.6`, replacing `4.5.6` with the version number of the new release.
+  - Doof will start the release. This will create a PR with checkboxes for each PR.
+
+Library projects:
+  - For library projects you are pretty much done. Doof will wait for Travis tests to pass for the PR build, then
+  doof will merge the release and tell you that the release was merged.
+  - Optionally you can upload a new release to pypi by saying `@doof upload to pypitest 4.5.6`.
+   If that worked, say `@doof upload to pypi 4.5.6` to make a production release.
+
+Web application projects:
+  - For web application projects, Doof will wait for the deployment to finish by comparing the git hash of the release
+  with the git hash from the web application. At this point Doof will tell everyone to check off their checkboxes to verify
+  that basic functionality is included in the release, that it works in the RC environment and that PR functionalities don't
+  conflict with each other.
+  - When all checkboxes are checked off, Doof will show a button and say the release is ready to merge. Click 'Finish release'
+  to merge the release and deploy it to production. (You can also type `@doof finish release 4.5.6` instead of clicking the button.)
+  - Doof should wait for the production release to go out and say that it all went successfully.
+
+### Other Doof commands
+
+ - `@doof karma 1993-01-01` - Calculates PR karma (number of PR reviews by a user) between the given date and today.
+ - `@doof what needs review` - Searches for pull requests which do not have an assigned reviewer.
+ - `@doof help` - List all Doof commands currently supported
+
+### Command line release process
 A full release can be performed by following the steps below:
 
 1. Run release.sh to create a PR for the release (see details in the 
@@ -11,45 +69,45 @@ A full release can be performed by following the steps below:
 1. Inform the team that a release PR is up and that they need to verify their commits
 1. Once developers verify their commits, run the finish_release.sh script
 (see details in the ["finish_release.sh"](#finish_releasesh) section).
-1. Send email notifications
 
 Note that these scripts use temporary directories so none of your
 work in progress will be affected or will affect the release.
 
-## Dependencies
+### Dependencies
 
-release.sh is dependent on these applications.
-
-### [Hub - https://hub.github.com/](https://hub.github.com/)
-
-Hub is a command-line wrapper for Git.  It is available as a precompiled
-binary as well as from Homebrew on OSX:
-
-    brew install hub
-
-### [Perl - https://www.perl.org/get.html](https://www.perl.org/get.html)  
-
-Perl is already installed on your OS unless you're running Windows.  
-If you need it, refer to instructions at the above URL.
-
-### [Git - http://www.git-scm.org/downloads](http://www.git-scm.org/downloads)
-Git is a distributed source control system.  If you don't have Git installed,
-we're ashamed of you.  (Though if you use Mecurial instead, we'll go easy.)
+#### [Git - http://www.git-scm.org/downloads](http://www.git-scm.org/downloads)
 Git is available as a precompiled binary as well as from Homebrew on OSX:
 
     brew install git
 
-### [git-release-notes - https://www.npmjs.com/package/git-release-notes](https://www.npmjs.com/package/git-release-notes)
-git-release-notes is a Node package that processes Git commit history
+#### [Python 3.6+ - https://www.python.org/downloads/](https://www.python.org/downloads/)
+
+Python 3.6+ is required. (Python 3.5 might work, earlier versions will be missing async functionality.)
+
+#### Python libraries
+
+All python dependencies are listed in `requirements.txt`. (For testing also install `test_requirements.txt`.)
+
+Create a virtualenv and install the Python dependencies. For example:
+
+  - `virtualenv /tmp/release_venv -p /usr/bin/python3`
+  - `. /tmp/release_venv/bin/activate`
+  - `pip install -r requirements.txt -r test_requirements.txt`
+
+Make sure to also run the various scripts from within the virtualenv.
+
+#### Javascript libraries
+At the moment there is only one Javascript library, git-release-notes. It is a Node package that processes Git commit history
 through .EJS templates.  It requires Node and can be installed with ``npm``.
 
-    npm install -g git-release-notes
+    npm install
 
-### [curl - https://curl.haxx.se/](https://curl.haxx.se/)
-curl is a command line tool to download files from the web.
-It should be already installed in OS X and most Linux distributions.
+The scripts will look in the `node_modules` directory in this folder so you should not need to install it globally.
 
-## release.sh
+
+### Command line scripts
+
+#### release.sh
 
 release.sh automates these steps:
 
@@ -73,7 +131,7 @@ and the release version is ``0.1.0``, your command would be
 
     ./release.sh  ~/projects/lore  0.1.0
 
-## finish_release.sh
+#### finish_release.sh
 
 finish_release.sh automates these steps:
 
@@ -87,7 +145,7 @@ Run the command with these arguments:
 
     ./finish_release.sh <path-to-release-project> <release number>
 
-## wait_for_deploy.sh
+#### wait_for_deploy.sh
 
 wait_for_deploy.sh will check the ``hash.txt`` file every 30 seconds.
 When the hash matches up the script will exit successfully.
@@ -109,8 +167,6 @@ For example, to wait for successful deployment on micromasters to RC:
 To wait for successful deployment of micromasters to production:
 
     ./wait_for_deploy.sh ~/Projects/micromasters https://micromasters.mit.edu/static/hash.txt release
-    
-## Releasing to PyPI 
 
 For python libraries and XBlocks, once the the release is finished, it needs to be uploaded to PyPI. The easiest
 way to do this is through doof, but first you need to set these environment variables:
@@ -119,6 +175,14 @@ way to do this is through doof, but first you need to set these environment vari
 - `PYPI_PASSWORD`
 - `PYPITEST_USERNAME`
 - `PYPITEST_PASSWORD`
+
+#### wait_for_checked.py
+
+wait_for_checked.py will check the release PR for the given repo and ping it every 60 seconds until all checkboxes are checked.
+
+    ./wait_for_checked.py micromasters --org mitodl
+
+## PyPI release
 
 To upload via Doof, run `@doof upload to pypitest 1.2.3` where `1.2.3` is an already released version. If that works
 run `@doof upload to pypy 1.2.3` to upload to the production package repository.
@@ -145,8 +209,11 @@ If the test works, upload to the real deal:
 
     python setup.py sdist upload -r pypi
 
+## Tests
 
-## Notes
+To run unit tests, install the Python dependencies in `requirements.txt` and `test_requirements.txt`, then run unit tests via `tox`.
+
+## Misc notes
 
 1.  The main development branch is ``master``, the branch of the version in
     production is ``release``.
@@ -169,15 +236,3 @@ If the test works, upload to the real deal:
 
     returns the branch hash for the deployed Micromasters release-candidate.
 6.  There are three deployment servers, ci, rc, and production.
-
-## Troubleshooting
-
-1.  You can get debugging information by prefacing the command with
-    ``TRACE=1`` so the command would begin with ``TRACE=1 release.sh ...``.
-2.  The most common problem is that the version tag for the previous version
-    doesn't exist.  Determine the previous version tag numbers with this
-    command:
-
-        git tag -l
-
-    Version tags start with the letter "v" followed by the version number.
