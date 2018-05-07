@@ -6,7 +6,9 @@
       "rc_hash_url": "https://micromasters-rc.odl.mit.edu/static/hash.txt",
       "prod_hash_url": "https://micromasters.mit.edu/static/hash.txt",
       "channel_name": "micromasters-eng",
-      "project_type": "web_application"
+      "project_type": "web_application",
+      "python2": false,
+      "python3": true
     },
     {
       "name": "bootcamp-ecommerce",
@@ -14,7 +16,9 @@
       "rc_hash_url": "https://bootcamp-ecommerce-rc.herokuapp.com/static/hash.txt",
       "prod_hash_url": "https://bootcamp-ecommerce.herokuapp.com/static/hash.txt",
       "channel_name": "bootcamp-eng",
-      "project_type": "web_application"
+      "project_type": "web_application",
+      "python2": false,
+      "python3": true
     },
     {
       "name": "open-discussions",
@@ -22,7 +26,9 @@
       "rc_hash_url": "https://odl-open-discussions-rc.herokuapp.com/static/hash.txt",
       "prod_hash_url": "https://odl-open-discussions.herokuapp.com/static/hash.txt",
       "channel_name": "mit-open-eng",
-      "project_type": "web_application"
+      "project_type": "web_application",
+      "python2": false,
+      "python3": true
     },
     {
       "name": "odl-video-service",
@@ -30,19 +36,25 @@
       "rc_hash_url": "https://video-rc.odl.mit.edu/static/hash.txt",
       "prod_hash_url": "https://video.odl.mit.edu/static/hash.txt",
       "channel_name": "odl-video-service-eng",
-      "project_type": "web_application"
+      "project_type": "web_application",
+      "python2": false,
+      "python3": true
     },
     {
       "name": "edx-sga",
       "repo_url": "https://github.com/mitodl/open-discussions.git",
       "channel_name": "edx-sga-doof",
-      "project_type": "library"
+      "project_type": "library",
+      "python2": true,
+      "python3": false
     },
     {
       "name": "rapid-response-xblock",
       "repo_url": "https://github.com/mitodl/rapid-response-xblock.git",
       "channel_name": "rapid-response-doof",
-      "project_type": "library"
+      "project_type": "library",
+      "python2": true,
+      "python3": false
     }
   ]
 }

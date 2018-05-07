@@ -112,7 +112,18 @@ To wait for successful deployment of micromasters to production:
     
 ## Releasing to PyPI 
 
-For python libraries and XBlocks, once the the release is finished, it needs to be uploaded to PyPI.
+For python libraries and XBlocks, once the the release is finished, it needs to be uploaded to PyPI. The easiest
+way to do this is through doof, but first you need to set these environment variables:
+
+- `PYPI_USERNAME`
+- `PYPI_PASSWORD`
+- `PYPITEST_USERNAME`
+- `PYPITEST_PASSWORD`
+
+To upload via Doof, run `@doof upload to pypitest 1.2.3` where `1.2.3` is an already released version. If that works
+run `@doof upload to pypy 1.2.3` to upload to the production package repository.
+
+### Manual PyPI release
 
 1. Get the PyPI credentials from DevOps.
 If you haven't already, you should set up a ``.pypirc`` file as described in 

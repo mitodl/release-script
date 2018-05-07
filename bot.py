@@ -43,6 +43,7 @@ from lib import (
     next_workday_at_10,
     parse_date,
     VERSION_RE,
+    upload_to_pypi,
 )
 from repo_info import RepoInfo
 from wait_for_deploy import (
@@ -118,6 +119,8 @@ def load_repos_info(channel_lookup):
                 ),
                 channel_id=channel_lookup[repo_info['channel_name']],
                 project_type=repo_info['project_type'],
+                python2=repo_info['python2'],
+                python3=repo_info['python3'],
             ) for repo_info in repos_info['repos']
         ]
 
@@ -144,6 +147,10 @@ def get_envs():
         'SLACK_WEBHOOK_TOKEN',
         'TIMEZONE',
         'PORT',
+        'PYPI_USERNAME',
+        'PYPI_PASSWORD',
+        'PYPITEST_USERNAME',
+        'PYPITEST_PASSWORD',
     )
     env_dict = {key: os.environ.get(key, None) for key in required_keys}
     missing_env_keys = [k for k, v in env_dict.items() if v is None]
@@ -471,6 +478,45 @@ class Bot:
             ]
         )
 
+    async def upload_to_pypitest(self, command_args):
+        """
+        Upload package for version to pypitest server
+
+        Args:
+            command_args (CommandArgs): The arguments for this command
+        """
+        await self._upload_to_pypi(command_args=command_args, testing=True)
+
+    async def upload_to_pypi(self, command_args):
+        """
+        Upload package for version to pypi server
+
+        Args:
+            command_args (CommandArgs): The arguments for this command
+        """
+        await self._upload_to_pypi(command_args=command_args, testing=False)
+
+    async def _upload_to_pypi(self, *, command_args, testing):
+        """
+        Upload package for version to pypi server
+
+        Args:
+            command_args (CommandArgs): The arguments for this command
+        """
+        repo_info = command_args.repo_info
+        version = command_args.args[0]
+
+        with init_working_dir(self.github_access_token, repo_info.repo_url, branch="v{}".format(version)):
+            upload_to_pypi(repo_info=repo_info, testing=testing)
+
+        await self.say(
+            channel_id=command_args.channel_id,
+            text='Successfully uploaded {version} to {pypi_server}.'.format(
+                version=version,
+                pypi_server="pypitest" if testing else "pypi",
+            ),
+        )
+
     async def finish_release(self, command_args):
         """
         Merge the release candidate into the release branch, tag it, merge to master, and wait for deployment
@@ -715,6 +761,18 @@ class Bot:
                 parsers=[],
                 command_func=self.wait_for_checkboxes_command,
                 description='Wait for committers to check off their boxes',
+            ),
+            Command(
+                command='upload to pypi',
+                parsers=[Parser(func=get_version_number, description='new version number')],
+                command_func=self.upload_to_pypi,
+                description='Upload package to pypi',
+            ),
+            Command(
+                command='upload to pypitest',
+                parsers=[Parser(func=get_version_number, description='new version number')],
+                command_func=self.upload_to_pypitest,
+                description='Upload package to pypitest',
             ),
             Command(
                 command='hi',

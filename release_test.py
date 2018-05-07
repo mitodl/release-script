@@ -1,12 +1,7 @@
 """Tests for release script"""
-import gzip
 import os
-from shutil import copyfileobj
 from subprocess import check_call
-from tempfile import (
-    TemporaryDirectory,
-    TemporaryFile,
-)
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import pytest
@@ -18,7 +13,6 @@ from release import (
     generate_release_pr,
     GIT_RELEASE_NOTES_PATH,
     init_working_dir,
-    SCRIPT_DIR,
     update_release_notes,
     UpdateVersionException,
     update_version,
@@ -32,30 +26,6 @@ from wait_for_deploy import fetch_release_hash
 
 
 # pylint: disable=redefined-outer-name, unused-argument
-@pytest.fixture
-def test_repo():
-    """Initialize the testing repo from the gzipped file"""
-    pwd = os.getcwd()
-
-    try:
-        with TemporaryDirectory() as directory:
-            os.chdir(directory)
-            check_call(["git", "init", "--quiet"])
-            with gzip.open(os.path.join(SCRIPT_DIR, "test-repo.gz"), "rb") as test_repo_file:
-                # Passing this handle directly to check_call(...) below doesn't work, the data remains
-                # compressed. Why read() decompresses the data but passing the file object doesn't:
-                # https://bugs.python.org/issue24358
-                with TemporaryFile("wb") as temp_file:
-                    copyfileobj(test_repo_file, temp_file)
-                    temp_file.seek(0)
-
-                    check_call(["git", "fast-import", "--quiet"], stdin=temp_file)
-            check_call(["git", "checkout", "--quiet", "master"])
-            yield
-    finally:
-        os.chdir(pwd)
-
-
 def test_update_version_settings(test_repo):
     """update_version should return the old version and replace the appropriate file's text with the new version"""
     new_version = "9.9.99"
@@ -233,12 +203,13 @@ def test_validate_node_version(major):
                 validate_dependencies()
 
 
-def test_init_working_dir():
+@pytest.mark.parametrize("branch", [None, "branchy"])
+def test_init_working_dir(branch):
     """init_working_dir should initialize a valid git repo, and clean up after itself"""
     repo_url = "https://github.com/mitodl/release-script.git"
     access_token = 'fake_access_token'
     with patch('release.check_call', autospec=True) as check_call_mock, init_working_dir(
-        access_token, repo_url,
+        access_token, repo_url, branch=branch,
     ) as other_directory:
         assert os.path.exists(other_directory)
     assert not os.path.exists(other_directory)
@@ -248,7 +219,7 @@ def test_init_working_dir():
         ['git', 'init'],
         ['git', 'remote', 'add', 'origin', url_with_access_token(access_token, repo_url)],
         ['git', 'fetch', '--tags'],
-        ['git', 'checkout', '-t', 'origin/master'],
+        ['git', 'checkout', "master" if branch is None else branch],
     ]
 
 

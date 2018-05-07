@@ -8,4 +8,6 @@ RepoInfo = namedtuple('RepoInfo', [
     'prod_hash_url',
     'channel_id',
     'project_type',
+    'python2',
+    'python3',
 ])
