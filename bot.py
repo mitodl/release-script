@@ -16,7 +16,12 @@ from tornado.platform.asyncio import AsyncIOMainLoop
 from websockets.exceptions import ConnectionClosed
 import websockets
 
-from constants import TRAVIS_SUCCESS
+from constants import (
+    FINISH_RELEASE_ID,
+    LIBRARY_TYPE,
+    TRAVIS_SUCCESS,
+    WEB_APPLICATION_TYPE,
+)
 from exception import (
     InputException,
     ReleaseException,
@@ -32,12 +37,12 @@ from release import (
     init_working_dir,
     release,
     update_version,
-    SCRIPT_DIR,
 )
 from lib import (
     get_release_pr,
     get_unchecked_authors,
     format_user_id,
+    load_repos_info,
     match_user,
     now_in_utc,
     next_workday_at_10,
@@ -45,7 +50,7 @@ from lib import (
     VERSION_RE,
     upload_to_pypi,
 )
-from repo_info import RepoInfo
+from slack import get_channels_info
 from wait_for_deploy import (
     fetch_release_hash,
     wait_for_deploy,
@@ -62,80 +67,6 @@ log = logging.getLogger(__name__)
 CommandArgs = namedtuple('CommandArgs', ['channel_id', 'repo_info', 'args', 'loop', 'manager'])
 Command = namedtuple('Command', ['command', 'parsers', 'command_func', 'description'])
 Parser = namedtuple('Parser', ['func', 'description'])
-FINISH_RELEASE_ID = 'finish_release'
-
-WEB_APPLICATION_TYPE = 'web_application'
-LIBRARY_TYPE = 'library'
-
-
-def get_channels_info(slack_access_token):
-    """
-    Get channel information from slack
-
-    Args:
-        slack_access_token (str): Used to authenticate with slack
-
-    Returns:
-        dict: A map of channel names to channel ids
-    """
-    # public channels
-    resp = requests.post("https://slack.com/api/channels.list", data={
-        "token": slack_access_token
-    })
-    resp.raise_for_status()
-    channels = resp.json()['channels']
-    channels_map = {channel['name']: channel['id'] for channel in channels}
-
-    # private channels
-    resp = requests.post("https://slack.com/api/groups.list", data={
-        "token": slack_access_token
-    })
-    resp.raise_for_status()
-    groups = resp.json()['groups']
-    groups_map = {group['name']: group['id'] for group in groups}
-
-    return {**channels_map, **groups_map}
-
-
-def load_repos_info(channel_lookup):
-    """
-    Load repo information from JSON and looks up channel ids for each repo
-
-    Args:
-        channel_lookup (dict): Map of channel names to channel ids
-
-    Returns:
-        list of RepoInfo: Information about the repositories
-    """
-    with open(os.path.join(SCRIPT_DIR, "repos_info.json")) as f:
-        repos_info = json.load(f)
-        return [
-            RepoInfo(
-                name=repo_info['name'],
-                repo_url=repo_info['repo_url'],
-                rc_hash_url=repo_info['rc_hash_url'] if repo_info['project_type'] == WEB_APPLICATION_TYPE else None,
-                prod_hash_url=(
-                    repo_info['prod_hash_url'] if repo_info['project_type'] == WEB_APPLICATION_TYPE else None
-                ),
-                channel_id=channel_lookup[repo_info['channel_name']],
-                project_type=repo_info['project_type'],
-                python2=repo_info['python2'],
-                python3=repo_info['python3'],
-            ) for repo_info in repos_info['repos']
-        ]
-
-
-def in_script_dir(file_path):
-    """
-    Get absolute path for a file from within the script directory
-
-    Args:
-        file_path (str): The path of a file relative to the script directory
-
-    Returns:
-        str: The absolute path to that file
-    """
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), file_path)
 
 
 def get_envs():

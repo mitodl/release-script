@@ -14,16 +14,16 @@ import os
 
 from pkg_resources import parse_version
 
+from constants import (
+    GIT_RELEASE_NOTES_PATH,
+    SCRIPT_DIR,
+)
 from exception import ReleaseException
 from github import create_pr
 from lib import (
     url_with_access_token,
     VERSION_RE,
 )
-
-
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-GIT_RELEASE_NOTES_PATH = os.path.join(SCRIPT_DIR, "./node_modules/.bin/git-release-notes")
 
 
 class DependencyException(Exception):
