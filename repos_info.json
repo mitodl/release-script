@@ -55,6 +55,22 @@
       "project_type": "library",
       "python2": true,
       "python3": false
+    },
+    {
+      "name": "open-discussions-client",
+      "repo_url": "https://github.com/mitodl/open-discussions-client.git",
+      "channel_name": "discussions-client",
+      "project_type": "library",
+      "python2": false,
+      "python3": true
+    },
+    {
+      "name": "edx-api-client",
+      "repo_url": "https://github.com/mitodl/edx-api-client.git",
+      "channel_name": "edx-api-client-doof",
+      "project_type": "library",
+      "python2": true,
+      "python3": true
     }
   ]
 }
