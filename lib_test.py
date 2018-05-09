@@ -267,6 +267,9 @@ def test_upload_to_pypi(testing, python2, python3, mocker, library_test_repo):
                 assert "--universal" in command_args
 
     mocker.patch('lib.check_call', side_effect=check_call_func)
-    mocker.patch('lib.call', side_effect=check_call_func)
+    call_mock = mocker.patch('lib.call', side_effect=check_call_func)
+    check_output_mock = mocker.patch('lib.check_output', return_value=b'x=y=z')
     mocker.patch.dict('os.environ', twine_env, clear=False)
     upload_to_pypi(repo_info=library_test_repo, testing=testing)
+    assert check_output_mock.call_count == 1
+    assert call_mock.call_args[1] == {'env': {'x': 'y=z'}}
