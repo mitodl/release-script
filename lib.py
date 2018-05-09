@@ -7,6 +7,7 @@ import re
 from subprocess import (
     call,
     check_call,
+    check_output,
 )
 from tempfile import TemporaryDirectory
 
@@ -260,7 +261,6 @@ def upload_to_pypi(*, repo_info, testing):
     """
     # Set up environment variables for uploading to pypi or pypitest
     twine_env = {
-        **os.environ,
         'TWINE_USERNAME': os.environ['PYPITEST_USERNAME'] if testing else os.environ['PYPI_USERNAME'],
         'TWINE_PASSWORD': os.environ['PYPITEST_PASSWORD'] if testing else os.environ['PYPI_PASSWORD'],
     }
@@ -278,14 +278,21 @@ def upload_to_pypi(*, repo_info, testing):
         pip_path = os.path.join(virtualenv_dir, "bin", "pip")
         twine_path = os.path.join(virtualenv_dir, "bin", "twine")
 
+        # Figure out what environment variables we need to set
+        output = check_output(
+            ". {}; env".format(os.path.join(virtualenv_dir, "bin", "activate")),
+            shell=True,
+        ).decode()
+        env = dict(line.split("=", 1) for line in output.splitlines())
+
         # Install dependencies. wheel is needed for Python 2. twine uploads the package.
-        check_call([pip_path, "install", "wheel", "twine"])
+        check_call([pip_path, "install", "wheel", "twine"], env=env)
 
         # Create source distribution and wheel.
-        call([python_path, "setup.py", "sdist"])
+        call([python_path, "setup.py", "sdist"], env=env)
         universal = ["--universal"] if repo_info.python2 and repo_info.python3 else []
         build_wheel_args = [python_path, "setup.py", "bdist_wheel", *universal]
-        call(build_wheel_args)
+        call(build_wheel_args, env=env)
         dist_files = os.listdir("dist")
         if len(dist_files) != 2:
             raise Exception("Expected to find one tarball and one wheel in directory")
@@ -295,5 +302,9 @@ def upload_to_pypi(*, repo_info, testing):
         testing_args = ["--repository-url", "https://test.pypi.org/legacy/"] if testing else []
         check_call(
             [twine_path, "upload", *testing_args, *dist_paths],
-            env=twine_env,
+            env={
+                **os.environ,
+                **env,
+                **twine_env,
+            }
         )
