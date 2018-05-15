@@ -250,8 +250,12 @@ def test_upload_to_pypi(testing, python2, python3, mocker, library_test_repo):
 
         if command_args[0].endswith("twine"):
             # Need to assert twine here since temp directory is random which makes it assert to assert
-            for key, value in twine_env.items():
-                assert kwargs['env'][key] == value
+            assert kwargs['env']['TWINE_USERNAME'] == (
+                twine_env['PYPITEST_USERNAME'] if testing else twine_env['PYPI_USERNAME']
+            )
+            assert kwargs['env']['TWINE_PASSWORD'] == (
+                twine_env['PYPITEST_PASSWORD'] if testing else twine_env['PYPI_PASSWORD']
+            )
             assert args[0][1] == 'upload'
             if testing:
                 assert args[0][2:4] == ["--repository-url", "https://test.pypi.org/legacy/"]

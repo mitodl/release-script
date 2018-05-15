@@ -303,7 +303,6 @@ def upload_to_pypi(*, repo_info, testing):
         check_call(
             [twine_path, "upload", *testing_args, *dist_paths],
             env={
-                **os.environ,
                 **env,
                 **twine_env,
             }
