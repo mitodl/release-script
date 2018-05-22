@@ -2,6 +2,7 @@
 from collections import namedtuple
 from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
+import json
 import os
 import re
 from subprocess import (
@@ -13,11 +14,14 @@ from tempfile import TemporaryDirectory
 
 from dateutil.parser import parse
 
+from constants import WEB_APPLICATION_TYPE
 from exception import ReleaseException
 from github import (
     get_pull_request,
     get_org_and_repo,
 )
+from release import SCRIPT_DIR
+from repo_info import RepoInfo
 
 
 ReleasePR = namedtuple("ReleasePR", ['version', 'url', 'body'])
@@ -307,3 +311,31 @@ def upload_to_pypi(*, repo_info, testing):
                 **twine_env,
             }
         )
+
+
+def load_repos_info(channel_lookup):
+    """
+    Load repo information from JSON and looks up channel ids for each repo
+
+    Args:
+        channel_lookup (dict): Map of channel names to channel ids
+
+    Returns:
+        list of RepoInfo: Information about the repositories
+    """
+    with open(os.path.join(SCRIPT_DIR, "repos_info.json")) as f:
+        repos_info = json.load(f)
+        return [
+            RepoInfo(
+                name=repo_info['name'],
+                repo_url=repo_info['repo_url'],
+                rc_hash_url=repo_info['rc_hash_url'] if repo_info['project_type'] == WEB_APPLICATION_TYPE else None,
+                prod_hash_url=(
+                    repo_info['prod_hash_url'] if repo_info['project_type'] == WEB_APPLICATION_TYPE else None
+                ),
+                channel_id=channel_lookup[repo_info['channel_name']],
+                project_type=repo_info['project_type'],
+                python2=repo_info['python2'],
+                python3=repo_info['python3'],
+            ) for repo_info in repos_info['repos']
+        ]

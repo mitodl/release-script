@@ -49,7 +49,7 @@ def merge_release():
     check_call(['git', 'push'])
 
 
-def finish_release(github_access_token, repo_url, version):
+def finish_release(*, github_access_token, repo_url, version):
     """Merge release to master and deploy to production"""
 
     validate_dependencies()

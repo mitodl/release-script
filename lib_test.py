@@ -14,6 +14,7 @@ from github import github_auth_headers
 from lib import (
     get_release_pr,
     get_unchecked_authors,
+    load_repos_info,
     match_user,
     next_workday_at_10,
     parse_checkmarks,
@@ -277,3 +278,39 @@ def test_upload_to_pypi(testing, python2, python3, mocker, library_test_repo):
     upload_to_pypi(repo_info=library_test_repo, testing=testing)
     assert check_output_mock.call_count == 1
     assert call_mock.call_args[1] == {'env': {'x': 'y=z'}}
+
+
+def test_load_repos_info(mocker):
+    """
+    load_repos_info should match channels with repositories
+    """
+    json_load = mocker.patch('lib.json.load', autospec=True, return_value={
+        'repos': [
+            {
+                "name": "bootcamp-ecommerce",
+                "repo_url": "https://github.com/mitodl/bootcamp-ecommerce.git",
+                "rc_hash_url": "https://bootcamp-ecommerce-rc.herokuapp.com/static/hash.txt",
+                "prod_hash_url": "https://bootcamp-ecommerce.herokuapp.com/static/hash.txt",
+                "channel_name": "bootcamp-eng",
+                "project_type": "web_application",
+                "python2": False,
+                "python3": True,
+            }
+        ]
+    })
+
+    assert load_repos_info({
+        'bootcamp-eng': 'bootcamp_channel_id'
+    }) == [
+        RepoInfo(
+            name='bootcamp-ecommerce',
+            repo_url='https://github.com/mitodl/bootcamp-ecommerce.git',
+            rc_hash_url="https://bootcamp-ecommerce-rc.herokuapp.com/static/hash.txt",
+            prod_hash_url="https://bootcamp-ecommerce.herokuapp.com/static/hash.txt",
+            channel_id='bootcamp_channel_id',
+            project_type='web_application',
+            python2=False,
+            python3=True,
+        ),
+    ]
+    assert json_load.call_count == 1

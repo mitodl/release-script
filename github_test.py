@@ -6,9 +6,9 @@ from unittest.mock import patch
 from dateutil.parser import parse
 import pytest
 
-from bot import SCRIPT_DIR
 from constants import (
     NO_PR_BUILD,
+    SCRIPT_DIR,
     TRAVIS_PENDING,
     TRAVIS_FAILURE,
     TRAVIS_SUCCESS,
