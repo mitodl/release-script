@@ -71,6 +71,14 @@
       "project_type": "library",
       "python2": true,
       "python3": true
+    },
+    {
+      "name": "mit-moira",
+      "repo_url": "https://github.com/mitodl/mit-moira.git",
+      "channel_name": "mit-moira",
+      "project_type": "library",
+      "python2": false,
+      "python3": true
     }
   ]
 }
