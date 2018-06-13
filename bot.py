@@ -942,41 +942,38 @@ def main():
             )
             app = make_app(token=envs['SLACK_WEBHOOK_TOKEN'], bot=bot, loop=loop)
             app.listen(port)
-            try:
-                while True:
-                    message = await websocket.recv()
-                    print(message)
-                    message = json.loads(message)
-                    if message.get('type') != 'message':
-                        continue
+            while True:
+                message = await websocket.recv()
+                print(message)
+                message = json.loads(message)
+                if message.get('type') != 'message':
+                    continue
 
-                    if message.get('subtype') == 'message_changed':
-                        # A user edits their message
-                        # content = message.get('message', {}).get('text')
-                        content = None
-                    else:
-                        content = message.get('text')
+                if message.get('subtype') == 'message_changed':
+                    # A user edits their message
+                    # content = message.get('message', {}).get('text')
+                    content = None
+                else:
+                    content = message.get('text')
 
-                    if content is None:
-                        continue
+                if content is None:
+                    continue
 
-                    channel_id = message.get('channel')
+                channel_id = message.get('channel')
 
-                    all_words = content.strip().split()
-                    if len(all_words) > 0:
-                        message_handle, *words = all_words
-                        if message_handle in ("<@{}>".format(doof_id), "@doof"):
-                            print("handling...", words, channel_id)
-                            loop.create_task(
-                                bot.handle_message(
-                                    manager=message['user'],
-                                    channel_id=channel_id,
-                                    words=words,
-                                    loop=loop,
-                                )
+                all_words = content.strip().split()
+                if len(all_words) > 0:
+                    message_handle, *words = all_words
+                    if message_handle in ("<@{}>".format(doof_id), "@doof"):
+                        print("handling...", words, channel_id)
+                        loop.create_task(
+                            bot.handle_message(
+                                manager=message['user'],
+                                channel_id=channel_id,
+                                words=words,
+                                loop=loop,
                             )
-            finally:
-                app.stop()
+                        )
 
     loop = asyncio.get_event_loop()
 
