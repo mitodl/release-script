@@ -2,13 +2,13 @@
 import argparse
 import os
 import re
-
-import pytz
 from datetime import datetime
 from subprocess import (
     check_call,
     check_output,
 )
+
+import pytz
 
 from release import (
     init_working_dir,
@@ -47,9 +47,12 @@ def tag_release(version):
 def set_release_date(version):
     """Sets the release date(s) in RELEASE.rst for any versions missing it"""
     print("Setting release date...")
-    check_call(["git", "fetch", "--tags"])
     release_filename = "RELEASE.rst"
-    date_format = '%Y-%m-%d'
+    if not os.path.isfile(release_filename):
+        return
+    date_format = "%Y-%m-%d"
+    check_call(["git", "fetch", "--tags"])
+
     with open(release_filename) as f:
         existing_note_lines = [line for line in f.readlines()]
 
@@ -61,11 +64,11 @@ def set_release_date(version):
                     if version_match:
                         version_line = version_match.group(0)
                         version_date = check_output(
-                            ["git",  "log",  "-1",  "--format=%ai", 'v{}'.format(version_line)]
-                        )
-                        localtime = datetime.strptime(version_date.decode('utf-8'), '%Y-%m-%d %H:%M:%S %z\n').\
+                            ["git", "log", "-1", "--format=%ai", "v{}".format(version_line)]
+                        ).rstrip()
+                        localtime = datetime.strptime(version_date.decode("utf-8"), "%Y-%m-%d %H:%M:%S %z").\
                             astimezone(pytz.timezone("America/New_York")).strftime(date_format)
-                        line = 'Version {} (released {})\n'.format(version_line, localtime)
+                        line = "Version {} (Released {})\n".format(version_line, localtime)
                 f.write(line)
     except:  # pylint:disable=bare-except
         check_call(["git", "checkout", "HEAD", "--", release_filename])

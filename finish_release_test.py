@@ -1,10 +1,11 @@
 """Tests for finish_release.py"""
+import re
 from contextlib import contextmanager
 from subprocess import check_call
 
 import pytest
 
-from release import VersionMismatchException
+from release import VersionMismatchException, create_release_notes
 from release_test import make_empty_commit
 from finish_release import (
     check_release_tag,
@@ -12,7 +13,7 @@ from finish_release import (
     merge_release,
     merge_release_candidate,
     tag_release,
-)
+    set_release_date)
 
 
 # pylint: disable=unused-argument, redefined-outer-name
@@ -76,6 +77,7 @@ def test_finish_release(mocker):
     merge_release_candidate_mock = mocker.patch('finish_release.merge_release_candidate', autospec=True)
     tag_release_mock = mocker.patch('finish_release.tag_release', autospec=True)
     merge_release_mock = mocker.patch('finish_release.merge_release', autospec=True)
+    set_version_date_mock = mocker.patch('finish_release.set_release_date', autospec=True)
 
     finish_release(
         github_access_token=token,
@@ -87,3 +89,23 @@ def test_finish_release(mocker):
     merge_release_candidate_mock.assert_called_once_with()
     tag_release_mock.assert_called_once_with(version)
     merge_release_mock.assert_called_once_with()
+    set_version_date_mock.assert_called_once_with(version)
+
+
+def test_set_release_date(test_repo, mocker):
+    """set_release_date should update release notes with dates"""
+    mocker.patch('finish_release.check_call', autospec=True)
+    mocker.patch('finish_release.check_output', autospec=True, return_value=b"2018-07-23 12:00:00 +0000\n")
+    make_empty_commit("initial", "initial commit")
+    check_call(["git", "tag", "v0.1.0"])
+
+    make_empty_commit("User 1", "Commit #1")
+    make_empty_commit("User 2", "Commit #2")
+    create_release_notes("0.1.0", with_checkboxes=False)
+    make_empty_commit("User 2", "Commit #3")
+    check_call(["git", "tag", "v0.2.0"])
+    create_release_notes("0.2.0", with_checkboxes=False)
+    set_release_date("0.2.0")
+    content = open("RELEASE.rst").read()
+    assert re.search(r"Version 0.1.0 \(Released 2018-07-23\)", content) is not None
+    assert re.search(r"Version 0.2.0 \(Released 2018-07-23\)", content) is not None
