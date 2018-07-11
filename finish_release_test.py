@@ -98,11 +98,9 @@ def test_set_release_date(test_repo, mocker):
     mocker.patch('finish_release.check_output', autospec=True, return_value=b"2018-07-23 12:00:00 +0000\n")
     make_empty_commit("initial", "initial commit")
     check_call(["git", "tag", "v0.1.0"])
-
     make_empty_commit("User 1", "Commit #1")
-    make_empty_commit("User 2", "Commit #2")
     create_release_notes("0.1.0", with_checkboxes=False)
-    make_empty_commit("User 2", "Commit #3")
+    make_empty_commit("User 2", "Commit #2")
     check_call(["git", "tag", "v0.2.0"])
     create_release_notes("0.2.0", with_checkboxes=False)
     set_release_date("0.2.0")
