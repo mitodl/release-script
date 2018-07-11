@@ -13,7 +13,8 @@ from finish_release import (
     merge_release,
     merge_release_candidate,
     tag_release,
-    set_release_date)
+    set_release_date
+)
 
 
 # pylint: disable=unused-argument, redefined-outer-name
