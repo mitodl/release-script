@@ -7,7 +7,7 @@ import pytz
 
 from bot import (
     Bot,
-    FINISH_RELEASE_ID,
+    FINISH_RELEASE_ID
 )
 from conftest import (
     LIBRARY_TEST_REPO_INFO,
@@ -323,6 +323,7 @@ async def test_release_library(doof, library_test_repo, event_loop, mocker):
         github_access_token=GITHUB_ACCESS,
         repo_url=library_test_repo.repo_url,
         version=version,
+        timezone=doof.timezone
     )
     assert doof.said(
         "My evil scheme {version} for {project} has been merged!".format(
@@ -417,6 +418,7 @@ async def test_finish_release(doof, test_repo, event_loop, mocker):
         github_access_token=GITHUB_ACCESS,
         repo_url=test_repo.repo_url,
         version=version,
+        timezone=doof.timezone
     )
     assert doof.said('deploying to production...')
     wait_for_deploy_sync_mock.assert_called_once_with(
@@ -562,6 +564,7 @@ async def test_webhook_finish_release(doof, event_loop, mocker):
         github_access_token=doof.github_access_token,
         repo_url=repo_url,
         version=pr_body.version,
+        timezone=doof.timezone
     )
     assert doof.said("Merging...")
     assert not doof.said("Error")
