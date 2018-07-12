@@ -105,7 +105,7 @@ def test_set_release_date(test_repo, mocker):
     check_call(["git", "tag", "v0.2.0"])
     create_release_notes("0.2.0", with_checkboxes=False)
     set_release_date("0.2.0")
-    with open('RELEASE.rst') as release_file:
+    with open('RELEASE.rst', 'r') as release_file:
         content = release_file.read()
     assert re.search(r"Version 0.1.0 \(Released 2018-07-23\)", content) is not None
     assert re.search(r"Version 0.2.0 \(Released 2018-07-23\)", content) is not None
@@ -130,11 +130,9 @@ def test_set_release_date_revert_file(test_repo, mocker):
     check_call(["git", "tag", "v0.1.0"])
     make_empty_commit("User 1", "Commit #1")
     create_release_notes("0.1.0", with_checkboxes=False)
-    with open('RELEASE.rst') as release_file:
-        original_content = release_file.read()
+    mock_check = mocker.patch('finish_release.check_call', autospec=True)
     with pytest.raises(Exception):
         set_release_date("0.2.0")
-    with open('RELEASE.rst') as release_file:
-        post_content = release_file.read()
-    assert original_content == post_content
-    assert re.search(r"Version 0.1.0 \(Released 2018-07-23\)", post_content) is None
+    mock_check.assert_called_with(["git", "checkout", "HEAD", "--", 'RELEASE.rst'])
+    with open('RELEASE.rst', 'r') as infile:
+        assert re.search(r"Version 0.1.0 \(Released 2018-07-23\)", infile.read()) is None
