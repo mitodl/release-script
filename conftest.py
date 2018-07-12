@@ -10,6 +10,7 @@ from tempfile import (
 from subprocess import check_call
 
 import pytest
+import pytz
 
 from bot import (
     LIBRARY_TYPE,
@@ -111,3 +112,9 @@ def library_test_repo():
             f.write(SETUP_PY)
 
         yield LIBRARY_TEST_REPO_INFO
+
+
+@pytest.fixture
+def timezone():
+    """ Return a timezone object """
+    yield pytz.timezone('America/New_York')

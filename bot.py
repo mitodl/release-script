@@ -266,6 +266,7 @@ class Bot:
             github_access_token=self.github_access_token,
             repo_url=repo_url,
             version=version,
+            timezone=self.timezone
         )
         await self.say(
             channel_id=channel_id,
@@ -472,6 +473,7 @@ class Bot:
             github_access_token=self.github_access_token,
             repo_url=repo_url,
             version=version,
+            timezone=self.timezone
         )
 
         await self.say(
