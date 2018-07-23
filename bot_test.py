@@ -600,3 +600,18 @@ async def test_webhook_finish_release_fail(doof, event_loop, mocker):
     assert finish_release_mock.called is True
     assert doof.said("Merging...")
     assert doof.said("Error")
+
+
+async def test_uptime(doof, event_loop, mocker, test_repo):
+    """Uptime should show how much time the bot has been awake"""
+    now = datetime(2015, 1, 1, 3, 4, 5, tzinfo=pytz.utc)
+    doof.doof_boot = now
+    later = now + timedelta(seconds=140)
+    mocker.patch('bot.now_in_utc', autospec=True, return_value=later)
+    await doof.run_command(
+        manager='mitodl_user',
+        channel_id=test_repo.channel_id,
+        words=['uptime'],
+        loop=event_loop,
+    )
+    assert doof.said("Awake for 2 minutes.")
