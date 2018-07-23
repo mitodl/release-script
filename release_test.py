@@ -159,10 +159,10 @@ def test_validate_dependencies():
         dependency_exists_stub.assert_any_call(dependency)
 
         with patch(
-            'release.dependency_exists',
-            # the cell-var-from-loop warning can be ignored because this function is executed
-            # immediately after its definition
-            side_effect=lambda _dependency: _dependency != dependency,  # pylint: disable=cell-var-from-loop
+                'release.dependency_exists',
+                # the cell-var-from-loop warning can be ignored because this function is executed
+                # immediately after its definition
+                side_effect=lambda _dependency: _dependency != dependency,  # pylint: disable=cell-var-from-loop
         ), pytest.raises(DependencyException):
             validate_dependencies()
 
@@ -192,7 +192,7 @@ def test_validate_node_version(major):
     node_version = "v{}.2.1".format(major).encode()
 
     with patch(
-        'release.dependency_exists', return_value=True,
+            'release.dependency_exists', return_value=True,
     ), patch(
         'release.check_output', return_value=node_version,
     ):
@@ -209,7 +209,7 @@ def test_init_working_dir(branch):
     repo_url = "https://github.com/mitodl/release-script.git"
     access_token = 'fake_access_token'
     with patch('release.check_call', autospec=True) as check_call_mock, init_working_dir(
-        access_token, repo_url, branch=branch,
+            access_token, repo_url, branch=branch,
     ) as other_directory:
         assert os.path.exists(other_directory)
     assert not os.path.exists(other_directory)
@@ -229,7 +229,7 @@ def test_init_working_dir_real():
     repo_url = "https://github.com/mitodl/release-script.git"
     access_token = ''
     with init_working_dir(
-        access_token, repo_url,
+            access_token, repo_url,
     ) as other_directory:
         assert os.path.exists(other_directory)
         check_call(["git", "status"])
@@ -401,7 +401,7 @@ def test_generate_release_pr(test_repo):
     body = 'body'
 
     with patch('release.create_pr', autospec=True) as create_pr_mock, patch(
-        'release.create_release_notes', autospec=True, return_value=body
+            'release.create_release_notes', autospec=True, return_value=body
     ) as create_release_notes_mock:
         generate_release_pr(
             access_token,

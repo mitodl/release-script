@@ -18,8 +18,8 @@ from release import (
 def merge_release_candidate():
     """Merge release-candidate into release"""
     print("Merge release-candidate into release")
-    check_call(['git', 'checkout', '-t', 'origin/release'])
-    check_call(['git', 'merge', 'origin/release-candidate'])
+    check_call(['git', 'checkout', 'release'])
+    check_call(['git', 'merge', 'release-candidate', '--no-edit'])
     check_call(['git', 'push'])
 
 
@@ -50,6 +50,7 @@ def set_release_date(version, timezone):
         return
     date_format = "%B %d, %Y"
     check_call(["git", "fetch", "--tags"])
+    check_call(['git', 'checkout', 'release-candidate'])
 
     with open(release_filename) as f:
         existing_note_lines = [line for line in f.readlines()]
@@ -69,7 +70,6 @@ def set_release_date(version, timezone):
             f.write(line)
 
     check_call(["git", "commit", "-q", release_filename, "-m", "Release date for {}".format(version)])
-    check_call(['git', 'push'])
 
 
 def merge_release():
@@ -87,10 +87,10 @@ def finish_release(*, github_access_token, repo_url, version, timezone):
     validate_dependencies()
     with init_working_dir(github_access_token, repo_url):
         check_release_tag(version)
+        set_release_date(version, timezone)
         merge_release_candidate()
         tag_release(version)
         merge_release()
-        set_release_date(version, timezone)
 
 
 def main():

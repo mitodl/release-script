@@ -14,13 +14,12 @@ from tempfile import TemporaryDirectory
 
 from dateutil.parser import parse
 
-from constants import WEB_APPLICATION_TYPE
+from constants import SCRIPT_DIR, WEB_APPLICATION_TYPE
 from exception import ReleaseException
 from github import (
     get_pull_request,
     get_org_and_repo,
 )
-from release import SCRIPT_DIR
 from repo_info import RepoInfo
 
 

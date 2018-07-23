@@ -103,7 +103,7 @@ def test_get_release_pr():
 def test_get_release_pr_no_pulls():
     """If there is no release PR it should return None"""
     with patch(
-        'github.requests.get', return_value=Mock(json=Mock(return_value=[OTHER_PR]))
+            'github.requests.get', return_value=Mock(json=Mock(return_value=[OTHER_PR]))
     ):
         assert get_release_pr(
             github_access_token='access_token',
@@ -116,7 +116,7 @@ def test_too_many_releases():
     """If there is no release PR, an exception should be raised"""
     pulls = [RELEASE_PR, RELEASE_PR]
     with pytest.raises(Exception) as ex, patch(
-        'github.requests.get', return_value=Mock(json=Mock(return_value=pulls))
+            'github.requests.get', return_value=Mock(json=Mock(return_value=pulls))
     ):
         get_release_pr(
             github_access_token='access_token',
@@ -132,7 +132,7 @@ def test_no_release_wrong_repo():
     response_404 = Response()
     response_404.status_code = 404
     with pytest.raises(HTTPError) as ex, patch(
-        'github.requests.get', return_value=response_404
+            'github.requests.get', return_value=response_404
     ):
         get_release_pr(
             github_access_token='access_token',
@@ -153,9 +153,9 @@ def test_get_unchecked_authors():
     access_token = 'all-access'
 
     with patch('lib.get_release_pr', autospec=True, return_value=ReleasePR(
-        body=FAKE_RELEASE_PR_BODY,
-        version='1.2.3',
-        url='http://url'
+            body=FAKE_RELEASE_PR_BODY,
+            version='1.2.3',
+            url='http://url'
     )) as get_release_pr_mock:
         unchecked = get_unchecked_authors(
             github_access_token=access_token,
