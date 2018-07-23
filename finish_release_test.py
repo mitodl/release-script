@@ -36,8 +36,8 @@ def test_merge_release_candidate(mocker):
     """merge_release should merge the release candidate into release and push it"""
     patched_check_call = mocker.patch('finish_release.check_call', autospec=True)
     merge_release_candidate()
-    patched_check_call.assert_any_call(['git', 'checkout', '-t', 'origin/release'])
-    patched_check_call.assert_any_call(['git', 'merge', 'origin/release-candidate'])
+    patched_check_call.assert_any_call(['git', 'checkout', 'release'])
+    patched_check_call.assert_any_call(['git', 'merge', 'release-candidate', '--no-edit'])
     patched_check_call.assert_any_call(['git', 'push'])
 
 
