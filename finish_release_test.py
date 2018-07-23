@@ -1,4 +1,5 @@
 """Tests for finish_release.py"""
+from datetime import datetime
 import re
 from contextlib import contextmanager
 from subprocess import check_call
@@ -97,7 +98,7 @@ def test_finish_release(mocker, timezone):
 def test_set_release_date(test_repo, timezone, mocker):
     """set_release_date should update release notes with dates"""
     mocker.patch('finish_release.check_call', autospec=True)
-    mocker.patch('finish_release.check_output', autospec=True, return_value=b"2018-07-23 12:00:00 +0000\n")
+    mocker.patch('finish_release.check_output', autospec=True, return_value=b"2018-04-27 12:00:00 +0000\n")
     make_empty_commit("initial", "initial commit")
     check_call(["git", "tag", "v0.1.0"])
     make_empty_commit("User 1", "Commit #1")
@@ -108,8 +109,9 @@ def test_set_release_date(test_repo, timezone, mocker):
     set_release_date("0.2.0", timezone)
     with open('RELEASE.rst', 'r') as release_file:
         content = release_file.read()
-    assert re.search(r"Version 0.1.0 \(Released July 23, 2018\)", content) is not None
-    assert re.search(r"Version 0.2.0 \(Released July 23, 2018\)", content) is not None
+    assert re.search(r"Version 0.1.0 \(Released April 27, 2018\)", content) is not None
+    today = datetime.now().strftime("%B %d, %Y")
+    assert f"Version 0.2.0 (Released {today})" in content
 
 
 def test_set_release_date_no_file(test_repo, timezone, mocker):

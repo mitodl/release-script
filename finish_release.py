@@ -61,11 +61,14 @@ def set_release_date(version, timezone):
                 version_match = re.search(r"[0-9\.]+", line)
                 if version_match:
                     version_line = version_match.group(0)
-                    version_date = check_output(
-                        ["git", "log", "-1", "--format=%ai", "v{}".format(version_line)]
-                    ).rstrip()
-                    localtime = datetime.strptime(version_date.decode("utf-8"), "%Y-%m-%d %H:%M:%S %z").\
-                        astimezone(timezone).strftime(date_format)
+                    if version_line == version:
+                        localtime = datetime.now().strftime(date_format)
+                    else:
+                        version_date = check_output(
+                            ["git", "log", "-1", "--format=%ai", "v{}".format(version_line)]
+                        ).rstrip()
+                        localtime = datetime.strptime(version_date.decode("utf-8"), "%Y-%m-%d %H:%M:%S %z").\
+                            astimezone(timezone).strftime(date_format)
                     line = "Version {} (Released {})\n".format(version_line, localtime)
             f.write(line)
 
