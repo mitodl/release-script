@@ -8,10 +8,10 @@ commits.forEach(function (commit) {
 })
 
 Object.keys(by_author).forEach(function (author) {
-  %>## <%= author %>
+  %>## <%- author %>
 <%
   by_author[author].forEach(function (commit) {
-    %>  - [ ] <%= commit.title %> ([<%= commit.sha1.substring(0,8) %>](../commit/<%= commit.sha1 %>))
+    %>  - [ ] <%- commit.title %> ([<%- commit.sha1.substring(0,8) %>](../commit/<%- commit.sha1 %>))
 <%
   });
   %>
