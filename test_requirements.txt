@@ -6,5 +6,5 @@ pytest-asyncio
 pytest-cov
 pytest-mock
 pytest-pep8
-pytest-pylint==0.6.0
+pytest-pylint
 tox
