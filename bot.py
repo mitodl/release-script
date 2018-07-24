@@ -13,7 +13,6 @@ import re
 import requests
 import pytz
 from tornado.platform.asyncio import AsyncIOMainLoop
-from websockets.exceptions import ConnectionClosed
 import websockets
 
 from constants import (
@@ -113,6 +112,7 @@ class Bot:
 
         # Used for only websocket messages
         self.message_count = 0
+        self.doof_boot = now_in_utc()
 
     def lookup_users(self):
         """
@@ -618,6 +618,20 @@ class Bot:
             )
         )
 
+    async def uptime(self, command_args):
+        """
+        Say how long the bot has been running
+
+        Args:
+            command_args (CommandArgs): The arguments for this command
+        """
+        uptime = (now_in_utc() - self.doof_boot).total_seconds() / 60
+        await self.say(
+            channel_id=command_args.channel_id,
+            text=f"Awake for {int(uptime)} minutes. "
+                 f"Oh, man. This had better be a dream because I don't like where this is going.",
+        )
+
     async def hi(self, command_args):
         """
         Say hi
@@ -724,6 +738,12 @@ class Bot:
                 parsers=[],
                 command_func=self.needs_review,
                 description='List pull requests which need review and are unassigned',
+            ),
+            Command(
+                command='uptime',
+                parsers=[],
+                command_func=self.uptime,
+                description='Shows how long this bot has been running'
             ),
             Command(
                 command='version',
@@ -982,12 +1002,8 @@ def main():
     # Start tornado and link it to the main event loop
     AsyncIOMainLoop().install()
 
-    while True:
-        try:
-            loop.run_until_complete(connect_to_message_server(loop))
-        except ConnectionClosed:
-            # wait 15 seconds then try again
-            loop.run_until_complete(asyncio.sleep(15))
+    # If this fails, rely on heroku to restart it instead of doing it ourselves
+    loop.run_until_complete(connect_to_message_server(loop))
 
 
 if __name__ == "__main__":
