@@ -64,7 +64,7 @@ log = logging.getLogger(__name__)
 
 
 CommandArgs = namedtuple('CommandArgs', ['channel_id', 'repo_info', 'args', 'loop', 'manager'])
-Command = namedtuple('Command', ['command', 'parsers', 'command_func', 'description'])
+Command = namedtuple('Command', ['command', 'parsers', 'command_func', 'description', 'supported_project_types'])
 Parser = namedtuple('Parser', ['func', 'description'])
 
 
@@ -695,84 +695,98 @@ class Bot:
                 parsers=[],
                 command_func=self.commits_since_last_release,
                 description="Release notes since last release",
+                supported_project_types=[LIBRARY_TYPE, WEB_APPLICATION_TYPE],
             ),
             Command(
                 command='start release',
                 parsers=[Parser(func=get_version_number, description='new version number')],
                 command_func=self.release_command,
                 description='Start a new release',
+                supported_project_types=[LIBRARY_TYPE, WEB_APPLICATION_TYPE],
             ),
             Command(
                 command='release',
                 parsers=[Parser(func=get_version_number, description='new version number')],
                 command_func=self.release_command,
                 description='Start a new release',
+                supported_project_types=[LIBRARY_TYPE, WEB_APPLICATION_TYPE],
             ),
             Command(
                 command='finish release',
                 parsers=[],
                 command_func=self.finish_release,
                 description='Finish a release',
+                supported_project_types=[WEB_APPLICATION_TYPE],
             ),
             Command(
                 command='wait for checkboxes',
                 parsers=[],
                 command_func=self.wait_for_checkboxes_command,
                 description='Wait for committers to check off their boxes',
+                supported_project_types=[WEB_APPLICATION_TYPE],
             ),
             Command(
                 command='upload to pypi',
                 parsers=[Parser(func=get_version_number, description='new version number')],
                 command_func=self.upload_to_pypi,
                 description='Upload package to pypi',
+                supported_project_types=[LIBRARY_TYPE],
             ),
             Command(
                 command='upload to pypitest',
                 parsers=[Parser(func=get_version_number, description='new version number')],
                 command_func=self.upload_to_pypitest,
                 description='Upload package to pypitest',
+                supported_project_types=[LIBRARY_TYPE],
             ),
             Command(
                 command='hi',
                 parsers=[],
                 command_func=self.hi,
                 description='Say hi to doof',
+                supported_project_types=None,
             ),
             Command(
                 command='karma',
                 parsers=[Parser(func=parse_date, description='beginning date')],
                 command_func=self.karma,
                 description='Show pull request karma from a given date until today',
+                supported_project_types=None,
             ),
             Command(
                 command='what needs review',
                 parsers=[],
                 command_func=self.needs_review,
                 description='List pull requests which need review and are unassigned',
+                supported_project_types=None,
             ),
             Command(
                 command='uptime',
                 parsers=[],
                 command_func=self.uptime,
-                description='Shows how long this bot has been running'
+                description='Shows how long this bot has been running',
+                supported_project_types=None,
             ),
             Command(
                 command='version',
                 parsers=[],
                 command_func=self.report_version,
                 description='Show the version of the latest merged release',
+                supported_project_types=[WEB_APPLICATION_TYPE, LIBRARY_TYPE],
             ),
             Command(
                 command='help',
                 parsers=[],
                 command_func=self.help,
                 description='Show available commands',
+                supported_project_types=None,
             ),
             Command(
                 command='reset',
                 parsers=[],
                 command_func=self.reset,
                 description="Tell Doof to stop everything he's doing",
+                supported_project_types=None,
             ),
         ]
 
@@ -789,7 +803,7 @@ class Bot:
         """
         await self.typing(channel_id)
         commands = self.make_commands()
-        for command, parsers, command_func, _ in commands:
+        for command, parsers, command_func, _, supported_project_types in commands:
             command_words = command.split()
             if has_command(command_words, words):
                 args = words[len(command_words):]
@@ -821,6 +835,23 @@ class Bot:
                         return
 
                 repo_info = self.get_repo_info(channel_id)
+                if supported_project_types is not None:
+                    if repo_info is None:
+                        await self.say(
+                            channel_id=channel_id,
+                            text='That command requires a repo but this channel is not attached to any project.',
+                        )
+                        return
+
+                    if repo_info.project_type not in supported_project_types:
+                        await self.say(
+                            channel_id=channel_id,
+                            text=(
+                                f"That command is only for {', '.join(supported_project_types)} projects but "
+                                f"this is a {repo_info.project_type} project."
+                            )
+                        )
+                        return
                 await command_func(
                     CommandArgs(
                         repo_info=repo_info,

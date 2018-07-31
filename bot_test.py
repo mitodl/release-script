@@ -14,8 +14,10 @@ from conftest import (
     WEB_TEST_REPO_INFO,
 )
 from constants import (
+    LIBRARY_TYPE,
     TRAVIS_FAILURE,
     TRAVIS_SUCCESS,
+    WEB_APPLICATION_TYPE,
 )
 from exception import (
     ReleaseException,
@@ -629,3 +631,51 @@ async def test_reset(doof, event_loop, test_repo):
             words=['reset'],
             loop=event_loop
         )
+
+
+@pytest.mark.parametrize("command,project_type", [
+    ['finish release', LIBRARY_TYPE],
+    ['wait for checkboxes', LIBRARY_TYPE],
+    ['upload to pypi 1.2.3', WEB_APPLICATION_TYPE],
+    ['upload to pypitest 1.2.3', WEB_APPLICATION_TYPE],
+])  # pylint: disable=too-many-arguments
+async def test_invalid_project_type(doof, test_repo, library_test_repo, event_loop, command, project_type):
+    """
+    Compare incompatible commands with project types
+    """
+    repo = test_repo if project_type == WEB_APPLICATION_TYPE else library_test_repo
+    other_type = LIBRARY_TYPE if project_type == WEB_APPLICATION_TYPE else WEB_APPLICATION_TYPE
+
+    await doof.run_command(
+        manager='mitodl_user',
+        channel_id=repo.channel_id,
+        words=command.split(),
+        loop=event_loop,
+    )
+
+    assert doof.said(f'That command is only for {other_type} projects but this is a {project_type} project.')
+
+
+@pytest.mark.parametrize('command', [
+    'release 1.2.3',
+    'start release 1.2.3',
+    'finish release',
+    'wait for checkboxes',
+    'upload to pypi 1.2.3',
+    'upload to pypitest 1.2.3',
+    'release notes',
+])
+async def test_command_without_repo(doof, event_loop, command):
+    """
+    Test that commands won't work on channels without a repo
+    """
+    await doof.run_command(
+        manager='mitodl_user',
+        channel_id='not_a_repo_channel',
+        words=command.split(),
+        loop=event_loop,
+    )
+
+    assert doof.said(
+        'That command requires a repo but this channel is not attached to any project.'
+    )
