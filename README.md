@@ -80,9 +80,9 @@ Git is available as a precompiled binary as well as from Homebrew on OSX:
 
     brew install git
 
-#### [Python 3.6+ - https://www.python.org/downloads/](https://www.python.org/downloads/)
+#### [Python 3.7+ - https://www.python.org/downloads/](https://www.python.org/downloads/)
 
-Python 3.6+ is required. (Python 3.5 might work, earlier versions will be missing async functionality.)
+Python 3.7+ is required.
 
 #### Python libraries
 
