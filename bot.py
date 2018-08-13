@@ -966,7 +966,6 @@ def main():
             app.listen(port)
             while True:
                 message = await websocket.recv()
-                print(message)
                 message = json.loads(message)
                 if message.get('type') != 'message':
                     continue
@@ -987,7 +986,6 @@ def main():
                 if len(all_words) > 0:
                     message_handle, *words = all_words
                     if message_handle in ("<@{}>".format(doof_id), "@doof"):
-                        print("handling...", words, channel_id)
                         loop.create_task(
                             bot.handle_message(
                                 manager=message['user'],
