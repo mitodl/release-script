@@ -293,7 +293,6 @@ def upload_to_pypi(*, repo_info, testing):  # pylint: disable=too-many-locals
         # Heroku has both Python 2 and 3 installed but the system libraries aren't configured for our use,
         # so make a virtualenv.
         with virtualenv(python, outer_environ) as (virtualenv_dir, environ):
-            check_call(["virtualenv", virtualenv_dir, "-p", python])
             # Use the virtualenv binaries to act within that environment
             python_path = os.path.join(virtualenv_dir, "bin", "python")
             pip_path = os.path.join(virtualenv_dir, "bin", "pip")
