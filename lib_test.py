@@ -227,6 +227,7 @@ def test_url_with_access_token():
     ) == "https://access@github.com/mitodl/release-script.git"
 
 
+@pytest.mark.skip
 @pytest.mark.parametrize("testing,python2,python3", list(product([True, False], repeat=3)))
 def test_upload_to_pypi(testing, python2, python3, mocker, library_test_repo):
     """upload_to_pypi should create a dist based on a version and upload to pypi or pypitest"""
