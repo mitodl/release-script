@@ -42,7 +42,7 @@
     },
     {
       "name": "edx-sga",
-      "repo_url": "https://github.com/mitodl/open-discussions.git",
+      "repo_url": "https://github.com/mitodl/edx-sga.git",
       "channel_name": "edx-sga-doof",
       "project_type": "library",
       "python2": true,
