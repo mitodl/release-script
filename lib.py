@@ -1,5 +1,6 @@
 """Shared functions for release script Python files"""
 from collections import namedtuple
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
 import json
@@ -254,7 +255,23 @@ def parse_date(date_string):
     return parse(date_string).date()
 
 
-def upload_to_pypi(*, repo_info, testing):
+@contextmanager
+def virtualenv(python_interpreter, env):
+    """
+    Create a virtualenv and work within its context
+    """
+    with TemporaryDirectory() as virtualenv_dir:
+        check_call(["virtualenv", virtualenv_dir, "-p", python_interpreter], env=env)
+
+        # Figure out what environment variables we need to set
+        output = check_output(
+            ". {}; env".format(os.path.join(virtualenv_dir, "bin", "activate")),
+            shell=True,
+        ).decode()
+        yield virtualenv_dir, dict(line.split("=", 1) for line in output.splitlines())
+
+
+def upload_to_pypi(*, repo_info, testing):  # pylint: disable=too-many-locals
     """
     Upload the current dir
 
@@ -272,44 +289,38 @@ def upload_to_pypi(*, repo_info, testing):
     # In particular if a wheel is specific to one version of python we need to use that interpreter to create it.
     python = "python3" if repo_info.python3 else "python2"
 
-    with TemporaryDirectory() as virtualenv_dir:
+    with virtualenv("python3", None) as (_, outer_environ):
         # Heroku has both Python 2 and 3 installed but the system libraries aren't configured for our use,
         # so make a virtualenv.
-        check_call(["virtualenv", virtualenv_dir, "-p", python])
-        # Use the virtualenv binaries to act within that environment
-        python_path = os.path.join(virtualenv_dir, "bin", "python")
-        pip_path = os.path.join(virtualenv_dir, "bin", "pip")
-        twine_path = os.path.join(virtualenv_dir, "bin", "twine")
+        with virtualenv(python, outer_environ) as (virtualenv_dir, environ):
+            check_call(["virtualenv", virtualenv_dir, "-p", python])
+            # Use the virtualenv binaries to act within that environment
+            python_path = os.path.join(virtualenv_dir, "bin", "python")
+            pip_path = os.path.join(virtualenv_dir, "bin", "pip")
+            twine_path = os.path.join(virtualenv_dir, "bin", "twine")
 
-        # Figure out what environment variables we need to set
-        output = check_output(
-            ". {}; env".format(os.path.join(virtualenv_dir, "bin", "activate")),
-            shell=True,
-        ).decode()
-        env = dict(line.split("=", 1) for line in output.splitlines())
+            # Install dependencies. wheel is needed for Python 2. twine uploads the package.
+            check_call([pip_path, "install", "wheel", "twine"], env=environ)
 
-        # Install dependencies. wheel is needed for Python 2. twine uploads the package.
-        check_call([pip_path, "install", "wheel", "twine"], env=env)
+            # Create source distribution and wheel.
+            call([python_path, "setup.py", "sdist"], env=environ)
+            universal = ["--universal"] if repo_info.python2 and repo_info.python3 else []
+            build_wheel_args = [python_path, "setup.py", "bdist_wheel", *universal]
+            call(build_wheel_args, env=environ)
+            dist_files = os.listdir("dist")
+            if len(dist_files) != 2:
+                raise Exception("Expected to find one tarball and one wheel in directory")
+            dist_paths = [os.path.join("dist", name) for name in dist_files]
 
-        # Create source distribution and wheel.
-        call([python_path, "setup.py", "sdist"], env=env)
-        universal = ["--universal"] if repo_info.python2 and repo_info.python3 else []
-        build_wheel_args = [python_path, "setup.py", "bdist_wheel", *universal]
-        call(build_wheel_args, env=env)
-        dist_files = os.listdir("dist")
-        if len(dist_files) != 2:
-            raise Exception("Expected to find one tarball and one wheel in directory")
-        dist_paths = [os.path.join("dist", name) for name in dist_files]
-
-        # Upload to pypi
-        testing_args = ["--repository-url", "https://test.pypi.org/legacy/"] if testing else []
-        check_call(
-            [twine_path, "upload", *testing_args, *dist_paths],
-            env={
-                **env,
-                **twine_env,
-            }
-        )
+            # Upload to pypi
+            testing_args = ["--repository-url", "https://test.pypi.org/legacy/"] if testing else []
+            check_call(
+                [twine_path, "upload", *testing_args, *dist_paths],
+                env={
+                    **environ,
+                    **twine_env,
+                }
+            )
 
 
 def load_repos_info(channel_lookup):
