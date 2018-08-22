@@ -289,7 +289,7 @@ def upload_to_pypi(*, repo_info, testing):  # pylint: disable=too-many-locals
     # In particular if a wheel is specific to one version of python we need to use that interpreter to create it.
     python = "python3" if repo_info.python3 else "python2"
 
-    with virtualenv("python3", os.environ) as (_, outer_environ):
+    with virtualenv("python3", None) as (_, outer_environ):
         # Heroku has both Python 2 and 3 installed but the system libraries aren't configured for our use,
         # so make a virtualenv.
         with virtualenv(python, outer_environ) as (virtualenv_dir, environ):
