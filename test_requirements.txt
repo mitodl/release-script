@@ -8,4 +8,3 @@ pytest-mock
 pytest-pep8
 pytest-pylint
 tox
-virtualenv
