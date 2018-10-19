@@ -620,7 +620,7 @@ async def test_uptime(doof, event_loop, mocker, test_repo):
     assert doof.said("Awake for 2 minutes.")
 
 
-async def test_reset(doof, event_loop, mocker, test_repo):
+async def test_reset(doof, event_loop, test_repo):
     """Reset should cause a reset"""
     with pytest.raises(ResetException):
         await doof.run_command(
