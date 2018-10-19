@@ -12,7 +12,6 @@ import re
 
 import requests
 import pytz
-from tornado.platform.asyncio import AsyncIOMainLoop
 import websockets
 
 from constants import (
@@ -24,6 +23,7 @@ from constants import (
 from exception import (
     InputException,
     ReleaseException,
+    ResetException,
 )
 from finish_release import finish_release
 from github import (
@@ -670,6 +670,17 @@ class Bot:
             text=text,
         )
 
+    async def reset(self, command_args):
+        """
+        Clear tasks and restart the process. For now this just restarts the process but when we have
+        persistent state we should also make sure to clear it too.
+
+        Args:
+            command_args (CommandArgs): The arguments for this command
+        """
+        await self.say(channel_id=command_args.channel_id, text="Um, hello, falling to my doom here!")
+        raise ResetException()
+
     def make_commands(self):
         """
         Describe the commands which are available
@@ -757,6 +768,12 @@ class Bot:
                 command_func=self.help,
                 description='Show available commands',
             ),
+            Command(
+                command='reset',
+                parsers=[],
+                command_func=self.reset,
+                description="Tell Doof to stop everything he's doing",
+            ),
         ]
 
     # pylint: disable=too-many-locals
@@ -843,6 +860,8 @@ class Bot:
         except (InputException, ReleaseException) as ex:
             log.exception("A BotException was raised:")
             await self.say(channel_id=channel_id, text="Oops! {}".format(ex))
+        except ResetException:
+            loop.stop()
         except:  # pylint: disable=bare-except
             log.exception("Exception found when handling a message")
             await self.say(
@@ -964,8 +983,22 @@ def main():
             )
             app = make_app(token=envs['SLACK_WEBHOOK_TOKEN'], bot=bot, loop=loop)
             app.listen(port)
-            while True:
-                message = await websocket.recv()
+
+            async def ping():
+                """Ping every 30 seconds"""
+                while True:
+                    try:
+                        pong_waiter = await websocket.ping()
+                        await asyncio.wait_for(pong_waiter, timeout=10)
+                    except:  # pylint: disable=bare-except
+                        log.exception("Error during ping, restarting...")
+                        loop.stop()
+
+                    await asyncio.sleep(30)
+
+            asyncio.create_task(ping())
+
+            async for message in websocket:
                 message = json.loads(message)
                 if message.get('type') != 'message':
                     continue
@@ -996,10 +1029,6 @@ def main():
                         )
 
     loop = asyncio.get_event_loop()
-
-    # Start tornado and link it to the main event loop
-    AsyncIOMainLoop().install()
-
     # If this fails, rely on heroku to restart it instead of doing it ourselves
     loop.run_until_complete(connect_to_message_server(loop))
 

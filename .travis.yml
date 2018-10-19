@@ -1,6 +1,8 @@
 language: python
+sudo: required  # for python 3.7, may not be needed in future
+dist: xenial  # for python 3.7
 python:
-  - "3.6"
+  - "3.7"
 node_js:
   - "6.2"
 install:

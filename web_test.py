@@ -49,7 +49,12 @@ class FinishReleaseTests(AsyncHTTPTestCase):
         payload = {
             "token": self.token
         }
+
         with patch('bot.Bot.handle_webhook') as handle_webhook:
+            async def fake_webhook(*args, **kwargs):  # pylint: disable=unused-argument
+                pass
+            handle_webhook.return_value = fake_webhook()  # pylint: disable=assignment-from-no-return
+
             response = self.fetch('/api/v0/buttons/', method='POST', body=urllib.parse.urlencode({
                 "payload": json.dumps(payload),
             }))

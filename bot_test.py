@@ -17,7 +17,10 @@ from constants import (
     TRAVIS_FAILURE,
     TRAVIS_SUCCESS,
 )
-from exception import ReleaseException
+from exception import (
+    ReleaseException,
+    ResetException,
+)
 from github import get_org_and_repo
 from lib import (
     format_user_id,
@@ -615,3 +618,14 @@ async def test_uptime(doof, event_loop, mocker, test_repo):
         loop=event_loop,
     )
     assert doof.said("Awake for 2 minutes.")
+
+
+async def test_reset(doof, event_loop, test_repo):
+    """Reset should cause a reset"""
+    with pytest.raises(ResetException):
+        await doof.run_command(
+            manager='mitodl_user',
+            channel_id=test_repo.channel_id,
+            words=['reset'],
+            loop=event_loop
+        )

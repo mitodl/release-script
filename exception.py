@@ -7,3 +7,7 @@ class InputException(Exception):
 
 class ReleaseException(Exception):
     """Exception raised for a command error due to some release status"""
+
+
+class ResetException(Exception):
+    """Exception meant to reset the process"""
