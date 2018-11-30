@@ -1,0 +1,19 @@
+version: '3.4'
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: bash -c 'cd /src && python bot.py'
+    environment:
+      PORT: 2345
+      REDISCLOUD_URL: redis://redis:6379/4
+      DOOF_PREFIX: "[test]"
+    env_file: .envrc
+    links:
+      - redis
+    volumes:
+      - .:/src
+
+  redis:
+    image: redis

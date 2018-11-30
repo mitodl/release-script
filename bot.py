@@ -9,7 +9,9 @@ import sys
 import logging
 import json
 import re
+import urllib.parse
 
+import redis
 import requests
 import pytz
 import websockets
@@ -81,6 +83,7 @@ def get_envs():
         'PYPI_PASSWORD',
         'PYPITEST_USERNAME',
         'PYPITEST_PASSWORD',
+        'REDISCLOUD_URL',
     )
     env_dict = {key: os.environ.get(key, None) for key in required_keys}
     missing_env_keys = [k for k, v in env_dict.items() if v is None]
@@ -93,7 +96,9 @@ def get_envs():
 class Bot:
     """Slack bot used to manage the release"""
 
-    def __init__(self, *, websocket, slack_access_token, github_access_token, timezone, repos_info):
+    def __init__(
+        self, *, websocket, slack_access_token, github_access_token, timezone, repos_info, redis_conn, doof_prefix
+    ):
         """
         Create the slack bot
 
@@ -103,12 +108,16 @@ class Bot:
             github_access_token (str): The Github access token used to interact with Github
             timezone (tzinfo): The time zone of the team interacting with the bot
             repos_info (list of RepoInfo): Information about the repositories connected to channels
+            redis_conn (redis.Redis): A Redis connection
+            doof_prefix (str): Doof will put this before all text
         """
         self.websocket = websocket
         self.slack_access_token = slack_access_token
         self.github_access_token = github_access_token
         self.timezone = timezone
         self.repos_info = repos_info
+        self.redis = redis_conn
+        self.doof_prefix = doof_prefix
 
         # Used for only websocket messages
         self.message_count = 0
@@ -165,6 +174,9 @@ class Bot:
             attachments (list of dict): Attachment information
             message_type (str): The type of message
         """
+        if self.doof_prefix:
+            text = self.doof_prefix if not text else f"{self.doof_prefix} {text}"
+
         attachments_dict = {"attachments": json.dumps(attachments)} if attachments else {}
         text_dict = {"text": text} if text else {}
         message_type_dict = {"type": message_type} if message_type else {}
@@ -954,10 +966,26 @@ def has_command(command_words, input_words):
     return command_words == input_words[:len(command_words)]
 
 
+def get_redis(envs):
+    """
+    Create a redis connection instance
+
+    Args:
+        envs (dict):
+            Environment variables
+
+    Returns:
+        redis.Redis: A redis connection
+    """
+    pieces = urllib.parse.urlparse(envs['REDISCLOUD_URL'])
+    hostname, port = pieces.netloc.split(":")
+    return redis.Redis(host=hostname, port=port, password=pieces.password)
+
+
 def main():
     """main function for bot command"""
     envs = get_envs()
-
+    redis_conn = redis.Redis(envs['REDISCLOUD_URL'])
     channels_info = get_channels_info(envs['SLACK_ACCESS_TOKEN'])
     repos_info = load_repos_info(channels_info)
     try:
@@ -980,6 +1008,8 @@ def main():
                 github_access_token=envs['GITHUB_ACCESS_TOKEN'],
                 timezone=pytz.timezone(envs['TIMEZONE']),
                 repos_info=repos_info,
+                redis_conn=redis_conn,
+                doof_prefix=os.environ.get('DOOF_PREFIX')
             )
             app = make_app(token=envs['SLACK_WEBHOOK_TOKEN'], bot=bot, loop=loop)
             app.listen(port)
