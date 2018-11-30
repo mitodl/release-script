@@ -88,6 +88,9 @@ async def test_release_notes(doof, test_repo, event_loop, mocker):
     update_version_mock = mocker.patch('bot.update_version', autospec=True, return_value=old_version)
     notes = "some notes"
     create_release_notes_mock = mocker.patch('bot.create_release_notes', autospec=True, return_value=notes)
+    org, repo = get_org_and_repo(test_repo.repo_url)
+    release_pr = ReleasePR('version', f'https://github.com/{org}/{repo}/pulls/123456', 'body')
+    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True, return_value=release_pr)
 
     await doof.run_command(
         manager='mitodl_user',
@@ -98,9 +101,11 @@ async def test_release_notes(doof, test_repo, event_loop, mocker):
 
     update_version_mock.assert_called_once_with("9.9.9")
     create_release_notes_mock.assert_called_once_with(old_version, with_checkboxes=False)
+    get_release_pr_mock.assert_called_once_with(github_access_token=GITHUB_ACCESS, org=org, repo=repo)
 
     assert doof.said("Release notes since {}".format(old_version))
     assert doof.said(notes)
+    assert doof.said(f"And also! There is a release already in progress: {release_pr.url}")
 
 
 async def test_version(doof, test_repo, event_loop, mocker):

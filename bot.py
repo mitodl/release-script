@@ -536,6 +536,14 @@ class Bot:
             text=release_notes,
         )
 
+        org, repo = get_org_and_repo(repo_info.repo_url)
+        release_pr = get_release_pr(github_access_token=self.github_access_token, org=org, repo=repo)
+        if release_pr:
+            await self.say(
+                channel_id=repo_info.channel_id,
+                text=f"And also! There is a release already in progress: {release_pr.url}"
+            )
+
     async def message_if_unchecked(self, repo_info):
         """
         Send a message next morning if any boxes are not yet checked off
