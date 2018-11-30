@@ -5,6 +5,7 @@ from contextlib import contextmanager
 import re
 from subprocess import (
     call,
+    CalledProcessError,
     check_call,
     check_output,
     PIPE,
@@ -18,7 +19,10 @@ from constants import (
     GIT_RELEASE_NOTES_PATH,
     SCRIPT_DIR,
 )
-from exception import ReleaseException
+from exception import (
+    RebaseException,
+    ReleaseException,
+)
 from github import create_pr
 from lib import (
     url_with_access_token,
@@ -175,6 +179,31 @@ def any_new_commits(version):
         bool: True if there are new commits
     """
     return int(check_output(["git", "rev-list", "--count", "v{}..master".format(version), "--"])) != 0
+
+
+def squash_and_merge(*, github_access_token, repo_url, pull_request, upstream_branch):
+    """
+    Squashes and merges branch onto upstream_branch.
+
+    Args:
+        github_access_token (str): The github access token
+        repo_url (str): The repo URL
+        pull_request (dict): Information about the pull request
+        upstream_branch (str): The branch which will be merged into.
+    """
+    branch = pull_request['head']['ref']
+    title = pull_request['title']
+    pr_number = pull_request['number']
+    with init_working_dir(github_access_token, repo_url, branch=upstream_branch):
+        check_call(["git", "checkout", branch])
+        try:
+            check_call(["git", "rebase", upstream_branch])
+        except CalledProcessError as ex:
+            raise RebaseException() from ex
+        check_call(["git", "checkout", upstream_branch])
+        check_call(["git", "merge", "--squash", branch])
+        check_call(["git", "commit", "-m", f"{title} (#{pr_number})"])
+        check_call(["git", "push"])
 
 
 def create_release_notes(old_version, with_checkboxes):

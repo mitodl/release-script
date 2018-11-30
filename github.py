@@ -146,7 +146,7 @@ def create_pr(*, github_access_token, repo_url, title, body, head, base):  # pyl
     resp.raise_for_status()
 
 
-def get_pull_request(*, github_access_token, org, repo, branch):
+def get_pull_request(*, github_access_token, org, repo, branch_or_pr_number):
     """
     Look up the pull request for a branch
 
@@ -154,7 +154,7 @@ def get_pull_request(*, github_access_token, org, repo, branch):
         github_access_token (str): The github access token
         org (str): The github organization (eg mitodl)
         repo (str): The github repository (eg micromasters)
-        branch (str): The name of the associated branch
+        branch_or_pr_number (str): The PR number or the associated branch
 
     Returns:
         dict: The information about the pull request
@@ -170,12 +170,15 @@ def get_pull_request(*, github_access_token, org, repo, branch):
     )
     response.raise_for_status()
     pulls = response.json()
-    pulls = [pull for pull in pulls if pull['head']['ref'] == branch]
+    pulls = [
+        pull for pull in pulls
+        if pull['head']['ref'] == branch_or_pr_number or str(pull['number']) == branch_or_pr_number
+    ]
     if not pulls:
         return None
     elif len(pulls) > 1:
-        # Shouldn't happen since we look up by branch
-        raise Exception("More than one pull request for the branch {}".format(branch))
+        # Shouldn't happen but just in case
+        raise Exception("More than one pull request for the branch or PR number {}".format(branch_or_pr_number))
 
     return pulls[0]
 
@@ -292,7 +295,7 @@ def get_status_of_pr(*, github_access_token, org, repo, branch):
         branch (str): The name of the associated branch
 
     Returns:
-        str: The status of the PR. If any status is failed this is failed,
+        (str, dict): The status of the PR and the Travis response for it. If any status is failed this is failed,
             if any is pending this is pending. Else it's good.
     """
     endpoint = "https://api.github.com/repos/{org}/{repo}/commits/{ref}/statuses".format(
@@ -315,6 +318,6 @@ def get_status_of_pr(*, github_access_token, org, repo, branch):
 
     if len(statuses) == 0:
         # This may be due to the PR not being available yet
-        return NO_PR_BUILD
+        return NO_PR_BUILD, None
 
-    return statuses[0]['state']
+    return statuses[0]['state'], statuses[0]

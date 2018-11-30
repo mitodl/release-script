@@ -17,11 +17,14 @@ import websockets
 from constants import (
     FINISH_RELEASE_ID,
     LIBRARY_TYPE,
+    NO_PR_BUILD,
+    TRAVIS_FAILURE,
     TRAVIS_SUCCESS,
     WEB_APPLICATION_TYPE,
 )
 from exception import (
     InputException,
+    RebaseException,
     ReleaseException,
     ResetException,
 )
@@ -29,12 +32,14 @@ from finish_release import finish_release
 from github import (
     calculate_karma,
     get_org_and_repo,
+    get_pull_request,
     needs_review,
 )
 from release import (
     create_release_notes,
     init_working_dir,
     release,
+    squash_and_merge,
     update_version,
 )
 from lib import (
@@ -560,6 +565,70 @@ class Bot:
                 )
             )
 
+    async def merge_when_ready(self, command_args):
+        """
+        Squash and merge a PR when Travis reports it passing.
+
+        Args:
+            command_args (CommandArgs): The arguments for this command
+        """
+        channel_id = command_args.channel_id
+        repo_info = command_args.repo_info
+        branch_or_pr_number = command_args.args[0]
+        org, repo = get_org_and_repo(repo_info.repo_url)
+
+        pull_request = get_pull_request(
+            github_access_token='',
+            org=org,
+            repo=repo,
+            branch_or_pr_number=branch_or_pr_number,
+        )
+        if not pull_request:
+            await self.say(
+                channel_id=channel_id,
+                text="Wait, no, no! There's no pull request for that branch!",
+            )
+            return
+        branch = pull_request['head']['ref']
+        pr_number = pull_request['number']
+
+        await self.say(
+            channel_id=channel_id,
+            text=f"Waiting for the tests to pass for {branch_or_pr_number}..."
+        )
+        status, status_dict = await wait_for_travis(
+            github_access_token=self.github_access_token,
+            org=org,
+            repo=repo,
+            branch=branch,
+        )
+
+        if status == TRAVIS_FAILURE:
+            await self.say(
+                channel_id=channel_id,
+                text=f"Wait, no, no! The tests failed for #{pr_number}! {status_dict['target_url']}"
+            )
+            return
+        elif status != TRAVIS_SUCCESS:
+            raise Exception(f"Unexpected status {status} {status_dict}")
+
+        try:
+            squash_and_merge(
+                github_access_token=self.github_access_token,
+                repo_url=repo_info.repo_url,
+                pull_request=pull_request,
+                upstream_branch="master",
+            )
+            await self.say(
+                channel_id=channel_id,
+                text="Tests passed and the PR is merged!"
+            )
+        except RebaseException:
+            await self.say(
+                channel_id=channel_id,
+                text="Wait, no, no! There was an error during rebasing; maybe there's a merge conflict!"
+            )
+
     async def delay_message(self, repo_info):
         """
         sleep until 10am next day, then message
@@ -731,6 +800,12 @@ class Bot:
                 parsers=[Parser(func=get_version_number, description='new version number')],
                 command_func=self.upload_to_pypitest,
                 description='Upload package to pypitest',
+            ),
+            Command(
+                command='merge when ready',
+                parsers=[Parser(func=str, description='branch of PR')],
+                command_func=self.merge_when_ready,
+                description="Wait for tests to pass, then squash and merge the PR",
             ),
             Command(
                 command='hi',
