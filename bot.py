@@ -696,11 +696,11 @@ class Bot:
         """
         channel_id = command_args.channel_id
         text = "\n".join("*{command}*{join}{parsers}: {description}".format(
-            command=command,
-            parsers=" ".join("*<{}>*".format(parser.description) for parser in parsers),
-            join=" " if parsers else "",
-            description=description,
-        ) for command, parsers, _, description in sorted(self.make_commands()))
+            command=command.command,
+            parsers=" ".join("*<{}>*".format(parser.description) for parser in command.parsers),
+            join=" " if command.parsers else "",
+            description=command.description,
+        ) for command in sorted(self.make_commands()))
         title = (
             "Come on, Perry the Platypus. Let's go home. I talk to you enough, right? "
             "Yeah, you're right. Maybe too much."
@@ -843,23 +843,22 @@ class Bot:
             loop (asyncio.events.AbstractEventLoop): The asyncio event loop
         """
         await self.typing(channel_id)
-        commands = self.make_commands()
-        for command, parsers, command_func, _, supported_project_types in commands:
-            command_words = command.split()
+        for command in self.make_commands():
+            command_words = command.command.split()
             if has_command(command_words, words):
                 args = words[len(command_words):]
-                if len(args) != len(parsers):
+                if len(args) != len(command.parsers):
                     await self.say(
                         channel_id=channel_id,
                         text="Careful, careful. I expected {expected_num} words but you said {actual_num}.".format(
-                            expected_num=len(parsers),
+                            expected_num=len(command.parsers),
                             actual_num=len(args),
                         )
                     )
                     return
 
                 parsed_args = []
-                for arg, parser in zip(args, parsers):
+                for arg, parser in zip(args, command.parsers):
                     try:
                         parsed_args.append(parser.func(arg))
                     except:  # pylint: disable=bare-except
@@ -876,7 +875,7 @@ class Bot:
                         return
 
                 repo_info = self.get_repo_info(channel_id)
-                if supported_project_types is not None:
+                if command.supported_project_types is not None:
                     if repo_info is None:
                         await self.say(
                             channel_id=channel_id,
@@ -884,16 +883,16 @@ class Bot:
                         )
                         return
 
-                    if repo_info.project_type not in supported_project_types:
+                    if repo_info.project_type not in command.supported_project_types:
                         await self.say(
                             channel_id=channel_id,
                             text=(
-                                f"That command is only for {', '.join(supported_project_types)} projects but "
+                                f"That command is only for {', '.join(command.supported_project_types)} projects but "
                                 f"this is a {repo_info.project_type} project."
                             )
                         )
                         return
-                await command_func(
+                await command.command_func(
                     CommandArgs(
                         repo_info=repo_info,
                         channel_id=channel_id,

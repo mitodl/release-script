@@ -708,3 +708,17 @@ async def test_announcement(is_announcement, doof):
     )
     assert doof.said(text, channel_id=LIBRARY_TEST_REPO_INFO.channel_id) is True
     assert doof.said(text, channel_id=ANNOUNCEMENTS_CHANNEL.channel_id) is is_announcement
+
+
+async def test_help(doof, event_loop):
+    """
+    Test that doof will show help text
+    """
+    await doof.run_command(
+        manager='mitodl_user',
+        channel_id='not_a_repo_channel',
+        words=["help"],
+        loop=event_loop,
+    )
+
+    assert doof.said("*help*: Show available commands")

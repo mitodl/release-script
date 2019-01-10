@@ -20,7 +20,10 @@ class ConsoleBot(Bot):
         attachment_text = ''
         if attachments is not None:
             attachment_text = attachments[0].get('text', '')
-        line = " ".join(word for word in [text, attachment_text, message_type, is_announcement] if word)
+        line = (
+            f"{' '.join(word for word in [text, attachment_text, message_type] if word)} "
+            f"is_announcement={str(is_announcement)}"
+        )
         print("\033[92m{}\033[0m".format(line))
 
     async def typing(self, channel_id):
