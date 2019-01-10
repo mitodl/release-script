@@ -201,12 +201,16 @@ def match_user(slack_users, author_name, threshold=0.8):
         real_name = slack_user['profile']['real_name']
         lower_name = reformatted_full_name(real_name)
 
-        if " " not in lower_author_name:
-            lower_name = lower_name.split()[0]
-
         ratio = SequenceMatcher(a=lower_author_name, b=lower_name).ratio()
         if ratio >= threshold:
             return ratio
+
+        if " " not in lower_author_name:
+            lower_name = lower_name.split()[0]
+        ratio = SequenceMatcher(a=lower_author_name, b=lower_name).ratio()
+        if ratio >= threshold:
+            return ratio
+
         return 0
 
     slack_matches = [(slack_user, match_for_user(slack_user)) for slack_user in slack_users]

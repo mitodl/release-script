@@ -192,23 +192,26 @@ FAKE_SLACK_USERS = [
         'profile': {
             'real_name': 'George Schneeloch',
         },
-        'name': 'gschneel',
         'id': 'U12345',
     },
     {
         'profile': {
             'real_name': 'Sar Haidar'
         },
-        'name': 'shaidar',
         'id': 'U65432'
     },
     {
         'profile': {
             'real_name': 'Sarah H'
         },
-        'name': 'sarahh',
         'id': 'U13986'
     },
+    {
+        'profile': {
+            'real_name': 'Tasawer Nawaz'
+        },
+        'id': 'U9876'
+    }
 ]
 
 
@@ -218,6 +221,7 @@ def test_match_users():
     assert match_user(FAKE_SLACK_USERS, "George Schneelock") == "<@U12345>"
     assert match_user(FAKE_SLACK_USERS, "George") == "<@U12345>"
     assert match_user(FAKE_SLACK_USERS, 'sar') == '<@U65432>'
+    assert match_user(FAKE_SLACK_USERS, 'tasawernawaz') == '<@U9876>'
 
 
 def test_url_with_access_token():
