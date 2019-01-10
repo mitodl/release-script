@@ -10,6 +10,7 @@ from bot import (
     FINISH_RELEASE_ID
 )
 from conftest import (
+    ANNOUNCEMENTS_CHANNEL,
     LIBRARY_TEST_REPO_INFO,
     WEB_TEST_REPO_INFO,
 )
@@ -47,7 +48,7 @@ class DoofSpoof(Bot):
             slack_access_token=SLACK_ACCESS,
             github_access_token=GITHUB_ACCESS,
             timezone=pytz.timezone("America/New_York"),
-            repos_info=[WEB_TEST_REPO_INFO, LIBRARY_TEST_REPO_INFO],
+            repos_info=[WEB_TEST_REPO_INFO, LIBRARY_TEST_REPO_INFO, ANNOUNCEMENTS_CHANNEL],
         )
 
         self.slack_users = []
@@ -57,9 +58,9 @@ class DoofSpoof(Bot):
         """Users in the channel"""
         return self.slack_users
 
-    async def say(self, *, channel_id, text=None, attachments=None, message_type=None):
+    async def say(self, *, channel_id, text=None, attachments=None, message_type=None, is_announcement=False):
         """Quick and dirty message recording"""
-        self.messages.append("{} {} {} {}".format(channel_id, text, attachments, message_type))
+        self.messages.append("{} {} {} {} {}".format(channel_id, text, attachments, message_type, is_announcement))
 
     async def typing(self, channel_id):
         """Ignore typing"""

@@ -341,14 +341,17 @@ def load_repos_info(channel_lookup):
         return [
             RepoInfo(
                 name=repo_info['name'],
-                repo_url=repo_info['repo_url'],
-                rc_hash_url=repo_info['rc_hash_url'] if repo_info['project_type'] == WEB_APPLICATION_TYPE else None,
+                repo_url=repo_info.get('repo_url'),
+                rc_hash_url=(
+                    repo_info['rc_hash_url'] if repo_info.get('project_type') == WEB_APPLICATION_TYPE else None
+                ),
                 prod_hash_url=(
-                    repo_info['prod_hash_url'] if repo_info['project_type'] == WEB_APPLICATION_TYPE else None
+                    repo_info['prod_hash_url'] if repo_info.get('project_type') == WEB_APPLICATION_TYPE else None
                 ),
                 channel_id=channel_lookup[repo_info['channel_name']],
-                project_type=repo_info['project_type'],
-                python2=repo_info['python2'],
-                python3=repo_info['python3'],
+                project_type=repo_info.get('project_type'),
+                python2=repo_info.get('python2'),
+                python3=repo_info.get('python3'),
+                announcements=repo_info.get('announcements'),
             ) for repo_info in repos_info['repos']
         ]

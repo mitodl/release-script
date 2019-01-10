@@ -10,4 +10,5 @@ RepoInfo = namedtuple('RepoInfo', [
     'project_type',
     'python2',
     'python3',
+    'announcements',
 ])

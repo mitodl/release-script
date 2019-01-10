@@ -155,9 +155,9 @@ class Bot:
                 return repo_info
         return None
 
-    async def say(self, *, channel_id, text=None, attachments=None, message_type=None):
+    def _say(self, *, channel_id, text, attachments, message_type):
         """
-        Post a message in the Slack channel
+        Post a message in a Slack channel
 
         Args:
             channel_id (str): A channel id
@@ -177,6 +177,34 @@ class Bot:
             **message_type_dict,
         })
         resp.raise_for_status()
+
+    async def say(self, *, channel_id, text=None, attachments=None, message_type=None, is_announcement=False):
+        """
+        Post a message in the Slack channel
+
+        Args:
+            channel_id (str): A channel id
+            text (str): A message
+            attachments (list of dict): Attachment information
+            message_type (str): The type of message
+            is_announcement (bool): If true, also display this message to the announcements channel
+        """
+        self._say(
+            channel_id=channel_id,
+            text=text,
+            attachments=attachments,
+            message_type=message_type,
+        )
+
+        if is_announcement:
+            for repo_info in self.repos_info:
+                if repo_info.announcements:
+                    self._say(
+                        channel_id=repo_info.channel_id,
+                        text=text,
+                        attachments=attachments,
+                        message_type=message_type,
+                    )
 
     async def update_message(self, *, channel_id, timestamp, text=None, attachments=None):
         """
@@ -200,7 +228,7 @@ class Bot:
         })
         resp.raise_for_status()
 
-    async def say_with_attachment(self, *, channel_id, title, text):
+    async def say_with_attachment(self, *, channel_id, title, text, is_announcement=False):
         """
         Post a message in the Slack channel, putting the text in an attachment with markdown enabled
 
@@ -208,6 +236,7 @@ class Bot:
             channel_id (channel_id): A channel id
             title (str): A line of text before the main message
             text (str): A message
+            is_announcement (bool): If true, also send this message to the announcements channel
         """
         await self.say(
             channel_id=channel_id,
@@ -216,7 +245,8 @@ class Bot:
                 "fallback": title,
                 "text": text,
                 "mrkdwn_in": ['text']
-            }]
+            }],
+            is_announcement=is_announcement,
         )
 
     async def typing(self, channel_id):
@@ -273,7 +303,8 @@ class Bot:
             text="My evil scheme {version} for {project} has been merged!".format(
                 version=version,
                 project=repo_info.name,
-            )
+            ),
+            is_announcement=True,
         )
 
     async def _web_application_release(self, command_args):
@@ -447,6 +478,7 @@ class Bot:
                 version=version,
                 pypi_server="pypitest" if testing else "pypi",
             ),
+            is_announcement=True,
         )
 
     async def finish_release(self, command_args):
@@ -495,7 +527,8 @@ class Bot:
             "And by 'released', I mean completely...um...leased.".format(
                 version=version,
                 project=repo_info.name,
-            )
+            ),
+            is_announcement=True,
         )
 
     async def report_version(self, command_args):
