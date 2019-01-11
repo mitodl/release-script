@@ -92,7 +92,7 @@ def doof():
 
 
 async def test_release_notes(doof, test_repo, event_loop, mocker):
-    """Doof should respond to 'hi'"""
+    """Doof should show release notes"""
     old_version = "0.1.2"
     update_version_mock = mocker.patch('bot.update_version', autospec=True, return_value=old_version)
     notes = "some notes"
@@ -218,7 +218,11 @@ async def test_release(doof, test_repo, event_loop, mocker, command):
         watch_branch='release-candidate',
     )
     assert doof.said("Now deploying to RC...")
-    assert doof.said("These people have commits in this release: {}".format(', '.join(authors)))
+    for channel_id in [test_repo.channel_id, ANNOUNCEMENTS_CHANNEL.channel_id]:
+        assert doof.said(
+            "These people have commits in this release: {}".format(', '.join(authors)),
+            channel_id=channel_id,
+        )
     wait_for_checkboxes_sync_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
         org=org,
