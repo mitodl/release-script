@@ -353,7 +353,8 @@ class Bot:
                 authors=", ".join(slack_usernames),
                 pr_url=pr.url,
                 project=repo_info.name,
-            )
+            ),
+            is_announcement=True
         )
 
         await self.wait_for_checkboxes(repo_info, command_args.manager)
