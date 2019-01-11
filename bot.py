@@ -155,9 +155,9 @@ class Bot:
                 return repo_info
         return None
 
-    async def say(self, *, channel_id, text=None, attachments=None, message_type=None):
+    def _say(self, *, channel_id, text, attachments, message_type):
         """
-        Post a message in the Slack channel
+        Post a message in a Slack channel
 
         Args:
             channel_id (str): A channel id
@@ -177,6 +177,34 @@ class Bot:
             **message_type_dict,
         })
         resp.raise_for_status()
+
+    async def say(self, *, channel_id, text=None, attachments=None, message_type=None, is_announcement=False):
+        """
+        Post a message in the Slack channel
+
+        Args:
+            channel_id (str): A channel id
+            text (str): A message
+            attachments (list of dict): Attachment information
+            message_type (str): The type of message
+            is_announcement (bool): If true, also display this message to the announcements channel
+        """
+        self._say(
+            channel_id=channel_id,
+            text=text,
+            attachments=attachments,
+            message_type=message_type,
+        )
+
+        if is_announcement:
+            for repo_info in self.repos_info:
+                if repo_info.announcements:
+                    self._say(
+                        channel_id=repo_info.channel_id,
+                        text=text,
+                        attachments=attachments,
+                        message_type=message_type,
+                    )
 
     async def update_message(self, *, channel_id, timestamp, text=None, attachments=None):
         """
@@ -200,7 +228,7 @@ class Bot:
         })
         resp.raise_for_status()
 
-    async def say_with_attachment(self, *, channel_id, title, text):
+    async def say_with_attachment(self, *, channel_id, title, text, is_announcement=False):
         """
         Post a message in the Slack channel, putting the text in an attachment with markdown enabled
 
@@ -208,6 +236,7 @@ class Bot:
             channel_id (channel_id): A channel id
             title (str): A line of text before the main message
             text (str): A message
+            is_announcement (bool): If true, also send this message to the announcements channel
         """
         await self.say(
             channel_id=channel_id,
@@ -216,7 +245,8 @@ class Bot:
                 "fallback": title,
                 "text": text,
                 "mrkdwn_in": ['text']
-            }]
+            }],
+            is_announcement=is_announcement,
         )
 
     async def typing(self, channel_id):
@@ -273,7 +303,8 @@ class Bot:
             text="My evil scheme {version} for {project} has been merged!".format(
                 version=version,
                 project=repo_info.name,
-            )
+            ),
+            is_announcement=True,
         )
 
     async def _web_application_release(self, command_args):
@@ -447,6 +478,7 @@ class Bot:
                 version=version,
                 pypi_server="pypitest" if testing else "pypi",
             ),
+            is_announcement=True,
         )
 
     async def finish_release(self, command_args):
@@ -495,7 +527,8 @@ class Bot:
             "And by 'released', I mean completely...um...leased.".format(
                 version=version,
                 project=repo_info.name,
-            )
+            ),
+            is_announcement=True,
         )
 
     async def report_version(self, command_args):
@@ -663,11 +696,11 @@ class Bot:
         """
         channel_id = command_args.channel_id
         text = "\n".join("*{command}*{join}{parsers}: {description}".format(
-            command=command,
-            parsers=" ".join("*<{}>*".format(parser.description) for parser in parsers),
-            join=" " if parsers else "",
-            description=description,
-        ) for command, parsers, _, description in sorted(self.make_commands()))
+            command=command.command,
+            parsers=" ".join("*<{}>*".format(parser.description) for parser in command.parsers),
+            join=" " if command.parsers else "",
+            description=command.description,
+        ) for command in sorted(self.make_commands()))
         title = (
             "Come on, Perry the Platypus. Let's go home. I talk to you enough, right? "
             "Yeah, you're right. Maybe too much."
@@ -810,23 +843,22 @@ class Bot:
             loop (asyncio.events.AbstractEventLoop): The asyncio event loop
         """
         await self.typing(channel_id)
-        commands = self.make_commands()
-        for command, parsers, command_func, _, supported_project_types in commands:
-            command_words = command.split()
+        for command in self.make_commands():
+            command_words = command.command.split()
             if has_command(command_words, words):
                 args = words[len(command_words):]
-                if len(args) != len(parsers):
+                if len(args) != len(command.parsers):
                     await self.say(
                         channel_id=channel_id,
                         text="Careful, careful. I expected {expected_num} words but you said {actual_num}.".format(
-                            expected_num=len(parsers),
+                            expected_num=len(command.parsers),
                             actual_num=len(args),
                         )
                     )
                     return
 
                 parsed_args = []
-                for arg, parser in zip(args, parsers):
+                for arg, parser in zip(args, command.parsers):
                     try:
                         parsed_args.append(parser.func(arg))
                     except:  # pylint: disable=bare-except
@@ -843,7 +875,7 @@ class Bot:
                         return
 
                 repo_info = self.get_repo_info(channel_id)
-                if supported_project_types is not None:
+                if command.supported_project_types is not None:
                     if repo_info is None:
                         await self.say(
                             channel_id=channel_id,
@@ -851,16 +883,16 @@ class Bot:
                         )
                         return
 
-                    if repo_info.project_type not in supported_project_types:
+                    if repo_info.project_type not in command.supported_project_types:
                         await self.say(
                             channel_id=channel_id,
                             text=(
-                                f"That command is only for {', '.join(supported_project_types)} projects but "
+                                f"That command is only for {', '.join(command.supported_project_types)} projects but "
                                 f"this is a {repo_info.project_type} project."
                             )
                         )
                         return
-                await command_func(
+                await command.command_func(
                     CommandArgs(
                         repo_info=repo_info,
                         channel_id=channel_id,

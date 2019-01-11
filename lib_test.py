@@ -296,6 +296,7 @@ def test_load_repos_info(mocker):
                 "project_type": "web_application",
                 "python2": False,
                 "python3": True,
+                "announcements": False,
             }
         ]
     })
@@ -312,6 +313,7 @@ def test_load_repos_info(mocker):
             project_type='web_application',
             python2=False,
             python3=True,
+            announcements=False,
         ),
     ]
     assert json_load.call_count == 1

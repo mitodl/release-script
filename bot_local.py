@@ -13,12 +13,17 @@ from bot import (
 
 class ConsoleBot(Bot):
     """Fake console bot"""
-    async def say(self, *, channel_id, text='', attachments=None, message_type=''):  # pylint: disable=unused-argument
+    async def say(
+            self, *, channel_id, text='', attachments=None, message_type='', is_announcement=False
+    ):  # pylint: disable=unused-argument
         """Print messages to stdout"""
         attachment_text = ''
         if attachments is not None:
             attachment_text = attachments[0].get('text', '')
-        line = " ".join(word for word in [text, attachment_text, message_type] if word)
+        line = (
+            f"{' '.join(word for word in [text, attachment_text, message_type] if word)} "
+            f"is_announcement={str(is_announcement)}"
+        )
         print("\033[92m{}\033[0m".format(line))
 
     async def typing(self, channel_id):

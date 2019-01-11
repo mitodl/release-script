@@ -8,7 +8,8 @@
       "channel_name": "micromasters-eng",
       "project_type": "web_application",
       "python2": false,
-      "python3": true
+      "python3": true,
+      "announcements": false
     },
     {
       "name": "bootcamp-ecommerce",
@@ -18,7 +19,8 @@
       "channel_name": "bootcamp-eng",
       "project_type": "web_application",
       "python2": false,
-      "python3": true
+      "python3": true,
+      "announcements": false
     },
     {
       "name": "open-discussions",
@@ -28,7 +30,8 @@
       "channel_name": "mit-open-eng",
       "project_type": "web_application",
       "python2": false,
-      "python3": true
+      "python3": true,
+      "announcements": false
     },
     {
       "name": "odl-video-service",
@@ -38,7 +41,8 @@
       "channel_name": "odl-video-service-eng",
       "project_type": "web_application",
       "python2": false,
-      "python3": true
+      "python3": true,
+      "announcements": false
     },
     {
       "name": "edx-sga",
@@ -46,7 +50,8 @@
       "channel_name": "edx-sga-doof",
       "project_type": "library",
       "python2": true,
-      "python3": false
+      "python3": false,
+      "announcements": false
     },
     {
       "name": "rapid-response-xblock",
@@ -54,7 +59,8 @@
       "channel_name": "rapid-response-doof",
       "project_type": "library",
       "python2": true,
-      "python3": false
+      "python3": false,
+      "announcements": false
     },
     {
       "name": "open-discussions-client",
@@ -62,7 +68,8 @@
       "channel_name": "discussions-client",
       "project_type": "library",
       "python2": false,
-      "python3": true
+      "python3": true,
+      "announcements": false
     },
     {
       "name": "edx-api-client",
@@ -70,7 +77,8 @@
       "channel_name": "edx-api-client-doof",
       "project_type": "library",
       "python2": true,
-      "python3": true
+      "python3": true,
+      "announcements": false
     },
     {
       "name": "mit-moira",
@@ -78,7 +86,13 @@
       "channel_name": "mit-moira",
       "project_type": "library",
       "python2": false,
-      "python3": true
+      "python3": true,
+      "announcements": false
+    },
+    {
+      "name": "doof-announcements",
+      "channel_name": "doof-announcements",
+      "announcements": true
     }
   ]
 }

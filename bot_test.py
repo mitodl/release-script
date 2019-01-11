@@ -10,6 +10,7 @@ from bot import (
     FINISH_RELEASE_ID
 )
 from conftest import (
+    ANNOUNCEMENTS_CHANNEL,
     LIBRARY_TEST_REPO_INFO,
     WEB_TEST_REPO_INFO,
 )
@@ -47,19 +48,21 @@ class DoofSpoof(Bot):
             slack_access_token=SLACK_ACCESS,
             github_access_token=GITHUB_ACCESS,
             timezone=pytz.timezone("America/New_York"),
-            repos_info=[WEB_TEST_REPO_INFO, LIBRARY_TEST_REPO_INFO],
+            repos_info=[WEB_TEST_REPO_INFO, LIBRARY_TEST_REPO_INFO, ANNOUNCEMENTS_CHANNEL],
         )
 
         self.slack_users = []
-        self.messages = []
+        self.messages = {}
 
     def lookup_users(self):
         """Users in the channel"""
         return self.slack_users
 
-    async def say(self, *, channel_id, text=None, attachments=None, message_type=None):
+    def _say(self, *, channel_id, text=None, attachments=None, message_type=None):
         """Quick and dirty message recording"""
-        self.messages.append("{} {} {} {}".format(channel_id, text, attachments, message_type))
+        if channel_id not in self.messages:
+            self.messages[channel_id] = []
+        self.messages[channel_id].append(f"{text} {attachments} {message_type}")
 
     async def typing(self, channel_id):
         """Ignore typing"""
@@ -68,13 +71,17 @@ class DoofSpoof(Bot):
         """
         Record message updates
         """
-        self.messages.append("{} {} {} {}".format(channel_id, text, attachments, timestamp))
+        if channel_id not in self.messages:
+            self.messages[channel_id] = []
+        self.messages[channel_id].append(f"{text} {attachments} {timestamp}")
 
-    def said(self, text):
+    def said(self, text, channel_id=None):
         """Did doof say this thing?"""
-        for message in self.messages:
-            if text in message:
-                return True
+        for message_channel_id, messages in self.messages.items():
+            if channel_id is None or message_channel_id == channel_id:
+                for message in messages:
+                    if text in message:
+                        return True
         return False
 
 
@@ -684,3 +691,34 @@ async def test_command_without_repo(doof, event_loop, command):
     assert doof.said(
         'That command requires a repo but this channel is not attached to any project.'
     )
+
+
+@pytest.mark.parametrize("is_announcement", [True, False])
+async def test_announcement(is_announcement, doof):
+    """
+    Test that an announcement will get sent to multiple channels
+    """
+    text = "some text here"
+    await doof.say(
+        channel_id=LIBRARY_TEST_REPO_INFO.channel_id,
+        text=text,
+        attachments=[{"some": "attachment"}],
+        message_type="a message",
+        is_announcement=is_announcement
+    )
+    assert doof.said(text, channel_id=LIBRARY_TEST_REPO_INFO.channel_id) is True
+    assert doof.said(text, channel_id=ANNOUNCEMENTS_CHANNEL.channel_id) is is_announcement
+
+
+async def test_help(doof, event_loop):
+    """
+    Test that doof will show help text
+    """
+    await doof.run_command(
+        manager='mitodl_user',
+        channel_id='not_a_repo_channel',
+        words=["help"],
+        loop=event_loop,
+    )
+
+    assert doof.said("*help*: Show available commands")

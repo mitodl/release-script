@@ -81,6 +81,7 @@ WEB_TEST_REPO_INFO = RepoInfo(
     project_type=WEB_APPLICATION_TYPE,
     python2=False,
     python3=True,
+    announcements=False,
 )
 
 
@@ -100,6 +101,20 @@ LIBRARY_TEST_REPO_INFO = RepoInfo(
     project_type=LIBRARY_TYPE,
     python2=True,
     python3=False,
+    announcements=False,
+)
+
+
+ANNOUNCEMENTS_CHANNEL = RepoInfo(
+    name='doof_repo',
+    repo_url=None,
+    prod_hash_url=None,
+    rc_hash_url=None,
+    channel_id='announcement_id',
+    project_type=None,
+    python2=None,
+    python3=None,
+    announcements=True,
 )
 
 
