@@ -34,6 +34,17 @@
       "announcements": false
     },
     {
+      "name": "mitxpro",
+      "repo_url": "https://github.com/mitodl/mitxpro.git",
+      "rc_hash_url": " https://xpro-rc.odl.mit.edu/static/hash.txt",
+      "prod_hash_url": " https://xpro.odl.mit.edu/static/hash.txt",
+      "channel_name": "mitxpro-eng",
+      "project_type": "web_application",
+      "python2": false,
+      "python3": true,
+      "announcements": false
+    },
+    {
       "name": "odl-video-service",
       "repo_url": "https://github.com/mitodl/odl-video-service.git",
       "rc_hash_url": "https://video-rc.odl.mit.edu/static/hash.txt",
