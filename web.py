@@ -19,13 +19,14 @@ class ButtonHandler(RequestHandler):
             bot (Bot): The bot
             loop (asyncio.events.AbstractEventLoop): The event loop
         """
+        # pylint: disable=attribute-defined-outside-init
         self.token = token
         self.bot = bot
         self.loop = loop
 
-    async def post(self, *args, **kwargs):
+    async def post(self, *args, **kwargs):  # pylint: disable=unused-argument
         """Handle webhook POST"""
-        arguments = json.loads(self.get_argument("payload"))
+        arguments = json.loads(self.get_argument("payload"))  # pylint: disable=no-value-for-parameter
         token = arguments['token']
         if token != self.token:
             self.set_status(401)
