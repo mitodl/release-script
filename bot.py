@@ -276,6 +276,10 @@ class Bot:
         )
 
         org, repo = get_org_and_repo(repo_url)
+        await self.say(
+            channel_id=channel_id,
+            text=f"My evil scheme {version} for {repo_info.name} has been released! Waiting for Travis..."
+        )
         status = await wait_for_travis(
             github_access_token=self.github_access_token,
             org=org,
