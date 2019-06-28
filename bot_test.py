@@ -182,14 +182,14 @@ async def test_release(doof, test_repo, event_loop, mocker, command):
         wait_for_deploy_sync_mock(*args, **kwargs)
 
     mocker.patch('bot.wait_for_deploy', wait_for_deploy_fake)
-    authors = ['author1', 'author2']
+    authors = {'author1', 'author2'}
     mocker.patch('bot.get_unchecked_authors', return_value=authors)
 
     wait_for_checkboxes_sync_mock = mocker.Mock()
     async def wait_for_checkboxes_fake(*args, **kwargs):
         """await cannot be used with mock objects"""
         wait_for_checkboxes_sync_mock(*args, **kwargs)
-    mocker.patch('bot.wait_for_checkboxes', wait_for_checkboxes_fake)
+    mocker.patch('bot.Bot.wait_for_checkboxes', wait_for_checkboxes_fake)
 
     command_words = command.split() + [version]
     me = 'mitodl_user'
@@ -223,17 +223,7 @@ async def test_release(doof, test_repo, event_loop, mocker, command):
             "These people have commits in this release: {}".format(', '.join(authors)),
             channel_id=channel_id,
         )
-    wait_for_checkboxes_sync_mock.assert_called_once_with(
-        github_access_token=GITHUB_ACCESS,
-        org=org,
-        repo=repo,
-    )
-    assert doof.said(
-        "Release {version} is ready for the Merginator {name}".format(
-            version=pr.version,
-            name=format_user_id(me),
-        )
-    )
+    assert wait_for_checkboxes_sync_mock.called is True
 
 
 @pytest.mark.parametrize("command", ['release', 'start release'])
@@ -489,7 +479,7 @@ async def test_delay_message(doof, test_repo, mocker):
 
     mocker.patch('asyncio.sleep', sleep_fake)
 
-    mocker.patch('bot.get_unchecked_authors', return_value=['author1'])
+    mocker.patch('bot.get_unchecked_authors', return_value={'author1'})
 
     await doof.delay_message(test_repo)
     assert doof.said(
@@ -726,3 +716,49 @@ async def test_help(doof, event_loop):
     )
 
     assert doof.said("*help*: Show available commands")
+
+
+async def test_wait_for_checkboxes(mocker, doof, test_repo):
+    """wait_for_checkboxes should poll github, parse checkboxes and see if all are checked"""
+    org, repo = get_org_and_repo(test_repo.repo_url)
+
+    pr = ReleasePR('version', f'https://github.com/{org}/{repo}/pulls/123456', 'body')
+    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True, return_value=pr)
+    get_unchecked_patch = mocker.patch('bot.get_unchecked_authors', autospec=True, side_effect=[
+        {'author1', 'author2', 'author3'},
+        {'author2'},
+        set(),
+    ])
+    sleep_sync_mock = mocker.Mock()
+
+    async def sleep_fake(*args, **kwargs):
+        """await cannot be used with mock objects"""
+        sleep_sync_mock(*args, **kwargs)
+
+    mocker.patch('asyncio.sleep', sleep_fake)
+
+    me = 'mitodl_user'
+    await doof.wait_for_checkboxes(
+        manager=me,
+        repo_info=test_repo,
+    )
+    get_unchecked_patch.assert_any_call(
+        github_access_token=GITHUB_ACCESS,
+        org=org,
+        repo=repo,
+    )
+    assert get_unchecked_patch.call_count == 3
+    assert sleep_sync_mock.call_count == 2
+    get_release_pr_mock.assert_called_once_with(github_access_token=GITHUB_ACCESS, org=org, repo=repo)
+    assert doof.said(
+        "Release {version} is ready for the Merginator {name}".format(
+            version=pr.version,
+            name=format_user_id(me),
+        )
+    )
+    assert doof.said(
+        "Thanks for checking off your boxes author1, author3!"
+    )
+    assert doof.said(
+        "Thanks for checking off your boxes author2!"
+    )
