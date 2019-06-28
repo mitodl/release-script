@@ -1,6 +1,7 @@
 """Tests for lib"""
 from datetime import datetime, timezone
 from itertools import product
+import os
 from subprocess import call
 from unittest.mock import (
     Mock,
@@ -231,7 +232,6 @@ def test_url_with_access_token():
     ) == "https://access@github.com/mitodl/release-script.git"
 
 
-@pytest.mark.skip
 @pytest.mark.parametrize("testing,python2,python3", list(product([True, False], repeat=3)))
 def test_upload_to_pypi(testing, python2, python3, mocker, library_test_repo):
     """upload_to_pypi should create a dist based on a version and upload to pypi or pypitest"""
@@ -248,18 +248,24 @@ def test_upload_to_pypi(testing, python2, python3, mocker, library_test_repo):
         'python3': python3,
     })
 
-    def check_call_func(*args, **kwargs):
+    def check_call_func(*args, env, **kwargs):
         """Patch check_call to skip twine"""
         command_args = args[0]
+
+        env = {
+            **os.environ,
+            **env
+        } if env is not None else os.environ
+
         if not command_args[0].endswith("twine"):
-            call(*args, **kwargs)
+            call(*args, **kwargs, env=env)
 
         if command_args[0].endswith("twine"):
             # Need to assert twine here since temp directory is random which makes it assert to assert
-            assert kwargs['env']['TWINE_USERNAME'] == (
+            assert env['TWINE_USERNAME'] == (
                 twine_env['PYPITEST_USERNAME'] if testing else twine_env['PYPI_USERNAME']
             )
-            assert kwargs['env']['TWINE_PASSWORD'] == (
+            assert env['TWINE_PASSWORD'] == (
                 twine_env['PYPITEST_PASSWORD'] if testing else twine_env['PYPI_PASSWORD']
             )
             assert args[0][1] == 'upload'
