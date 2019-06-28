@@ -9,6 +9,7 @@ NO_PR_BUILD = 'none'
 
 
 FINISH_RELEASE_ID = 'finish_release'
+NEW_RELEASE_ID = 'new_release'
 
 WEB_APPLICATION_TYPE = 'web_application'
 LIBRARY_TYPE = 'library'

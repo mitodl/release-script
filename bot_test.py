@@ -8,7 +8,8 @@ import pytz
 
 from bot import (
     Bot,
-    FINISH_RELEASE_ID
+    FINISH_RELEASE_ID,
+    NEW_RELEASE_ID,
 )
 from conftest import (
     ANNOUNCEMENTS_CHANNEL,
@@ -28,6 +29,7 @@ from exception import (
 from github import get_org_and_repo
 from lib import (
     format_user_id,
+    next_versions,
     ReleasePR,
 )
 
@@ -63,7 +65,7 @@ class DoofSpoof(Bot):
         """Quick and dirty message recording"""
         if channel_id not in self.messages:
             self.messages[channel_id] = []
-        self.messages[channel_id].append(f"{text} {attachments} {message_type}")
+        self.messages[channel_id].append({"text": text, "attachments": attachments, "message_type": message_type})
 
     async def typing(self, channel_id):
         """Ignore typing"""
@@ -76,13 +78,19 @@ class DoofSpoof(Bot):
             self.messages[channel_id] = []
         self.messages[channel_id].append(f"{text} {attachments} {timestamp}")
 
-    def said(self, text, channel_id=None):
+    def said(self, text, *, attachments=None, channel_id=None):
         """Did doof say this thing?"""
         for message_channel_id, messages in self.messages.items():
             if channel_id is None or message_channel_id == channel_id:
                 for message in messages:
-                    if text in message:
+                    if text not in str(message):
+                        continue
+
+                    if attachments is None:
                         return True
+                    else:
+                        return attachments == message["attachments"]
+
         return False
 
 
@@ -116,6 +124,70 @@ async def test_release_notes(doof, test_repo, event_loop, mocker):
     assert doof.said("Release notes since {}".format(old_version))
     assert doof.said(notes)
     assert doof.said(f"And also! There is a release already in progress: {release_pr.url}")
+
+
+async def test_release_notes_no_new_notes(doof, test_repo, event_loop, mocker):
+    """Doof should show that there are no new commits"""
+    old_version = "0.1.2"
+    update_version_mock = mocker.patch('bot.update_version', autospec=True, return_value=old_version)
+    notes = "no new commits"
+    create_release_notes_mock = mocker.patch('bot.create_release_notes', autospec=True, return_value=notes)
+    org, repo = get_org_and_repo(test_repo.repo_url)
+    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True, return_value=None)
+    any_new_commits_mock = mocker.patch('bot.any_new_commits', autospec=True, return_value=False)
+
+    await doof.run_command(
+        manager='mitodl_user',
+        channel_id=test_repo.channel_id,
+        words=['release', 'notes'],
+        loop=event_loop,
+    )
+
+    any_new_commits_mock.assert_called_once_with(old_version)
+    update_version_mock.assert_called_once_with("9.9.9")
+    create_release_notes_mock.assert_called_once_with(old_version, with_checkboxes=False)
+    get_release_pr_mock.assert_called_once_with(github_access_token=GITHUB_ACCESS, org=org, repo=repo)
+
+    assert doof.said("Release notes since {}".format(old_version))
+    assert not doof.said("Start a new release?")
+
+
+async def test_release_notes_buttons(doof, test_repo, event_loop, mocker):
+    """Doof should show release notes and then offer buttons to start a release"""
+    old_version = "0.1.2"
+    update_version_mock = mocker.patch('bot.update_version', autospec=True, return_value=old_version)
+    notes = "some notes"
+    create_release_notes_mock = mocker.patch('bot.create_release_notes', autospec=True, return_value=notes)
+    org, repo = get_org_and_repo(test_repo.repo_url)
+    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True, return_value=None)
+    any_new_commits_mock = mocker.patch('bot.any_new_commits', autospec=True, return_value=True)
+
+    await doof.run_command(
+        manager='mitodl_user',
+        channel_id=test_repo.channel_id,
+        words=['release', 'notes'],
+        loop=event_loop,
+    )
+
+    any_new_commits_mock.assert_called_once_with(old_version)
+    update_version_mock.assert_called_once_with("9.9.9")
+    create_release_notes_mock.assert_called_once_with(old_version, with_checkboxes=False)
+    get_release_pr_mock.assert_called_once_with(github_access_token=GITHUB_ACCESS, org=org, repo=repo)
+
+    assert doof.said("Release notes since {}".format(old_version))
+    assert doof.said(notes)
+    minor_version, patch_version = next_versions(old_version)
+    assert doof.said("Start a new release?", attachments=[
+        {
+            'fallback': 'New release',
+            'callback_id': 'new_release',
+            'actions': [
+                {'name': 'minor_release', 'text': minor_version, 'value': minor_version, 'type': 'button'},
+                {'name': 'patch_release', 'text': patch_version, 'value': patch_version, 'type': 'button'}
+            ]
+        }
+    ])
+    assert not doof.said(f"And also! There is a release already in progress")
 
 
 async def test_version(doof, test_repo, event_loop, mocker):
@@ -617,6 +689,87 @@ async def test_webhook_finish_release_fail(doof, event_loop, mocker):
     assert doof.said("Error")
 
 
+async def test_webhook_start_release(doof, test_repo, event_loop, mocker):
+    """
+    Start a new release
+    """
+    org, repo = get_org_and_repo(test_repo.repo_url)
+    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True, return_value=None)
+
+    release_mock = mocker.Mock()
+    async def release_fake(*args, **kwargs):
+        """await cannot be used with mock objects"""
+        release_mock(*args, **kwargs)
+
+    mocker.patch('bot.Bot._web_application_release', release_fake)
+
+    version = "3.4.5"
+    await doof.handle_webhook(
+        loop=event_loop,
+        webhook_dict={
+            "token": "token",
+            "callback_id": NEW_RELEASE_ID,
+            "channel": {
+                "id": "doof"
+            },
+            "user": {
+                "id": "doofenshmirtz"
+            },
+            "message_ts": "123.45",
+            "original_message": {
+                "text": "Doof's original text",
+            },
+            "actions": [
+                {
+                    "value": version
+                }
+            ]
+        },
+    )
+
+    assert doof.said(f"Starting release {version}...")
+    assert release_mock.call_count == 1
+    assert release_mock.call_args[0][1].args == [version]
+    assert not doof.said("Error")
+    get_release_pr_mock.assert_called_once_with(github_access_token=GITHUB_ACCESS, org=org, repo=repo)
+
+
+async def test_webhook_start_release_fail(doof, event_loop, mocker):
+    """
+    If starting the release fails we should update the button to show the error
+    """
+    release_mock = mocker.patch('bot.Bot.release_command', autospec=True, side_effect=ZeroDivisionError)
+    version = "3.4.5"
+    with pytest.raises(ZeroDivisionError):
+        await doof.handle_webhook(
+            loop=event_loop,
+            webhook_dict={
+                "token": "token",
+                "callback_id": NEW_RELEASE_ID,
+                "channel": {
+                    "id": "doof"
+                },
+                "user": {
+                    "id": "doofenshmirtz"
+                },
+                "message_ts": "123.45",
+                "original_message": {
+                    "text": "Doof's original text",
+                },
+                "actions": [
+                    {
+                        "value": version
+                    }
+                ]
+            },
+        )
+
+    assert doof.said(f"Starting release {version}...")
+    assert release_mock.call_count == 1
+    assert release_mock.call_args[0][1].args == [version]
+    assert doof.said("Error")
+
+
 async def test_uptime(doof, event_loop, mocker, test_repo):
     """Uptime should show how much time the bot has been awake"""
     now = datetime(2015, 1, 1, 3, 4, 5, tzinfo=pytz.utc)
@@ -758,7 +911,13 @@ async def test_wait_for_checkboxes(mocker, doof, test_repo):
         "Release {version} is ready for the Merginator {name}".format(
             version=pr.version,
             name=format_user_id(me),
-        )
+        ),
+        attachments=[
+            {
+                'actions': [{'name': 'finish_release', 'text': 'Finish the release', 'type': 'button'}],
+                'callback_id': 'finish_release', 'fallback': 'Finish the release'
+            }
+        ]
     )
     assert doof.said(
         "Thanks for checking off your boxes author1, author3!"
