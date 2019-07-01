@@ -399,7 +399,7 @@ class Bot:
 
         Args:
             repo_info (RepoInfo): Information for a repo
-            manager (str): User id for the release manager
+            manager (str or None): User id for the release manager
         """
         channel_id = repo_info.channel_id
         await self.say(
@@ -442,8 +442,8 @@ class Bot:
         )
         await self.say(
             channel_id=channel_id,
-            text="All checkboxes checked off. Release {version} is ready for the Merginator {name}!".format(
-                name=format_user_id(manager),
+            text="All checkboxes checked off. Release {version} is ready for the Merginator{name}!".format(
+                name=" " + format_user_id(manager) if manager else "",
                 version=pr.version
             ),
             attachments=[
@@ -1008,6 +1008,28 @@ class Bot:
         else:
             log.warning("Unknown callback id: %s", callback_id)
 
+    def startup(self, *, loop):
+        """
+        Run various tasks when bot starts
+
+        Args:
+            loop (asyncio.events.AbstractEventLoop): The asyncio event loop
+        """
+        for repo_info in self.repos_info:
+            if repo_info.project_type != WEB_APPLICATION_TYPE:
+                continue
+
+            org, repo = get_org_and_repo(repo_info.repo_url)
+            release_pr = get_release_pr(
+                github_access_token=self.github_access_token,
+                org=org,
+                repo=repo,
+            )
+            if not release_pr:
+                continue
+
+            loop.create_task(self.wait_for_checkboxes(manager=None, repo_info=repo_info))
+
 
 def get_version_number(text):
     """
@@ -1088,6 +1110,8 @@ def main():
                     await asyncio.sleep(30)
 
             asyncio.create_task(ping())
+
+            bot.startup(loop=loop)
 
             async for message in websocket:
                 message = json.loads(message)

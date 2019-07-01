@@ -1,4 +1,5 @@
 """Tests for Doof"""
+import asyncio
 from datetime import datetime, timedelta
 from unittest.mock import Mock
 
@@ -762,3 +763,41 @@ async def test_wait_for_checkboxes(mocker, doof, test_repo):
     assert doof.said(
         "Thanks for checking off your boxes author2!"
     )
+
+
+# pylint: disable=too-many-arguments
+@pytest.mark.parametrize("repo_info, has_release_pr, has_expected", [
+    [WEB_TEST_REPO_INFO, False, False],
+    [WEB_TEST_REPO_INFO, True, True],
+    [LIBRARY_TEST_REPO_INFO, False, False],
+    [LIBRARY_TEST_REPO_INFO, True, False],
+    [ANNOUNCEMENTS_CHANNEL, False, False],
+    [ANNOUNCEMENTS_CHANNEL, True, False],
+])
+async def test_startup(doof, event_loop, mocker, repo_info, has_release_pr, has_expected):
+    """
+    Test that doof will show help text
+    """
+    doof.repos_info = [repo_info]
+    release_pr = ReleasePR(
+        version="version",
+        url=repo_info.repo_url,
+        body='Release PR body',
+    )
+    mocker.patch('bot.get_release_pr', autospec=True, return_value=(
+        release_pr if has_release_pr else None
+    ))
+    wait_for_checkboxes_sync_mock = mocker.Mock()
+    async def wait_for_checkboxes_fake(*args, **kwargs):
+        """await cannot be used with mock objects"""
+        wait_for_checkboxes_sync_mock(*args, **kwargs)
+    doof.wait_for_checkboxes = wait_for_checkboxes_fake
+
+    doof.startup(loop=event_loop)
+    # iterate once through event loop
+    await asyncio.sleep(0)
+
+    if has_expected:
+        wait_for_checkboxes_sync_mock.assert_called_once_with(manager=None, repo_info=repo_info)
+    else:
+        assert wait_for_checkboxes_sync_mock.call_count == 0
