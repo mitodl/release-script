@@ -111,6 +111,9 @@ def get_unchecked_authors(*, github_access_token, org, repo):
         github_access_token (str): The github access token
         org (str): The github organization (eg mitodl)
         repo (str): The github repository (eg micromasters)
+
+    Returns:
+        set[str]: A set of github usernames
     """
     release_pr = get_release_pr(
         github_access_token=github_access_token,

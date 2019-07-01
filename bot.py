@@ -55,7 +55,6 @@ from wait_for_deploy import (
     wait_for_deploy,
 )
 from version import get_version_tag
-from wait_for_checked import wait_for_checkboxes
 from wait_for_travis import wait_for_travis
 from web import make_app
 
@@ -411,11 +410,31 @@ class Bot:
             )
         )
         org, repo = get_org_and_repo(repo_info.repo_url)
-        await wait_for_checkboxes(
+
+        unchecked = get_unchecked_authors(
             github_access_token=self.github_access_token,
             org=org,
             repo=repo,
         )
+
+        while unchecked:
+            await asyncio.sleep(60)
+
+            unchecked_authors = get_unchecked_authors(
+                github_access_token=self.github_access_token,
+                org=org,
+                repo=repo,
+            )
+
+            newly_checked = unchecked - unchecked_authors
+            if newly_checked:
+                await self.say(
+                    channel_id=channel_id,
+                    text=f"Thanks for checking off your boxes "
+                    f"{', '.join(sorted(self.translate_slack_usernames(newly_checked)))}!",
+                )
+            unchecked = unchecked_authors
+
         pr = get_release_pr(
             github_access_token=self.github_access_token,
             org=org,
