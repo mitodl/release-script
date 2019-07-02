@@ -589,6 +589,7 @@ class Bot:
             last_version = update_version("9.9.9")
 
             release_notes = create_release_notes(last_version, with_checkboxes=False)
+            has_new_commits = any_new_commits(last_version)
 
         await self.say_with_attachment(
             channel_id=repo_info.channel_id,
@@ -603,7 +604,7 @@ class Bot:
                 channel_id=repo_info.channel_id,
                 text=f"And also! There is a release already in progress: {release_pr.url}"
             )
-        elif any_new_commits(last_version):
+        elif has_new_commits:
             new_minor, new_patch = next_versions(last_version)
             await self.say(
                 channel_id=repo_info.channel_id,
