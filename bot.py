@@ -16,6 +16,7 @@ import websockets
 
 from constants import (
     FINISH_RELEASE_ID,
+    NEW_RELEASE_ID,
     LIBRARY_TYPE,
     TRAVIS_SUCCESS,
     WEB_APPLICATION_TYPE,
@@ -32,6 +33,7 @@ from github import (
     needs_review,
 )
 from release import (
+    any_new_commits,
     create_release_notes,
     init_working_dir,
     release,
@@ -43,6 +45,7 @@ from lib import (
     format_user_id,
     load_repos_info,
     match_user,
+    next_versions,
     now_in_utc,
     next_workday_at_10,
     parse_date,
@@ -586,6 +589,7 @@ class Bot:
             last_version = update_version("9.9.9")
 
             release_notes = create_release_notes(last_version, with_checkboxes=False)
+            has_new_commits = any_new_commits(last_version)
 
         await self.say_with_attachment(
             channel_id=repo_info.channel_id,
@@ -599,6 +603,32 @@ class Bot:
             await self.say(
                 channel_id=repo_info.channel_id,
                 text=f"And also! There is a release already in progress: {release_pr.url}"
+            )
+        elif has_new_commits:
+            new_minor, new_patch = next_versions(last_version)
+            await self.say(
+                channel_id=repo_info.channel_id,
+                text="Start a new release?",
+                attachments=[
+                    {
+                        "fallback": "New release",
+                        "callback_id": NEW_RELEASE_ID,
+                        "actions": [
+                            {
+                                "name": "minor_release",
+                                "text": new_minor,
+                                "value": new_minor,
+                                "type": "button",
+                            },
+                            {
+                                "name": "patch_release",
+                                "text": new_patch,
+                                "value": new_patch,
+                                "type": "button",
+                            }
+                        ]
+                    }
+                ]
             )
 
     async def message_if_unchecked(self, repo_info):
@@ -1009,6 +1039,35 @@ class Bot:
                 )
                 raise
 
+        elif callback_id == NEW_RELEASE_ID:
+            repo_info = self.get_repo_info(channel_id)
+            version = webhook_dict['actions'][0]['value']
+            await self.update_message(
+                channel_id=channel_id,
+                timestamp=timestamp,
+                text=original_text,
+                attachments=[{
+                    "title": f"Starting release {version}..."
+                }],
+            )
+            try:
+                await self.release_command(CommandArgs(
+                    channel_id=channel_id,
+                    repo_info=repo_info,
+                    args=[version],
+                    loop=loop,
+                    manager=user_id,
+                ))
+            except:
+                await self.update_message(
+                    channel_id=channel_id,
+                    timestamp=timestamp,
+                    text=original_text,
+                    attachments=[{
+                        "title": "Error starting release"
+                    }],
+                )
+                raise
         else:
             log.warning("Unknown callback id: %s", callback_id)
 

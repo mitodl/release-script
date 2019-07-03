@@ -18,6 +18,7 @@ from lib import (
     load_repos_info,
     match_user,
     next_workday_at_10,
+    next_versions,
     parse_checkmarks,
     reformatted_full_name,
     ReleasePR,
@@ -323,3 +324,8 @@ def test_load_repos_info(mocker):
         ),
     ]
     assert json_load.call_count == 1
+
+
+def test_next_versions():
+    """next_versions should return a tuple of the updated minor and patch versions"""
+    assert next_versions("1.2.3") == ("1.3.0", "1.2.4")

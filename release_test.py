@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from release import (
+    any_new_commits,
     create_release_notes,
     dependency_exists,
     DependencyException,
@@ -145,10 +146,6 @@ def test_dependency_exists():
     """dependency_exists should check that the command exists on the system"""
     assert dependency_exists("ls")
     assert not dependency_exists("xyzzy")
-
-
-def test_checkout():
-    """checkout should change the """
 
 
 def test_validate_dependencies():
@@ -309,6 +306,19 @@ def test_create_release_notes_amp(test_repo, with_checkboxes):
 
     notes = create_release_notes("0.0.1", with_checkboxes=with_checkboxes)
     assert "Commit & \' \"" in notes
+
+
+@pytest.mark.parametrize("has_commits", [True, False])
+def test_any_new_commits(test_repo, has_commits):
+    """any_new_commits should return a bool value saying whether there are new commits or not"""
+    make_empty_commit("initial", "initial commit")
+    check_call(["git", "tag", "v0.0.1"])
+
+    if has_commits:
+        make_empty_commit("User 1", "After 1")
+    check_call(["git", "tag", "v0.0.2"])
+
+    assert any_new_commits("0.0.1") is has_commits
 
 
 def test_update_release_notes(test_repo):

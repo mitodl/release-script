@@ -358,3 +358,19 @@ def load_repos_info(channel_lookup):
                 announcements=repo_info.get('announcements'),
             ) for repo_info in repos_info['repos']
         ]
+
+
+def next_versions(version):
+    """
+    Create the next minor and patch versions from existing version
+
+    Args:
+        version (str): A version string which is already validated
+
+    Returns:
+        (str, str): A new version with the minor version incremented, and the same with the patch version incremented
+    """
+    old_major, old_minor, patch_version = version.split(".")
+    new_minor = f"{old_major}.{int(old_minor) + 1}.0"
+    new_patch = f"{old_major}.{old_minor}.{int(patch_version) + 1}"
+    return new_minor, new_patch
