@@ -106,6 +106,7 @@ async def test_release_notes(doof, test_repo, event_loop, mocker):
     update_version_mock = mocker.patch('bot.update_version', autospec=True, return_value=old_version)
     notes = "some notes"
     create_release_notes_mock = mocker.patch('bot.create_release_notes', autospec=True, return_value=notes)
+    any_new_commits_mock = mocker.patch('bot.any_new_commits', autospec=True, return_value=True)
     org, repo = get_org_and_repo(test_repo.repo_url)
     release_pr = ReleasePR('version', f'https://github.com/{org}/{repo}/pulls/123456', 'body')
     get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True, return_value=release_pr)
@@ -119,6 +120,7 @@ async def test_release_notes(doof, test_repo, event_loop, mocker):
 
     update_version_mock.assert_called_once_with("9.9.9")
     create_release_notes_mock.assert_called_once_with(old_version, with_checkboxes=False)
+    any_new_commits_mock.assert_called_once_with(old_version)
     get_release_pr_mock.assert_called_once_with(github_access_token=GITHUB_ACCESS, org=org, repo=repo)
 
     assert doof.said("Release notes since {}".format(old_version))
