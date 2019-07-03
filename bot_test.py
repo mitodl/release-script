@@ -338,6 +338,9 @@ async def test_release_library(doof, library_test_repo, event_loop, mocker):
         timezone=doof.timezone
     )
     assert doof.said(
+        f"My evil scheme {pr.version} for {library_test_repo.name} has been released! Waiting for Travis..."
+    )
+    assert doof.said(
         "My evil scheme {version} for {project} has been merged!".format(
             version=pr.version,
             project=library_test_repo.name,
