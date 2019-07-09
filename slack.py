@@ -1,8 +1,8 @@
 """functions for interacting with slack"""
-import requests
+import http3
 
 
-def get_channels_info(slack_access_token):
+async def get_channels_info(slack_access_token):
     """
     Get channel information from slack
 
@@ -12,8 +12,9 @@ def get_channels_info(slack_access_token):
     Returns:
         dict: A map of channel names to channel ids
     """
+    client = http3.AsyncClient()
     # public channels
-    resp = requests.post("https://slack.com/api/channels.list", data={
+    resp = await client.post("https://slack.com/api/channels.list", data={
         "token": slack_access_token
     })
     resp.raise_for_status()
@@ -21,7 +22,7 @@ def get_channels_info(slack_access_token):
     channels_map = {channel['name']: channel['id'] for channel in channels}
 
     # private channels
-    resp = requests.post("https://slack.com/api/groups.list", data={
+    resp = await client.post("https://slack.com/api/groups.list", data={
         "token": slack_access_token
     })
     resp.raise_for_status()

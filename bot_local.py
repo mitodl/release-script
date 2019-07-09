@@ -30,7 +30,7 @@ class ConsoleBot(Bot):
         """Ignore typing messages"""
 
 
-def main():
+async def async_main():
     """Handle command line arguments and run a command"""
     envs = get_envs()
 
@@ -39,7 +39,7 @@ def main():
 
     _, channel_name, *words = sys.argv
 
-    channels_info = get_channels_info(envs['SLACK_ACCESS_TOKEN'])
+    channels_info = await get_channels_info(envs['SLACK_ACCESS_TOKEN'])
     try:
         channel_id = channels_info[channel_name]
     except KeyError:
@@ -55,15 +55,20 @@ def main():
         repos_info=repos_info
     )
 
+    await bot.handle_message(
+        manager='mitodl_user',
+        channel_id=channel_id,
+        words=words,
+        loop=asyncio.get_event_loop(),
+    )
+
+
+def main():
+    """Main function"""
     loop = asyncio.get_event_loop()
     loop.run_until_complete(
         loop.create_task(
-            bot.handle_message(
-                manager='mitodl_user',
-                channel_id=channel_id,
-                words=words,
-                loop=loop,
-            )
+            async_main()
         )
     )
 

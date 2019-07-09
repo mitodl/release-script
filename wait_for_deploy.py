@@ -2,19 +2,20 @@
 import argparse
 import asyncio
 import os
-from subprocess import check_output
 
-import requests
+import http3
 
+from async_subprocess import check_output
 from release import (
     init_working_dir,
     validate_dependencies,
 )
 
 
-def fetch_release_hash(hash_url):
+async def fetch_release_hash(hash_url):
     """Fetch the hash from the release"""
-    response = requests.get(hash_url)
+    client = http3.AsyncClient()
+    response = await client.get(hash_url)
     response.raise_for_status()
     release_hash = response.content.decode().strip()
     if len(release_hash) != 40:
@@ -27,12 +28,13 @@ def fetch_release_hash(hash_url):
 
 async def wait_for_deploy(*, github_access_token, repo_url, hash_url, watch_branch):
     """Wait until server is finished with the deploy"""
-    validate_dependencies()
+    await validate_dependencies()
 
-    with init_working_dir(github_access_token, repo_url):
-        latest_hash = check_output(["git", "rev-parse", "origin/{}".format(watch_branch)]).decode().strip()
+    async with init_working_dir(github_access_token, repo_url):
+        output = await check_output(["git", "rev-parse", "origin/{}".format(watch_branch)])
+        latest_hash = output.decode().strip()
     print("Polling {url} for {hash}...".format(url=hash_url, hash=latest_hash))
-    while fetch_release_hash(hash_url) != latest_hash:
+    while await fetch_release_hash(hash_url) != latest_hash:
         await asyncio.sleep(30)
         print(".", end='')
     print("Hashes match, deployment was successful!")

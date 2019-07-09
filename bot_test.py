@@ -61,7 +61,7 @@ class DoofSpoof(Bot):
         """Users in the channel"""
         return self.slack_users
 
-    def _say(self, *, channel_id, text=None, attachments=None, message_type=None):
+    async def _say(self, *, channel_id, text=None, attachments=None, message_type=None):
         """Quick and dirty message recording"""
         if channel_id not in self.messages:
             self.messages[channel_id] = []
@@ -105,11 +105,11 @@ async def test_release_notes(doof, test_repo, event_loop, mocker):
     old_version = "0.1.2"
     update_version_mock = mocker.patch('bot.update_version', autospec=True, return_value=old_version)
     notes = "some notes"
-    create_release_notes_mock = mocker.patch('bot.create_release_notes', autospec=True, return_value=notes)
-    any_new_commits_mock = mocker.patch('bot.any_new_commits', autospec=True, return_value=True)
+    create_release_notes_mock = mocker.async_patch('bot.create_release_notes', return_value=notes)
+    any_new_commits_mock = mocker.async_patch('bot.any_new_commits', return_value=True)
     org, repo = get_org_and_repo(test_repo.repo_url)
     release_pr = ReleasePR('version', f'https://github.com/{org}/{repo}/pulls/123456', 'body')
-    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True, return_value=release_pr)
+    get_release_pr_mock = mocker.async_patch('bot.get_release_pr', return_value=release_pr)
 
     await doof.run_command(
         manager='mitodl_user',
@@ -133,10 +133,10 @@ async def test_release_notes_no_new_notes(doof, test_repo, event_loop, mocker):
     old_version = "0.1.2"
     update_version_mock = mocker.patch('bot.update_version', autospec=True, return_value=old_version)
     notes = "no new commits"
-    create_release_notes_mock = mocker.patch('bot.create_release_notes', autospec=True, return_value=notes)
+    create_release_notes_mock = mocker.async_patch('bot.create_release_notes', return_value=notes)
     org, repo = get_org_and_repo(test_repo.repo_url)
-    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True, return_value=None)
-    any_new_commits_mock = mocker.patch('bot.any_new_commits', autospec=True, return_value=False)
+    get_release_pr_mock = mocker.async_patch('bot.get_release_pr', return_value=None)
+    any_new_commits_mock = mocker.async_patch('bot.any_new_commits', return_value=False)
 
     await doof.run_command(
         manager='mitodl_user',
@@ -159,10 +159,10 @@ async def test_release_notes_buttons(doof, test_repo, event_loop, mocker):
     old_version = "0.1.2"
     update_version_mock = mocker.patch('bot.update_version', autospec=True, return_value=old_version)
     notes = "some notes"
-    create_release_notes_mock = mocker.patch('bot.create_release_notes', autospec=True, return_value=notes)
+    create_release_notes_mock = mocker.async_patch('bot.create_release_notes', return_value=notes)
     org, repo = get_org_and_repo(test_repo.repo_url)
-    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True, return_value=None)
-    any_new_commits_mock = mocker.patch('bot.any_new_commits', autospec=True, return_value=True)
+    get_release_pr_mock = mocker.async_patch('bot.get_release_pr', return_value=None)
+    any_new_commits_mock = mocker.async_patch('bot.any_new_commits', return_value=True)
 
     await doof.run_command(
         manager='mitodl_user',
@@ -198,8 +198,8 @@ async def test_version(doof, test_repo, event_loop, mocker):
     """
     a_hash = 'hash'
     version = '1.2.3'
-    fetch_release_hash_mock = mocker.patch('bot.fetch_release_hash', autospec=True, return_value=a_hash)
-    get_version_tag_mock = mocker.patch('bot.get_version_tag', autospec=True, return_value="v{}".format(version))
+    fetch_release_hash_mock = mocker.async_patch('bot.fetch_release_hash', return_value=a_hash)
+    get_version_tag_mock = mocker.async_patch('bot.get_version_tag', return_value="v{}".format(version))
     await doof.run_command(
         manager='mitodl_user',
         channel_id=test_repo.channel_id,
@@ -247,24 +247,14 @@ async def test_release(doof, test_repo, event_loop, mocker, command):
         url='http://new.url',
         body='Release PR body',
     )
-    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True, side_effect=[None, pr, pr])
-    release_mock = mocker.patch('bot.release', autospec=True)
+    get_release_pr_mock = mocker.async_patch('bot.get_release_pr', side_effect=[None, pr, pr])
+    release_mock = mocker.async_patch('bot.release')
 
-    wait_for_deploy_sync_mock = mocker.Mock()
-
-    async def wait_for_deploy_fake(*args, **kwargs):
-        """await cannot be used with mock objects"""
-        wait_for_deploy_sync_mock(*args, **kwargs)
-
-    mocker.patch('bot.wait_for_deploy', wait_for_deploy_fake)
+    wait_for_deploy_sync_mock = mocker.async_patch('bot.wait_for_deploy')
     authors = {'author1', 'author2'}
-    mocker.patch('bot.get_unchecked_authors', return_value=authors)
+    mocker.async_patch('bot.get_unchecked_authors', return_value=authors)
 
-    wait_for_checkboxes_sync_mock = mocker.Mock()
-    async def wait_for_checkboxes_fake(*args, **kwargs):
-        """await cannot be used with mock objects"""
-        wait_for_checkboxes_sync_mock(*args, **kwargs)
-    mocker.patch('bot.Bot.wait_for_checkboxes', wait_for_checkboxes_fake)
+    wait_for_checkboxes_sync_mock = mocker.async_patch('bot.Bot.wait_for_checkboxes')
 
     command_words = command.split() + [version]
     me = 'mitodl_user'
@@ -308,7 +298,7 @@ async def test_release_in_progress(doof, test_repo, event_loop, mocker, command)
     """
     version = '1.2.3'
     url = 'http://fake.release.pr'
-    mocker.patch('bot.get_release_pr', autospec=True, return_value=ReleasePR(
+    mocker.async_patch('bot.get_release_pr', return_value=ReleasePR(
         version=version,
         url=url,
         body='Release PR body',
@@ -367,17 +357,11 @@ async def test_release_library(doof, library_test_repo, event_loop, mocker):
         url='http://new.url',
         body='Release PR body',
     )
-    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True, side_effect=[None, pr, pr])
-    release_mock = mocker.patch('bot.release', autospec=True)
-    finish_release_mock = mocker.patch('bot.finish_release', autospec=True)
+    get_release_pr_mock = mocker.async_patch('bot.get_release_pr', side_effect=[None, pr, pr])
+    release_mock = mocker.async_patch('bot.release')
+    finish_release_mock = mocker.async_patch('bot.finish_release')
 
-    wait_for_travis_sync_mock = mocker.Mock()
-    wait_for_travis_sync_mock.return_value = TRAVIS_SUCCESS
-
-    async def wait_for_travis_fake(*args, **kwargs):
-        """await cannot be used with mock objects"""
-        return wait_for_travis_sync_mock(*args, **kwargs)
-    mocker.patch('bot.wait_for_travis', wait_for_travis_fake)
+    wait_for_travis_sync_mock = mocker.async_patch('bot.wait_for_travis', return_value=TRAVIS_SUCCESS)
 
     command_words = ['release', version]
     me = 'mitodl_user'
@@ -430,17 +414,11 @@ async def test_release_library_failure(doof, library_test_repo, event_loop, mock
         url='http://new.url',
         body='Release PR body',
     )
-    mocker.patch('bot.get_release_pr', autospec=True, side_effect=[None, pr, pr])
-    release_mock = mocker.patch('bot.release', autospec=True)
-    finish_release_mock = mocker.patch('bot.finish_release', autospec=True)
+    mocker.async_patch('bot.get_release_pr', side_effect=[None, pr, pr])
+    release_mock = mocker.async_patch('bot.release')
+    finish_release_mock = mocker.async_patch('bot.finish_release')
 
-    wait_for_travis_sync_mock = mocker.Mock()
-    wait_for_travis_sync_mock.return_value = TRAVIS_FAILURE
-
-    async def wait_for_travis_fake(*args, **kwargs):
-        """await cannot be used with mock objects"""
-        return wait_for_travis_sync_mock(*args, **kwargs)
-    mocker.patch('bot.wait_for_travis', wait_for_travis_fake)
+    wait_for_travis_sync_mock = mocker.async_patch('bot.wait_for_travis', return_value=TRAVIS_FAILURE)
 
     command_words = ['release', version]
     me = 'mitodl_user'
@@ -479,16 +457,10 @@ async def test_finish_release(doof, test_repo, event_loop, mocker):
         url='http://new.url',
         body='Release PR body',
     )
-    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True, return_value=pr)
-    finish_release_mock = mocker.patch('bot.finish_release', autospec=True)
+    get_release_pr_mock = mocker.async_patch('bot.get_release_pr', return_value=pr)
+    finish_release_mock = mocker.async_patch('bot.finish_release')
 
-    wait_for_deploy_sync_mock = mocker.Mock()
-
-    async def wait_for_deploy_fake(*args, **kwargs):
-        """await cannot be used with mock objects"""
-        wait_for_deploy_sync_mock(*args, **kwargs)
-
-    mocker.patch('bot.wait_for_deploy', wait_for_deploy_fake)
+    wait_for_deploy_sync_mock = mocker.async_patch('bot.wait_for_deploy')
 
     await doof.run_command(
         manager='mitodl_user',
@@ -523,7 +495,7 @@ async def test_finish_release_no_release(doof, test_repo, event_loop, mocker):
     """
     If there's no release to finish doof should complain
     """
-    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True, return_value=None)
+    get_release_pr_mock = mocker.async_patch('bot.get_release_pr', return_value=None)
     with pytest.raises(ReleaseException) as ex:
         await doof.run_command(
             manager='mitodl_user',
@@ -549,15 +521,9 @@ async def test_delay_message(doof, test_repo, mocker):
     future = now + timedelta(seconds=seconds_diff)
     next_workday_mock = mocker.patch('bot.next_workday_at_10', autospec=True, return_value=future)
 
-    sleep_sync_mock = Mock()
+    sleep_sync_mock = mocker.async_patch('asyncio.sleep')
 
-    async def sleep_fake(*args, **kwargs):
-        """await cannot be used with mock objects"""
-        sleep_sync_mock(*args, **kwargs)
-
-    mocker.patch('asyncio.sleep', sleep_fake)
-
-    mocker.patch('bot.get_unchecked_authors', return_value={'author1'})
+    mocker.async_patch('bot.get_unchecked_authors', return_value={'author1'})
 
     await doof.delay_message(test_repo)
     assert doof.said(
@@ -602,20 +568,15 @@ async def test_webhook_finish_release(doof, event_loop, mocker):
     """
     Finish the release
     """
-    wait_for_deploy_sync_mock = Mock()
-
-    async def wait_for_deploy_fake(*args, **kwargs):
-        """await cannot be used with mock objects"""
-        wait_for_deploy_sync_mock(*args, **kwargs)
+    wait_for_deploy_sync_mock = mocker.async_patch('bot.wait_for_deploy')
 
     pr_body = ReleasePR(
         version='version',
         url='url',
         body='body',
     )
-    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True, return_value=pr_body)
-    finish_release_mock = mocker.patch('bot.finish_release', autospec=True)
-    mocker.patch('bot.wait_for_deploy', wait_for_deploy_fake)
+    get_release_pr_mock = mocker.async_patch('bot.get_release_pr', return_value=pr_body)
+    finish_release_mock = mocker.async_patch('bot.finish_release')
 
     await doof.handle_webhook(
         loop=event_loop,
@@ -663,8 +624,8 @@ async def test_webhook_finish_release_fail(doof, event_loop, mocker):
     """
     If finishing the release fails we should update the button to show the error
     """
-    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True)
-    finish_release_mock = mocker.patch('bot.finish_release', autospec=True, side_effect=KeyError)
+    get_release_pr_mock = mocker.async_patch('bot.get_release_pr')
+    finish_release_mock = mocker.async_patch('bot.finish_release', side_effect=KeyError)
 
     with pytest.raises(KeyError):
         await doof.handle_webhook(
@@ -696,14 +657,9 @@ async def test_webhook_start_release(doof, test_repo, event_loop, mocker):
     Start a new release
     """
     org, repo = get_org_and_repo(test_repo.repo_url)
-    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True, return_value=None)
+    get_release_pr_mock = mocker.async_patch('bot.get_release_pr', return_value=None)
 
-    release_mock = mocker.Mock()
-    async def release_fake(*args, **kwargs):
-        """await cannot be used with mock objects"""
-        release_mock(*args, **kwargs)
-
-    mocker.patch('bot.Bot._web_application_release', release_fake)
+    release_mock = mocker.async_patch('bot.Bot._web_application_release')
 
     version = "3.4.5"
     await doof.handle_webhook(
@@ -882,19 +838,13 @@ async def test_wait_for_checkboxes(mocker, doof, test_repo):
     org, repo = get_org_and_repo(test_repo.repo_url)
 
     pr = ReleasePR('version', f'https://github.com/{org}/{repo}/pulls/123456', 'body')
-    get_release_pr_mock = mocker.patch('bot.get_release_pr', autospec=True, return_value=pr)
-    get_unchecked_patch = mocker.patch('bot.get_unchecked_authors', autospec=True, side_effect=[
+    get_release_pr_mock = mocker.async_patch('bot.get_release_pr', return_value=pr)
+    get_unchecked_patch = mocker.async_patch('bot.get_unchecked_authors', side_effect=[
         {'author1', 'author2', 'author3'},
         {'author2'},
         set(),
     ])
-    sleep_sync_mock = mocker.Mock()
-
-    async def sleep_fake(*args, **kwargs):
-        """await cannot be used with mock objects"""
-        sleep_sync_mock(*args, **kwargs)
-
-    mocker.patch('asyncio.sleep', sleep_fake)
+    sleep_sync_mock = mocker.async_patch('asyncio.sleep')
 
     me = 'mitodl_user'
     await doof.wait_for_checkboxes(
@@ -948,7 +898,7 @@ async def test_startup(doof, event_loop, mocker, repo_info, has_release_pr, has_
         url=repo_info.repo_url,
         body='Release PR body',
     )
-    mocker.patch('bot.get_release_pr', autospec=True, return_value=(
+    mocker.async_patch('bot.get_release_pr', return_value=(
         release_pr if has_release_pr else None
     ))
     wait_for_checkboxes_sync_mock = mocker.Mock()
@@ -957,7 +907,7 @@ async def test_startup(doof, event_loop, mocker, repo_info, has_release_pr, has_
         wait_for_checkboxes_sync_mock(*args, **kwargs)
     doof.wait_for_checkboxes = wait_for_checkboxes_fake
 
-    doof.startup(loop=event_loop)
+    await doof.startup(loop=event_loop)
     # iterate once through event loop
     await asyncio.sleep(0)
 

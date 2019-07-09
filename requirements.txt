@@ -1,4 +1,4 @@
-requests
+http3
 python-dateutil
 pytz
 websockets

@@ -9,8 +9,9 @@ import sys
 import logging
 import json
 import re
-
 import requests
+
+import http3
 import pytz
 import websockets
 
@@ -116,17 +117,18 @@ class Bot:
         self.message_count = 0
         self.doof_boot = now_in_utc()
 
-    def lookup_users(self):
+    async def lookup_users(self):
         """
         Get users list from slack
         """
-        resp = requests.post("https://slack.com/api/users.list", data={
+        client = http3.AsyncClient()
+        resp = await client.post("https://slack.com/api/users.list", data={
             "token": self.slack_access_token
         })
         resp.raise_for_status()
         return resp.json()['members']
 
-    def translate_slack_usernames(self, names):
+    async def translate_slack_usernames(self, names):
         """
         Try to match each full name with a slack username.
 
@@ -138,7 +140,7 @@ class Bot:
                 A iterable of either the slack name or a full name if a slack name was not found
         """
         try:
-            slack_users = self.lookup_users()
+            slack_users = await self.lookup_users()
             return [match_user(slack_users, author) for author in names]
 
         except Exception as exception:  # pylint: disable=broad-except
@@ -157,7 +159,7 @@ class Bot:
                 return repo_info
         return None
 
-    def _say(self, *, channel_id, text, attachments, message_type):
+    async def _say(self, *, channel_id, text, attachments, message_type):
         """
         Post a message in a Slack channel
 
@@ -171,7 +173,8 @@ class Bot:
         text_dict = {"text": text} if text else {}
         message_type_dict = {"type": message_type} if message_type else {}
 
-        resp = requests.post('https://slack.com/api/chat.postMessage', data={
+        client = http3.AsyncClient()
+        resp = await client.post('https://slack.com/api/chat.postMessage', data={
             "token": self.slack_access_token,
             "channel": channel_id,
             **text_dict,
@@ -191,7 +194,7 @@ class Bot:
             message_type (str): The type of message
             is_announcement (bool): If true, also display this message to the announcements channel
         """
-        self._say(
+        await self._say(
             channel_id=channel_id,
             text=text,
             attachments=attachments,
@@ -201,7 +204,7 @@ class Bot:
         if is_announcement:
             for repo_info in self.repos_info:
                 if repo_info.announcements:
-                    self._say(
+                    await self._say(
                         channel_id=repo_info.channel_id,
                         text=text,
                         attachments=attachments,
@@ -221,7 +224,8 @@ class Bot:
         attachments_dict = {"attachments": json.dumps(attachments)} if attachments else {}
         text_dict = {"text": text} if text else {}
 
-        resp = requests.post('https://slack.com/api/chat.update', data={
+        client = http3.AsyncClient()
+        resp = await client.post('https://slack.com/api/chat.update', data={
             "token": self.slack_access_token,
             "channel": channel_id,
             "ts": timestamp,
@@ -272,7 +276,7 @@ class Bot:
         repo_url = repo_info.repo_url
         channel_id = repo_info.channel_id
 
-        release(
+        await release(
             github_access_token=self.github_access_token,
             repo_url=repo_url,
             new_version=version,
@@ -298,7 +302,7 @@ class Bot:
             )
             return
 
-        finish_release(
+        await finish_release(
             github_access_token=self.github_access_token,
             repo_url=repo_url,
             version=version,
@@ -321,7 +325,7 @@ class Bot:
         channel_id = repo_info.channel_id
         org, repo = get_org_and_repo(repo_url)
 
-        release(
+        await release(
             github_access_token=self.github_access_token,
             repo_url=repo_url,
             new_version=version,
@@ -340,13 +344,13 @@ class Bot:
             hash_url=repo_info.rc_hash_url,
             watch_branch="release-candidate",
         )
-        unchecked_authors = get_unchecked_authors(
+        unchecked_authors = await get_unchecked_authors(
             github_access_token=self.github_access_token,
             org=org,
             repo=repo,
         )
-        slack_usernames = self.translate_slack_usernames(unchecked_authors)
-        pr = get_release_pr(
+        slack_usernames = await self.translate_slack_usernames(unchecked_authors)
+        pr = await get_release_pr(
             github_access_token=self.github_access_token,
             org=org,
             repo=repo,
@@ -376,7 +380,7 @@ class Bot:
         repo_info = command_args.repo_info
         repo_url = repo_info.repo_url
         org, repo = get_org_and_repo(repo_url)
-        pr = get_release_pr(
+        pr = await get_release_pr(
             github_access_token=self.github_access_token,
             org=org,
             repo=repo,
@@ -418,7 +422,7 @@ class Bot:
         )
         org, repo = get_org_and_repo(repo_info.repo_url)
 
-        unchecked = get_unchecked_authors(
+        unchecked = await get_unchecked_authors(
             github_access_token=self.github_access_token,
             org=org,
             repo=repo,
@@ -427,7 +431,7 @@ class Bot:
         while unchecked:
             await asyncio.sleep(60)
 
-            unchecked_authors = get_unchecked_authors(
+            unchecked_authors = await get_unchecked_authors(
                 github_access_token=self.github_access_token,
                 org=org,
                 repo=repo,
@@ -438,11 +442,11 @@ class Bot:
                 await self.say(
                     channel_id=channel_id,
                     text=f"Thanks for checking off your boxes "
-                    f"{', '.join(sorted(self.translate_slack_usernames(newly_checked)))}!",
+                    f"{', '.join(sorted(await self.translate_slack_usernames(newly_checked)))}!",
                 )
             unchecked = unchecked_authors
 
-        pr = get_release_pr(
+        pr = await get_release_pr(
             github_access_token=self.github_access_token,
             org=org,
             repo=repo,
@@ -496,8 +500,8 @@ class Bot:
         repo_info = command_args.repo_info
         version = command_args.args[0]
 
-        with init_working_dir(self.github_access_token, repo_info.repo_url, branch="v{}".format(version)):
-            upload_to_pypi(repo_info=repo_info, testing=testing)
+        async with init_working_dir(self.github_access_token, repo_info.repo_url, branch="v{}".format(version)):
+            await upload_to_pypi(repo_info=repo_info, testing=testing)
 
         await self.say(
             channel_id=command_args.channel_id,
@@ -519,7 +523,7 @@ class Bot:
         channel_id = repo_info.channel_id
         repo_url = repo_info.repo_url
         org, repo = get_org_and_repo(repo_url)
-        pr = get_release_pr(
+        pr = await get_release_pr(
             github_access_token=self.github_access_token,
             org=org,
             repo=repo,
@@ -528,7 +532,7 @@ class Bot:
             raise ReleaseException("No release currently in progress for {project}".format(project=repo_info.name))
         version = pr.version
 
-        finish_release(
+        await finish_release(
             github_access_token=self.github_access_token,
             repo_url=repo_url,
             version=version,
@@ -569,9 +573,9 @@ class Bot:
         channel_id = repo_info.channel_id
         repo_url = repo_info.repo_url
 
-        commit_hash = fetch_release_hash(repo_info.prod_hash_url)
+        commit_hash = await fetch_release_hash(repo_info.prod_hash_url)
 
-        version = get_version_tag(self.github_access_token, repo_url, commit_hash)
+        version = await get_version_tag(self.github_access_token, repo_url, commit_hash)
         await self.say(
             channel_id=channel_id,
             text="Wait a minute! My evil scheme is at version {version}!".format(version=version[1:])
@@ -585,11 +589,11 @@ class Bot:
             command_args (CommandArgs): The arguments for this command
         """
         repo_info = command_args.repo_info
-        with init_working_dir(self.github_access_token, repo_info.repo_url):
+        async with init_working_dir(self.github_access_token, repo_info.repo_url):
             last_version = update_version("9.9.9")
 
-            release_notes = create_release_notes(last_version, with_checkboxes=False)
-            has_new_commits = any_new_commits(last_version)
+            release_notes = await create_release_notes(last_version, with_checkboxes=False)
+            has_new_commits = await any_new_commits(last_version)
 
         await self.say_with_attachment(
             channel_id=repo_info.channel_id,
@@ -598,7 +602,7 @@ class Bot:
         )
 
         org, repo = get_org_and_repo(repo_info.repo_url)
-        release_pr = get_release_pr(github_access_token=self.github_access_token, org=org, repo=repo)
+        release_pr = await get_release_pr(github_access_token=self.github_access_token, org=org, repo=repo)
         if release_pr:
             await self.say(
                 channel_id=repo_info.channel_id,
@@ -639,13 +643,13 @@ class Bot:
             repo_info (RepoInfo): Information for a repo
         """
         org, repo = get_org_and_repo(repo_info.repo_url)
-        unchecked_authors = get_unchecked_authors(
+        unchecked_authors = await get_unchecked_authors(
             github_access_token=self.github_access_token,
             org=org,
             repo=repo,
         )
         if unchecked_authors:
-            slack_usernames = self.translate_slack_usernames(unchecked_authors)
+            slack_usernames = await self.translate_slack_usernames(unchecked_authors)
             await self.say(
                 channel_id=repo_info.channel_id,
                 text="What an unexpected surprise! "
@@ -683,7 +687,7 @@ class Bot:
             title=title,
             text="\n".join(
                 "*{name}*: {karma}".format(name=name, karma=karma)
-                for name, karma in calculate_karma(
+                for name, karma in await calculate_karma(
                     github_access_token=self.github_access_token,
                     begin_date=start_date,
                     end_date=now_in_utc().date(),
@@ -709,7 +713,7 @@ class Bot:
                     title=title,
                     url=url,
                 ) for repo, title, url in
-                needs_review(self.github_access_token)
+                await needs_review(self.github_access_token)
             )
         )
 
@@ -1071,7 +1075,7 @@ class Bot:
         else:
             log.warning("Unknown callback id: %s", callback_id)
 
-    def startup(self, *, loop):
+    async def startup(self, *, loop):
         """
         Run various tasks when bot starts
 
@@ -1083,7 +1087,7 @@ class Bot:
                 continue
 
             org, repo = get_org_and_repo(repo_info.repo_url)
-            release_pr = get_release_pr(
+            release_pr = await get_release_pr(
                 github_access_token=self.github_access_token,
                 org=org,
                 repo=repo,
@@ -1130,11 +1134,11 @@ def has_command(command_words, input_words):
     return command_words == input_words[:len(command_words)]
 
 
-def main():
-    """main function for bot command"""
+async def async_main():
+    """async function for bot"""
     envs = get_envs()
 
-    channels_info = get_channels_info(envs['SLACK_ACCESS_TOKEN'])
+    channels_info = await get_channels_info(envs['SLACK_ACCESS_TOKEN'])
     repos_info = load_repos_info(channels_info)
     try:
         port = int(envs['PORT'])
@@ -1174,7 +1178,7 @@ def main():
 
             asyncio.create_task(ping())
 
-            bot.startup(loop=loop)
+            await bot.startup(loop=loop)
 
             async for message in websocket:
                 message = json.loads(message)
@@ -1205,10 +1209,13 @@ def main():
                                 loop=loop,
                             )
                         )
+    await connect_to_message_server(asyncio.get_event_loop())
 
+
+def main():
+    """main function for bot command"""
     loop = asyncio.get_event_loop()
-    # If this fails, rely on heroku to restart it instead of doing it ourselves
-    loop.run_until_complete(connect_to_message_server(loop))
+    loop.run_until_complete(async_main())
 
 
 if __name__ == "__main__":

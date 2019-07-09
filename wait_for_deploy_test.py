@@ -1,5 +1,5 @@
 """Tests for wait_for_deploy"""
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
 
 import pytest
 
@@ -13,31 +13,25 @@ async def test_wait_for_deploy(mocker):
     """wait_for_deploy should poll deployed web applications"""
     matched_hash = 'match'
     mismatch_hash = 'mismatch'
-    fetch_release_patch = mocker.patch('wait_for_deploy.fetch_release_hash', autospec=True, side_effect=[
+    fetch_release_patch = mocker.async_patch('wait_for_deploy.fetch_release_hash')
+    fetch_release_patch.side_effect = [
         mismatch_hash,
         mismatch_hash,
         matched_hash,
-    ])
-    check_output_patch = mocker.patch(
+    ]
+    check_output_patch = mocker.async_patch(
         'wait_for_deploy.check_output',
-        autospec=True,
-        return_value=" {} ".format(matched_hash).encode(),
     )
-    validate_patch = mocker.patch('wait_for_deploy.validate_dependencies', autospec=True)
+    check_output_patch.return_value = " {} ".format(matched_hash).encode()
+    validate_patch = mocker.async_patch('wait_for_deploy.validate_dependencies')
 
-    @contextmanager
-    def fake_init(*args, **kwargs):  # pylint: disable=unused-argument
+    @asynccontextmanager
+    async def fake_init(*args, **kwargs):  # pylint: disable=unused-argument
         """Fake empty contextmanager"""
         yield
 
     init_working_dir_mock = mocker.patch('wait_for_deploy.init_working_dir', side_effect=fake_init)
-    sleep_sync_mock = mocker.Mock()
-
-    async def sleep_fake(*args, **kwargs):
-        """await cannot be used with mock objects"""
-        sleep_sync_mock(*args, **kwargs)
-
-    mocker.patch('asyncio.sleep', sleep_fake)
+    mocker.async_patch('asyncio.sleep')
 
     repo_url = 'repo_url'
     token = 'token'

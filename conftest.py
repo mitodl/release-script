@@ -16,6 +16,7 @@ from bot import (
     LIBRARY_TYPE,
     WEB_APPLICATION_TYPE,
 )
+from lib import async_wrapper
 from release import SCRIPT_DIR
 from repo_info import RepoInfo
 
@@ -133,3 +134,17 @@ def library_test_repo():
 def timezone():
     """ Return a timezone object """
     yield pytz.timezone('America/New_York')
+
+
+@pytest.fixture
+def mocker(mocker):  # pylint: disable=redefined-outer-name
+    """Override to add async_patch"""
+
+    def async_patch(*args, **kwargs):
+        """Add a helper function to patch with an async wrapped function, which is returned"""
+        mocked = mocker.Mock(**kwargs)
+        mocker.patch(*args, new_callable=lambda: async_wrapper(mocked))
+        return mocked
+
+    mocker.async_patch = async_patch
+    return mocker

@@ -5,7 +5,7 @@ import json
 import re
 
 from dateutil.parser import parse
-import requests
+import http3
 
 from constants import NO_PR_BUILD
 
@@ -77,7 +77,7 @@ query {
 """
 
 
-def run_query(*, github_access_token, query):
+async def run_query(*, github_access_token, query):
     """
     Run a query using Github graphql API
 
@@ -90,7 +90,8 @@ def run_query(*, github_access_token, query):
     """
     endpoint = "https://api.github.com/graphql"
     query = json.dumps({"query": query})
-    resp = requests.post(endpoint, data=query, headers={
+    client = http3.AsyncClient()
+    resp = await client.post(endpoint, data=query, headers={
         "Authorization": "Bearer {}".format(github_access_token)
     })
     resp.raise_for_status()
@@ -114,7 +115,7 @@ def github_auth_headers(github_access_token):
     }
 
 
-def create_pr(*, github_access_token, repo_url, title, body, head, base):  # pylint: disable=too-many-arguments
+async def create_pr(*, github_access_token, repo_url, title, body, head, base):  # pylint: disable=too-many-arguments
     """
     Create a pull request
 
@@ -133,7 +134,8 @@ def create_pr(*, github_access_token, repo_url, title, body, head, base):  # pyl
         repo=repo,
     )
 
-    resp = requests.post(
+    client = http3.AsyncClient()
+    resp = await client.post(
         endpoint,
         headers=github_auth_headers(github_access_token),
         data=json.dumps({
@@ -146,7 +148,7 @@ def create_pr(*, github_access_token, repo_url, title, body, head, base):  # pyl
     resp.raise_for_status()
 
 
-def get_pull_request(*, github_access_token, org, repo, branch):
+async def get_pull_request(*, github_access_token, org, repo, branch):
     """
     Look up the pull request for a branch
 
@@ -164,7 +166,8 @@ def get_pull_request(*, github_access_token, org, repo, branch):
         repo=repo,
     )
 
-    response = requests.get(
+    client = http3.AsyncClient()
+    response = await client.get(
         endpoint,
         headers=github_auth_headers(github_access_token),
     )
@@ -180,7 +183,7 @@ def get_pull_request(*, github_access_token, org, repo, branch):
     return pulls[0]
 
 
-def calculate_karma(*, github_access_token, begin_date, end_date):
+async def calculate_karma(*, github_access_token, begin_date, end_date):
     """
     Calculate number of merged pull requests by assigned reviewer
 
@@ -192,7 +195,7 @@ def calculate_karma(*, github_access_token, begin_date, end_date):
     Returns:
         list of tuple: (assignee, karma count) sorted from most karma to least
     """
-    data = run_query(github_access_token=github_access_token, query=KARMA_QUERY)
+    data = await run_query(github_access_token=github_access_token, query=KARMA_QUERY)
 
     karma = defaultdict(lambda: 0)
     for repository in data['data']['organization']['repositories']['nodes']:
@@ -229,7 +232,7 @@ def calculate_karma(*, github_access_token, begin_date, end_date):
     return karma_list
 
 
-def needs_review(github_access_token):
+async def needs_review(github_access_token):
     """
     Calculate which PRs need review
 
@@ -239,7 +242,7 @@ def needs_review(github_access_token):
     Returns:
         list of tuple: A list of (repo name, pr title, pr url) for PRs that need review and are unassigned
     """
-    data = run_query(
+    data = await run_query(
         github_access_token=github_access_token,
         query=NEEDS_REVIEW_QUERY,
     )
@@ -281,7 +284,7 @@ def get_org_and_repo(repo_url):
     return org, repo
 
 
-def get_status_of_pr(*, github_access_token, org, repo, branch):
+async def get_status_of_pr(*, github_access_token, org, repo, branch):
     """
     Get the status of the PR
 
@@ -300,7 +303,8 @@ def get_status_of_pr(*, github_access_token, org, repo, branch):
         repo=repo,
         ref=branch,
     )
-    resp = requests.get(
+    client = http3.AsyncClient()
+    resp = await client.get(
         endpoint,
         headers=github_auth_headers(github_access_token),
     )

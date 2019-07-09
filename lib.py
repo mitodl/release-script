@@ -1,20 +1,16 @@
 """Shared functions for release script Python files"""
 from collections import namedtuple
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
 import json
 import os
 import re
-from subprocess import (
-    call,
-    check_call,
-    check_output,
-)
 from tempfile import TemporaryDirectory
 
 from dateutil.parser import parse
 
+from async_subprocess import call, check_call, check_output
 from constants import SCRIPT_DIR, WEB_APPLICATION_TYPE
 from exception import ReleaseException
 from github import (
@@ -69,7 +65,7 @@ def parse_checkmarks(body):
     return commits
 
 
-def get_release_pr(*, github_access_token, org, repo):
+async def get_release_pr(*, github_access_token, org, repo):
     """
     Look up the pull request information for a release, or return None if it doesn't exist
 
@@ -81,7 +77,7 @@ def get_release_pr(*, github_access_token, org, repo):
     Returns:
         ReleasePR: The information about the release pull request, or None if there is no release PR in progress
     """
-    pr = get_pull_request(
+    pr = await get_pull_request(
         github_access_token=github_access_token,
         org=org,
         repo=repo,
@@ -103,7 +99,7 @@ def get_release_pr(*, github_access_token, org, repo):
     )
 
 
-def get_unchecked_authors(*, github_access_token, org, repo):
+async def get_unchecked_authors(*, github_access_token, org, repo):
     """
     Returns list of authors who have not yet checked off their checkboxes
 
@@ -115,7 +111,7 @@ def get_unchecked_authors(*, github_access_token, org, repo):
     Returns:
         set[str]: A set of github usernames
     """
-    release_pr = get_release_pr(
+    release_pr = await get_release_pr(
         github_access_token=github_access_token,
         org=org,
         repo=repo,
@@ -262,23 +258,24 @@ def parse_date(date_string):
     return parse(date_string).date()
 
 
-@contextmanager
-def virtualenv(python_interpreter, env):
+@asynccontextmanager
+async def virtualenv(python_interpreter, env):
     """
     Create a virtualenv and work within its context
     """
     with TemporaryDirectory() as virtualenv_dir:
-        check_call(["virtualenv", virtualenv_dir, "-p", python_interpreter], env=env)
+        await check_call(["virtualenv", virtualenv_dir, "-p", python_interpreter], env=env)
 
         # Figure out what environment variables we need to set
-        output = check_output(
+        output_bytes = await check_output(
             ". {}; env".format(os.path.join(virtualenv_dir, "bin", "activate")),
             shell=True,
-        ).decode()
+        )
+        output = output_bytes.decode()
         yield virtualenv_dir, dict(line.split("=", 1) for line in output.splitlines())
 
 
-def upload_to_pypi(*, repo_info, testing):  # pylint: disable=too-many-locals
+async def upload_to_pypi(*, repo_info, testing):  # pylint: disable=too-many-locals
     """
     Upload the current dir
 
@@ -296,23 +293,23 @@ def upload_to_pypi(*, repo_info, testing):  # pylint: disable=too-many-locals
     # In particular if a wheel is specific to one version of python we need to use that interpreter to create it.
     python = "python3" if repo_info.python3 else "python2"
 
-    with virtualenv("python3", None) as (_, outer_environ):
+    async with virtualenv("python3", None) as (_, outer_environ):
         # Heroku has both Python 2 and 3 installed but the system libraries aren't configured for our use,
         # so make a virtualenv.
-        with virtualenv(python, outer_environ) as (virtualenv_dir, environ):
+        async with virtualenv(python, outer_environ) as (virtualenv_dir, environ):
             # Use the virtualenv binaries to act within that environment
             python_path = os.path.join(virtualenv_dir, "bin", "python")
             pip_path = os.path.join(virtualenv_dir, "bin", "pip")
             twine_path = os.path.join(virtualenv_dir, "bin", "twine")
 
             # Install dependencies. wheel is needed for Python 2. twine uploads the package.
-            check_call([pip_path, "install", "wheel", "twine"], env=environ)
+            await check_call([pip_path, "install", "wheel", "twine"], env=environ)
 
             # Create source distribution and wheel.
-            call([python_path, "setup.py", "sdist"], env=environ)
+            await call([python_path, "setup.py", "sdist"], env=environ)
             universal = ["--universal"] if repo_info.python2 and repo_info.python3 else []
             build_wheel_args = [python_path, "setup.py", "bdist_wheel", *universal]
-            call(build_wheel_args, env=environ)
+            await call(build_wheel_args, env=environ)
             dist_files = os.listdir("dist")
             if len(dist_files) != 2:
                 raise Exception("Expected to find one tarball and one wheel in directory")
@@ -320,7 +317,7 @@ def upload_to_pypi(*, repo_info, testing):  # pylint: disable=too-many-locals
 
             # Upload to pypi
             testing_args = ["--repository-url", "https://test.pypi.org/legacy/"] if testing else []
-            check_call(
+            await check_call(
                 [twine_path, "upload", *testing_args, *dist_paths],
                 env={
                     **environ,
@@ -374,3 +371,10 @@ def next_versions(version):
     new_minor = f"{old_major}.{int(old_minor) + 1}.0"
     new_patch = f"{old_major}.{old_minor}.{int(patch_version) + 1}"
     return new_minor, new_patch
+
+
+def async_wrapper(mocked):
+    """Wrap sync functions with a simple async wrapper"""
+    async def async_func(*args, **kwargs):
+        return mocked(*args, **kwargs)
+    return async_func
