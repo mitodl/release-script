@@ -964,6 +964,6 @@ async def test_startup(doof, event_loop, mocker, repo_info, has_release_pr, has_
     assert not doof.said("isn't evil enough until all the checkboxes are checked")
 
     if has_expected:
-        wait_for_checkboxes_sync_mock.assert_called_once_with(manager=None, repo_info=repo_info)
+        wait_for_checkboxes_sync_mock.assert_called_once_with(manager=None, repo_info=repo_info, speak_initial=False)
     else:
         assert wait_for_checkboxes_sync_mock.call_count == 0
