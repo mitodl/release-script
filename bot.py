@@ -400,22 +400,24 @@ class Bot:
         """
         await self.wait_for_checkboxes(command_args.repo_info, command_args.manager)
 
-    async def wait_for_checkboxes(self, repo_info, manager):
+    async def wait_for_checkboxes(self, repo_info, manager, speak_initial=True):
         """
         Poll the Release PR and wait until all checkboxes are checked off
 
         Args:
             repo_info (RepoInfo): Information for a repo
             manager (str or None): User id for the release manager
+            speak_initial (bool): If True, say that the plan isn't evil enough until all checkboxes are checked
         """
         channel_id = repo_info.channel_id
-        await self.say(
-            channel_id=channel_id,
-            text="Wait, wait. Time out. My evil plan for {project} isn't evil enough "
-            "until all the checkboxes are checked...".format(
-                project=repo_info.name,
+        if speak_initial:
+            await self.say(
+                channel_id=channel_id,
+                text="Wait, wait. Time out. My evil plan for {project} isn't evil enough "
+                "until all the checkboxes are checked...".format(
+                    project=repo_info.name,
+                )
             )
-        )
         org, repo = get_org_and_repo(repo_info.repo_url)
 
         unchecked = get_unchecked_authors(
@@ -1091,7 +1093,7 @@ class Bot:
             if not release_pr:
                 continue
 
-            loop.create_task(self.wait_for_checkboxes(manager=None, repo_info=repo_info))
+            loop.create_task(self.wait_for_checkboxes(manager=None, repo_info=repo_info, speak_initial=False))
 
 
 def get_version_number(text):
