@@ -24,14 +24,9 @@ pytestmark = pytest.mark.asyncio
 ])
 async def test_wait_for_travis(mocker, statuses, result):
     """wait_for_travis should check the github status API every 30 seconds"""
-    get_status_mock = mocker.patch('wait_for_travis.get_status_of_pr', autospec=True, side_effect=statuses)
-    sleep_sync_mock = mocker.Mock()
-
-    async def sleep_fake(*args, **kwargs):
-        """await cannot be used with mock objects"""
-        sleep_sync_mock(*args, **kwargs)
-
-    mocker.patch('asyncio.sleep', sleep_fake)
+    get_status_mock = mocker.async_patch('wait_for_travis.get_status_of_pr')
+    get_status_mock.side_effect = statuses
+    sleep_sync_mock = mocker.async_patch('asyncio.sleep')
 
     token = 'token'
     org = 'org'

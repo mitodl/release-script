@@ -3,16 +3,13 @@ from datetime import datetime, timezone
 from itertools import product
 import os
 from subprocess import call
-from unittest.mock import (
-    Mock,
-    patch,
-)
 
 from requests import Response, HTTPError
 import pytest
 
 from github import github_auth_headers
 from lib import (
+    async_wrapper,
     get_release_pr,
     get_unchecked_authors,
     load_repos_info,
@@ -26,6 +23,9 @@ from lib import (
     url_with_access_token,
 )
 from repo_info import RepoInfo
+
+
+pytestmark = pytest.mark.asyncio
 
 
 FAKE_RELEASE_PR_BODY = """
@@ -60,7 +60,7 @@ RELEASE_PR = {
 FAKE_PULLS = [OTHER_PR, RELEASE_PR]
 
 
-def test_parse_checkmarks():
+async def test_parse_checkmarks():
     """parse_checkmarks should look up the Release PR body and return a list of commits"""
     assert parse_checkmarks(FAKE_RELEASE_PR_BODY) == [
         {
@@ -81,19 +81,21 @@ def test_parse_checkmarks():
     ]
 
 
-def test_get_release_pr():
+async def test_get_release_pr(mocker):
     """get_release_pr should grab a release from GitHub's API"""
     org = 'org'
     repo = 'repo'
     access_token = 'access'
 
-    with patch('github.requests.get', return_value=Mock(json=Mock(return_value=FAKE_PULLS))) as get_mock:
-        pr = get_release_pr(
-            github_access_token=access_token,
-            org=org,
-            repo=repo,
-        )
-    get_mock.assert_called_once_with("https://api.github.com/repos/{org}/{repo}/pulls".format(
+    get_mock = mocker.async_patch('github.http3.AsyncClient.get', return_value=mocker.Mock(
+        json=mocker.Mock(return_value=FAKE_PULLS)
+    ))
+    pr = await get_release_pr(
+        github_access_token=access_token,
+        org=org,
+        repo=repo,
+    )
+    get_mock.assert_called_once_with(mocker.ANY, "https://api.github.com/repos/{org}/{repo}/pulls".format(
         org=org,
         repo=repo,
     ), headers=github_auth_headers(access_token))
@@ -102,25 +104,26 @@ def test_get_release_pr():
     assert pr.version == '0.53.3'
 
 
-def test_get_release_pr_no_pulls():
+async def test_get_release_pr_no_pulls(mocker):
     """If there is no release PR it should return None"""
-    with patch(
-            'github.requests.get', return_value=Mock(json=Mock(return_value=[OTHER_PR]))
-    ):
-        assert get_release_pr(
-            github_access_token='access_token',
-            org='org',
-            repo='repo-missing',
-        ) is None
+    mocker.async_patch(
+        'github.http3.AsyncClient.get', return_value=mocker.Mock(json=mocker.Mock(return_value=[OTHER_PR]))
+    )
+    assert await get_release_pr(
+        github_access_token='access_token',
+        org='org',
+        repo='repo-missing',
+    ) is None
 
 
-def test_too_many_releases():
+async def test_too_many_releases(mocker):
     """If there is no release PR, an exception should be raised"""
     pulls = [RELEASE_PR, RELEASE_PR]
-    with pytest.raises(Exception) as ex, patch(
-            'github.requests.get', return_value=Mock(json=Mock(return_value=pulls))
-    ):
-        get_release_pr(
+    mocker.async_patch(
+        'github.http3.AsyncClient.get', return_value=mocker.Mock(json=mocker.Mock(return_value=pulls))
+    )
+    with pytest.raises(Exception) as ex:
+        await get_release_pr(
             github_access_token='access_token',
             org='org',
             repo='repo',
@@ -129,14 +132,15 @@ def test_too_many_releases():
     assert ex.value.args[0] == "More than one pull request for the branch release-candidate"
 
 
-def test_no_release_wrong_repo():
+async def test_no_release_wrong_repo(mocker):
     """If there is no repo accessible, an exception should be raised"""
     response_404 = Response()
     response_404.status_code = 404
-    with pytest.raises(HTTPError) as ex, patch(
-            'github.requests.get', return_value=response_404
-    ):
-        get_release_pr(
+    mocker.async_patch(
+        'github.http3.AsyncClient.get', return_value=response_404
+    )
+    with pytest.raises(HTTPError) as ex:
+        await get_release_pr(
             github_access_token='access_token',
             org='org',
             repo='repo',
@@ -145,7 +149,7 @@ def test_no_release_wrong_repo():
     assert ex.value.response.status_code == 404
 
 
-def test_get_unchecked_authors():
+async def test_get_unchecked_authors(mocker):
     """
     get_unchecked_authors should download the PR body, parse it,
     filter out checked authors and leave only unchecked ones
@@ -154,16 +158,16 @@ def test_get_unchecked_authors():
     repo = 'repo'
     access_token = 'all-access'
 
-    with patch('lib.get_release_pr', autospec=True, return_value=ReleasePR(
-            body=FAKE_RELEASE_PR_BODY,
-            version='1.2.3',
-            url='http://url'
-    )) as get_release_pr_mock:
-        unchecked = get_unchecked_authors(
-            github_access_token=access_token,
-            org=org,
-            repo=repo,
-        )
+    get_release_pr_mock = mocker.async_patch('lib.get_release_pr', return_value=ReleasePR(
+        body=FAKE_RELEASE_PR_BODY,
+        version='1.2.3',
+        url='http://url'
+    ))
+    unchecked = await get_unchecked_authors(
+        github_access_token=access_token,
+        org=org,
+        repo=repo,
+    )
     assert unchecked == {"Alice Pote"}
     get_release_pr_mock.assert_called_once_with(
         github_access_token=access_token,
@@ -172,7 +176,7 @@ def test_get_unchecked_authors():
     )
 
 
-def test_next_workday_at_10():
+async def test_next_workday_at_10():
     """next_workday_at_10 should get the time that's tomorrow at 10am, or Monday if that's the next workday"""
     saturday_at_8am = datetime(2017, 4, 1, 8, tzinfo=timezone.utc)
     assert next_workday_at_10(saturday_at_8am) == datetime(2017, 4, 3, 10, tzinfo=timezone.utc)
@@ -182,7 +186,7 @@ def test_next_workday_at_10():
     assert next_workday_at_10(wednesday_at_3pm) == datetime(2017, 4, 6, 10, tzinfo=timezone.utc)
 
 
-def test_reformatted_full_name():
+async def test_reformatted_full_name():
     """reformatted_full_name should take the first and last names and make it lowercase"""
     assert reformatted_full_name("") == ""
     assert reformatted_full_name("George") == "george"
@@ -217,7 +221,7 @@ FAKE_SLACK_USERS = [
 ]
 
 
-def test_match_users():
+async def test_match_users():
     """match_users should use the Levensthein distance to compare usernames"""
     assert match_user(FAKE_SLACK_USERS, "George Schneeloch") == "<@U12345>"
     assert match_user(FAKE_SLACK_USERS, "George Schneelock") == "<@U12345>"
@@ -226,7 +230,7 @@ def test_match_users():
     assert match_user(FAKE_SLACK_USERS, 'tasawernawaz') == '<@U9876>'
 
 
-def test_url_with_access_token():
+async def test_url_with_access_token():
     """url_with_access_token should insert the access token into the url"""
     assert url_with_access_token(
         "access", "http://github.com/mitodl/release-script.git"
@@ -234,7 +238,7 @@ def test_url_with_access_token():
 
 
 @pytest.mark.parametrize("testing,python2,python3", list(product([True, False], repeat=3)))
-def test_upload_to_pypi(testing, python2, python3, mocker, library_test_repo):
+async def test_upload_to_pypi(testing, python2, python3, mocker, library_test_repo):
     """upload_to_pypi should create a dist based on a version and upload to pypi or pypitest"""
 
     twine_env = {
@@ -280,15 +284,15 @@ def test_upload_to_pypi(testing, python2, python3, mocker, library_test_repo):
             if python2 and python3:
                 assert "--universal" in command_args
 
-    mocker.patch('lib.check_call', side_effect=check_call_func)
-    call_mock = mocker.patch('lib.call', side_effect=check_call_func)
-    mocker.patch('lib.check_output', return_value=b'x=y=z')
+    mocker.async_patch('lib.check_call', side_effect=check_call_func)
+    call_mock = mocker.async_patch('lib.call', side_effect=check_call_func)
+    mocker.async_patch('lib.check_output', return_value=b'x=y=z')
     mocker.patch.dict('os.environ', twine_env, clear=False)
-    upload_to_pypi(repo_info=library_test_repo, testing=testing)
+    await upload_to_pypi(repo_info=library_test_repo, testing=testing)
     assert call_mock.call_args[1] == {'env': {'x': 'y=z'}}
 
 
-def test_load_repos_info(mocker):
+async def test_load_repos_info(mocker):
     """
     load_repos_info should match channels with repositories
     """
@@ -326,6 +330,23 @@ def test_load_repos_info(mocker):
     assert json_load.call_count == 1
 
 
-def test_next_versions():
+async def test_next_versions():
     """next_versions should return a tuple of the updated minor and patch versions"""
     assert next_versions("1.2.3") == ("1.3.0", "1.2.4")
+
+
+async def test_async_wrapper(mocker):
+    """async_wrapper should convert a sync function into a trivial async function"""
+    func = mocker.Mock()
+    async_func = async_wrapper(func)
+    await async_func()
+    await async_func()
+    assert func.call_count == 2
+
+
+async def test_async_patch(mocker):
+    """async_patch should patch with an async function"""
+    mocked = mocker.async_patch('lib_test.call')
+    mocked.return_value = 123
+    assert await call(["ls"]) == 123
+    assert await call(["ls"]) == 123
