@@ -3,7 +3,7 @@ import argparse
 import asyncio
 import os
 
-import http3
+import httpx
 
 from async_subprocess import check_output
 from release import (
@@ -14,7 +14,7 @@ from release import (
 
 async def fetch_release_hash(hash_url):
     """Fetch the hash from the release"""
-    client = http3.AsyncClient()
+    client = httpx.AsyncClient()
     response = await client.get(hash_url)
     response.raise_for_status()
     release_hash = response.content.decode().strip()
