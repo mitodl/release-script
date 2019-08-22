@@ -5,7 +5,7 @@ import json
 import re
 
 from dateutil.parser import parse
-import http3
+import httpx
 
 from constants import NO_PR_BUILD
 
@@ -90,7 +90,7 @@ async def run_query(*, github_access_token, query):
     """
     endpoint = "https://api.github.com/graphql"
     query = json.dumps({"query": query})
-    client = http3.AsyncClient()
+    client = httpx.AsyncClient()
     resp = await client.post(endpoint, data=query, headers={
         "Authorization": "Bearer {}".format(github_access_token)
     })
@@ -134,7 +134,7 @@ async def create_pr(*, github_access_token, repo_url, title, body, head, base): 
         repo=repo,
     )
 
-    client = http3.AsyncClient()
+    client = httpx.AsyncClient()
     resp = await client.post(
         endpoint,
         headers=github_auth_headers(github_access_token),
@@ -166,7 +166,7 @@ async def get_pull_request(*, github_access_token, org, repo, branch):
         repo=repo,
     )
 
-    client = http3.AsyncClient()
+    client = httpx.AsyncClient()
     response = await client.get(
         endpoint,
         headers=github_auth_headers(github_access_token),
@@ -303,7 +303,7 @@ async def get_status_of_pr(*, github_access_token, org, repo, branch):
         repo=repo,
         ref=branch,
     )
-    client = http3.AsyncClient()
+    client = httpx.AsyncClient()
     resp = await client.get(
         endpoint,
         headers=github_auth_headers(github_access_token),

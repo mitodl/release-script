@@ -1,5 +1,5 @@
 """functions for interacting with slack"""
-import http3
+import httpx
 
 
 async def get_channels_info(slack_access_token):
@@ -12,7 +12,7 @@ async def get_channels_info(slack_access_token):
     Returns:
         dict: A map of channel names to channel ids
     """
-    client = http3.AsyncClient()
+    client = httpx.AsyncClient()
     # public channels
     resp = await client.post("https://slack.com/api/channels.list", data={
         "token": slack_access_token

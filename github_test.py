@@ -108,7 +108,7 @@ async def test_create_pr(mocker):
     body = 'body'
     head = 'head'
     base = 'base'
-    patched = mocker.async_patch('http3.AsyncClient.post')
+    patched = mocker.async_patch('httpx.AsyncClient.post')
     await create_pr(
         github_access_token=access_token,
         repo_url='https://github.com/{}/{}.git'.format(org, repo),
@@ -180,7 +180,7 @@ async def test_get_status_of_pr(mocker, status_code, status_data, expected_statu
     token = 'token'
     branch = 'branch'
 
-    patched = mocker.async_patch('http3.AsyncClient.get')
+    patched = mocker.async_patch('httpx.AsyncClient.get')
     resp = patched.return_value
     resp.status_code = status_code
     resp.json.return_value = status_data

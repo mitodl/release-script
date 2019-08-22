@@ -1,4 +1,4 @@
-http3
+httpx
 python-dateutil
 pytz
 requests
