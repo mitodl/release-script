@@ -272,7 +272,7 @@ async def generate_release_pr(github_access_token, repo_url, old_version, new_ve
     )
 
 
-async def release(github_access_token, repo_url, new_version, branch=None):
+async def release(github_access_token, repo_url, new_version, branch=None, hash=None):
     """
     Run a release
 
@@ -285,6 +285,8 @@ async def release(github_access_token, repo_url, new_version, branch=None):
     await validate_dependencies()
     async with init_working_dir(github_access_token, repo_url, branch=branch):
         await check_call(["git", "checkout", "-qb", "release-candidate"])
+        if hash:
+            await check_call(["git", "cherry-pick", hash])
         old_version = update_version(new_version)
         if parse_version(old_version) >= parse_version(new_version):
             raise ReleaseException("old version is {old} but the new version {new} is not newer".format(

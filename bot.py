@@ -317,19 +317,28 @@ class Bot:
             is_announcement=True,
         )
 
-    async def _web_application_release(self, command_args, branch=None):
+    async def _web_application_release(self, command_args):
         """Do a web application release"""
         repo_info = command_args.repo_info
         version = command_args.args[0]
         repo_url = repo_info.repo_url
         channel_id = repo_info.channel_id
         org, repo = get_org_and_repo(repo_url)
-        await release(
-            github_access_token=self.github_access_token,
-            repo_url=repo_url,
-            new_version=version,
-            branch=branch,
-        )
+        if len(command_args.args) > 1:
+            await release(
+                github_access_token=self.github_access_token,
+                repo_url=repo_url,
+                new_version=version,
+                branch='release',
+                hash=command_args.args[1],
+            )
+
+        else:
+            await release(
+                github_access_token=self.github_access_token,
+                repo_url=repo_url,
+                new_version=version,
+            )
         await self.say(
             channel_id=channel_id,
             text="Behold, my new evil scheme - release {version} for {project}! Now deploying to RC...".format(
@@ -412,19 +421,16 @@ class Bot:
                 channel_id=repo_info.channel_id,
                 text=f"There is a release already in progress: {release_pr.url}. Close that first!"
             )
-            raise ReleaseException("There is a release already in progress: {url}. Close that first!".format(
-                url=release_pr.url
-            ))
+            raise ReleaseException(f"There is a release already in progress: {release_pr.url}. Close that first!")
 
         async with init_working_dir(self.github_access_token, repo_info.repo_url):
             last_version = update_version("9.9.9")
 
         _, new_patch = next_versions(last_version)
 
-        command_args.args.append(new_patch)
+        command_args.args.insert(0, new_patch)
 
-        await self._web_application_release(command_args, branch='release')
-
+        await self._web_application_release(command_args)
 
     async def wait_for_checkboxes_command(self, command_args):
         """
