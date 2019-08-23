@@ -330,7 +330,7 @@ class Bot:
                 repo_url=repo_url,
                 new_version=version,
                 branch='release',
-                hash=command_args.args[1],
+                commit_hash=command_args.args[1],
             )
 
         else:
@@ -851,7 +851,7 @@ class Bot:
             ),
             Command(
                 command='hotfix',
-                parsers=[Parser(func=get_version_number, description='new version number')],
+                parsers=[Parser(func=get_version_number, description='commit hash to cherry-pick')],
                 command_func=self.hotfix_command,
                 description='Start a hotfix release',
                 supported_project_types=[WEB_APPLICATION_TYPE],

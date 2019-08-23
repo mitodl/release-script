@@ -272,7 +272,7 @@ async def generate_release_pr(github_access_token, repo_url, old_version, new_ve
     )
 
 
-async def release(github_access_token, repo_url, new_version, branch=None, hash=None):
+async def release(github_access_token, repo_url, new_version, branch=None, commit_hash=None):
     """
     Run a release
 
@@ -280,13 +280,15 @@ async def release(github_access_token, repo_url, new_version, branch=None, hash=
         github_access_token (str): The github access token
         repo_url (str): URL for a repo
         new_version (str): The version of the new release
+        branch (str): The branch to initialize the release from
+        commit_hash (str): Commit hash to cherry pick in case of a hot fix
     """
 
     await validate_dependencies()
     async with init_working_dir(github_access_token, repo_url, branch=branch):
         await check_call(["git", "checkout", "-qb", "release-candidate"])
-        if hash:
-            await check_call(["git", "cherry-pick", hash])
+        if commit_hash:
+            await check_call(["git", "cherry-pick", commit_hash])
         old_version = update_version(new_version)
         if parse_version(old_version) >= parse_version(new_version):
             raise ReleaseException("old version is {old} but the new version {new} is not newer".format(
