@@ -457,7 +457,7 @@ async def test_fetch_release_hash(mocker):
     """
     sha1_hash = b"X" * 40
     url = 'a_url'
-    get_mock = mocker.async_patch('wait_for_deploy.httpx.AsyncClient.get', return_value=mocker.Mock(
+    get_mock = mocker.async_patch('client_wrapper.ClientWrapper.get', return_value=mocker.Mock(
         content=sha1_hash
     ))
     assert await fetch_release_hash(url) == sha1_hash.decode()

@@ -10,7 +10,7 @@ pytestmark = pytest.mark.asyncio
 
 async def test_get_channels_info(mocker):
     """get_channels_info should obtain information for all public and private channels that doof knows about"""
-    post_patch = mocker.async_patch('slack.httpx.AsyncClient.post')
+    post_patch = mocker.async_patch('client_wrapper.ClientWrapper.post')
     post_patch.return_value.json.side_effect = [
         {'channels': [{
             'name': 'a',

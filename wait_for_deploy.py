@@ -3,9 +3,8 @@ import argparse
 import asyncio
 import os
 
-import httpx
-
 from async_subprocess import check_output
+from client_wrapper import ClientWrapper
 from release import (
     init_working_dir,
     validate_dependencies,
@@ -14,7 +13,7 @@ from release import (
 
 async def fetch_release_hash(hash_url):
     """Fetch the hash from the release"""
-    client = httpx.AsyncClient()
+    client = ClientWrapper()
     response = await client.get(hash_url)
     response.raise_for_status()
     release_hash = response.content.decode().strip()

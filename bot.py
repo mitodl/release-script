@@ -11,10 +11,10 @@ import json
 import re
 import requests
 
-import httpx
 import pytz
 import websockets
 
+from client_wrapper import ClientWrapper
 from constants import (
     FINISH_RELEASE_ID,
     NEW_RELEASE_ID,
@@ -121,7 +121,7 @@ class Bot:
         """
         Get users list from slack
         """
-        client = httpx.AsyncClient()
+        client = ClientWrapper()
         resp = await client.post("https://slack.com/api/users.list", data={
             "token": self.slack_access_token
         })
@@ -173,7 +173,7 @@ class Bot:
         text_dict = {"text": text} if text else {}
         message_type_dict = {"type": message_type} if message_type else {}
 
-        client = httpx.AsyncClient()
+        client = ClientWrapper()
         resp = await client.post('https://slack.com/api/chat.postMessage', data={
             "token": self.slack_access_token,
             "channel": channel_id,
@@ -224,7 +224,7 @@ class Bot:
         attachments_dict = {"attachments": json.dumps(attachments)} if attachments else {}
         text_dict = {"text": text} if text else {}
 
-        client = httpx.AsyncClient()
+        client = ClientWrapper()
         resp = await client.post('https://slack.com/api/chat.update', data={
             "token": self.slack_access_token,
             "channel": channel_id,
