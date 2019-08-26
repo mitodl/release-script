@@ -87,7 +87,7 @@ async def test_get_release_pr(mocker):
     repo = 'repo'
     access_token = 'access'
 
-    get_mock = mocker.async_patch('github.httpx.AsyncClient.get', return_value=mocker.Mock(
+    get_mock = mocker.async_patch('client_wrapper.ClientWrapper.get', return_value=mocker.Mock(
         json=mocker.Mock(return_value=FAKE_PULLS)
     ))
     pr = await get_release_pr(
@@ -107,7 +107,7 @@ async def test_get_release_pr(mocker):
 async def test_get_release_pr_no_pulls(mocker):
     """If there is no release PR it should return None"""
     mocker.async_patch(
-        'github.httpx.AsyncClient.get', return_value=mocker.Mock(json=mocker.Mock(return_value=[OTHER_PR]))
+        'client_wrapper.ClientWrapper.get', return_value=mocker.Mock(json=mocker.Mock(return_value=[OTHER_PR]))
     )
     assert await get_release_pr(
         github_access_token='access_token',
@@ -120,7 +120,7 @@ async def test_too_many_releases(mocker):
     """If there is no release PR, an exception should be raised"""
     pulls = [RELEASE_PR, RELEASE_PR]
     mocker.async_patch(
-        'github.httpx.AsyncClient.get', return_value=mocker.Mock(json=mocker.Mock(return_value=pulls))
+        'client_wrapper.ClientWrapper.get', return_value=mocker.Mock(json=mocker.Mock(return_value=pulls))
     )
     with pytest.raises(Exception) as ex:
         await get_release_pr(
@@ -137,7 +137,7 @@ async def test_no_release_wrong_repo(mocker):
     response_404 = Response()
     response_404.status_code = 404
     mocker.async_patch(
-        'github.httpx.AsyncClient.get', return_value=response_404
+        'client_wrapper.ClientWrapper.get', return_value=response_404
     )
     with pytest.raises(HTTPError) as ex:
         await get_release_pr(
