@@ -317,35 +317,36 @@ class Bot:
             is_announcement=True,
         )
 
-    async def _web_application_release(self, command_args):
+    async def _web_application_release(self, command_args, hotfix_version=None):
         """Do a web application release"""
         repo_info = command_args.repo_info
-        version = command_args.args[0]
+        passed_arg = command_args.args[0]
         repo_url = repo_info.repo_url
         channel_id = repo_info.channel_id
         org, repo = get_org_and_repo(repo_url)
-        if len(command_args.args) > 1:
+        if hotfix_version:
             await release(
                 github_access_token=self.github_access_token,
                 repo_url=repo_url,
-                new_version=version,
+                new_version=hotfix_version,
                 branch='release',
-                commit_hash=command_args.args[1],
+                commit_hash=passed_arg,
             )
-
+            await self.say(
+                channel_id=channel_id,
+                text=f"Behold, my new evil scheme - hotfix release {hotfix_version} "
+                     f"with commit {passed_arg}! Now deploying to RC..."
+            )
         else:
             await release(
                 github_access_token=self.github_access_token,
                 repo_url=repo_url,
-                new_version=version,
+                new_version=passed_arg,
             )
-        await self.say(
-            channel_id=channel_id,
-            text="Behold, my new evil scheme - release {version} for {project}! Now deploying to RC...".format(
-                version=version,
-                project=repo_info.name,
-            ),
-        )
+            await self.say(
+                channel_id=channel_id,
+                text=f"Behold, my new evil scheme - release {passed_arg} for {repo_info.name}! Now deploying to RC..."
+            )
 
         await wait_for_deploy(
             github_access_token=self.github_access_token,
@@ -428,9 +429,7 @@ class Bot:
 
         _, new_patch = next_versions(last_version)
 
-        command_args.args.insert(0, new_patch)
-
-        await self._web_application_release(command_args)
+        await self._web_application_release(command_args, hotfix_version=new_patch)
 
     async def wait_for_checkboxes_command(self, command_args):
         """
@@ -851,7 +850,7 @@ class Bot:
             ),
             Command(
                 command='hotfix',
-                parsers=[Parser(func=get_version_number, description='commit hash to cherry-pick')],
+                parsers=[Parser(func=get_commit_hash, description='commit hash to cherry-pick')],
                 command_func=self.hotfix_command,
                 description='Start a hotfix release',
                 supported_project_types=[WEB_APPLICATION_TYPE],
@@ -1155,13 +1154,27 @@ def get_version_number(text):
         str: The version if it parsed correctly
     """
     pattern = re.compile(VERSION_RE)
-    hash_pattern = re.compile(COMMIT_HASH_RE)
     if pattern.match(text):
         return text
-    elif hash_pattern.match(text):
+    else:
+        raise InputException("Invalid version number")
+
+
+def get_commit_hash(text):
+    """
+    return commit hash at the end of the message
+
+    Args:
+        text (str): The string containing the commit hash
+
+    Returns:
+        str: The commit hash if it parsed correctly
+    """
+    hash_pattern = re.compile(COMMIT_HASH_RE)
+    if hash_pattern.match(text):
         return text
     else:
-        raise InputException("Invalid version or hash pattern")
+        raise InputException("Invalid version number")
 
 
 def has_command(command_words, input_words):

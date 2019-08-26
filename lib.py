@@ -25,7 +25,7 @@ ReleasePR = namedtuple("ReleasePR", ['version', 'url', 'body'])
 
 VERSION_RE = r'\d+\.\d+\.\d+'
 
-COMMIT_HASH_RE = r'"^[a-z0-9]*$"'
+COMMIT_HASH_RE = r'"^[a-z0-9]+$"'
 
 
 def parse_checkmarks(body):
