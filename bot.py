@@ -369,7 +369,7 @@ class Bot:
             channel_id=channel_id,
             text="Release {version} for {project} was deployed! PR is up at {pr_url}."
             " These people have commits in this release: {authors}".format(
-                version=version,
+                version=hotfix_version if hotfix_version else passed_arg,
                 authors=", ".join(slack_usernames),
                 pr_url=pr.url,
                 project=repo_info.name,
@@ -1174,7 +1174,7 @@ def get_commit_hash(text):
     if hash_pattern.match(text):
         return text
     else:
-        raise InputException("Invalid version number")
+        raise InputException("Invalid commit hash")
 
 
 def has_command(command_words, input_words):
