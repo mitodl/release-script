@@ -294,9 +294,9 @@ async def test_release(doof, test_repo, event_loop, mocker, command):
 # pylint: disable=too-many-locals
 async def test_hotfix_release(doof, test_repo, event_loop, mocker):
     """
-    Doof should do a release when asked
+    Doof should do a hotfix when asked
     """
-    commit_hash = 'uthhg'
+    commit_hash = 'uthhg983u4thg9h5'
     version = '0.1.2'
     pr = ReleasePR(
         version=version,
@@ -312,7 +312,10 @@ async def test_hotfix_release(doof, test_repo, event_loop, mocker):
 
     wait_for_checkboxes_sync_mock = mocker.async_patch('bot.Bot.wait_for_checkboxes')
 
-    command_words = ['hotfix', version]
+    old_version = "0.1.1"
+    update_version_mock = mocker.patch('bot.update_version', autospec=True, return_value=old_version)
+
+    command_words = ['hotfix', commit_hash]
     me = 'mitodl_user'
     await doof.run_command(
         manager=me,
@@ -327,6 +330,7 @@ async def test_hotfix_release(doof, test_repo, event_loop, mocker):
         org=org,
         repo=repo,
     )
+    update_version_mock.assert_called_once_with("9.9.9")
     release_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
         repo_url=test_repo.repo_url,
