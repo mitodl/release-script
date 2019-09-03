@@ -17,8 +17,9 @@ async def check_output(args, *, env=None, shell=False):
     Similar to subprocess.check_output but adapted for asyncio. Please add new arguments as needed.
     """
     create_func = asyncio.create_subprocess_shell if shell else asyncio.create_subprocess_exec
+    popenargs = [args] if shell else args
     proc = await create_func(
-        *args,
+        *popenargs,
         stdin=None,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -36,8 +37,9 @@ async def call(args, *, env=None, shell=False):
     Similar to subprocess.call but adapted for asyncio. Please add new arguments as needed.
     """
     create_func = asyncio.create_subprocess_shell if shell else asyncio.create_subprocess_exec
+    popenargs = [args] if shell else args
     proc = await create_func(
-        *args,
+        *popenargs,
         stdin=None,
         stdout=None,
         stderr=None,
