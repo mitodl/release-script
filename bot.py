@@ -52,7 +52,7 @@ from lib import (
     parse_date,
     VERSION_RE,
     upload_to_pypi,
-)
+    COMMIT_HASH_RE)
 from slack import get_channels_info
 from wait_for_deploy import (
     fetch_release_hash,
@@ -317,26 +317,36 @@ class Bot:
             is_announcement=True,
         )
 
-    async def _web_application_release(self, command_args):
+    async def _web_application_release(self, command_args, hotfix_version=None):
         """Do a web application release"""
         repo_info = command_args.repo_info
-        version = command_args.args[0]
+        passed_arg = command_args.args[0]
         repo_url = repo_info.repo_url
         channel_id = repo_info.channel_id
         org, repo = get_org_and_repo(repo_url)
-
-        await release(
-            github_access_token=self.github_access_token,
-            repo_url=repo_url,
-            new_version=version,
-        )
-        await self.say(
-            channel_id=channel_id,
-            text="Behold, my new evil scheme - release {version} for {project}! Now deploying to RC...".format(
-                version=version,
-                project=repo_info.name,
-            ),
-        )
+        if hotfix_version:
+            await release(
+                github_access_token=self.github_access_token,
+                repo_url=repo_url,
+                new_version=hotfix_version,
+                branch='release',
+                commit_hash=passed_arg,
+            )
+            await self.say(
+                channel_id=channel_id,
+                text=f"Behold, my new evil scheme - hotfix release {hotfix_version} "
+                     f"with commit {passed_arg}! Now deploying to RC..."
+            )
+        else:
+            await release(
+                github_access_token=self.github_access_token,
+                repo_url=repo_url,
+                new_version=passed_arg,
+            )
+            await self.say(
+                channel_id=channel_id,
+                text=f"Behold, my new evil scheme - release {passed_arg} for {repo_info.name}! Now deploying to RC..."
+            )
 
         await wait_for_deploy(
             github_access_token=self.github_access_token,
@@ -359,7 +369,7 @@ class Bot:
             channel_id=channel_id,
             text="Release {version} for {project} was deployed! PR is up at {pr_url}."
             " These people have commits in this release: {authors}".format(
-                version=version,
+                version=hotfix_version if hotfix_version else passed_arg,
                 authors=", ".join(slack_usernames),
                 pr_url=pr.url,
                 project=repo_info.name,
@@ -394,6 +404,32 @@ class Bot:
             await self._web_application_release(command_args)
         else:
             raise Exception("Configuration error: unknown project type {}".format(repo_info.project_type))
+
+    async def hotfix_command(self, command_args):
+        """
+        Start a hotfix with the commit hash provided
+
+        Args:
+            command_args (CommandArgs): The arguments for this command
+        """
+        repo_info = command_args.repo_info
+        repo_url = repo_info.repo_url
+        org, repo = get_org_and_repo(repo_url)
+
+        release_pr = await get_release_pr(github_access_token=self.github_access_token, org=org, repo=repo)
+        if release_pr:
+            await self.say(
+                channel_id=repo_info.channel_id,
+                text=f"There is a release already in progress: {release_pr.url}. Close that first!"
+            )
+            raise ReleaseException(f"There is a release already in progress: {release_pr.url}. Close that first!")
+
+        async with init_working_dir(self.github_access_token, repo_info.repo_url):
+            last_version = update_version("9.9.9")
+
+        _, new_patch = next_versions(last_version)
+
+        await self._web_application_release(command_args, hotfix_version=new_patch)
 
     async def wait_for_checkboxes_command(self, command_args):
         """
@@ -813,6 +849,13 @@ class Bot:
                 supported_project_types=[LIBRARY_TYPE, WEB_APPLICATION_TYPE],
             ),
             Command(
+                command='hotfix',
+                parsers=[Parser(func=get_commit_hash, description='commit hash to cherry-pick')],
+                command_func=self.hotfix_command,
+                description='Start a hotfix release',
+                supported_project_types=[WEB_APPLICATION_TYPE],
+            ),
+            Command(
                 command='finish release',
                 parsers=[],
                 command_func=self.finish_release,
@@ -1115,6 +1158,23 @@ def get_version_number(text):
         return text
     else:
         raise InputException("Invalid version number")
+
+
+def get_commit_hash(text):
+    """
+    return commit hash at the end of the message
+
+    Args:
+        text (str): The string containing the commit hash
+
+    Returns:
+        str: The commit hash if it parsed correctly
+    """
+    hash_pattern = re.compile(COMMIT_HASH_RE)
+    if hash_pattern.match(text):
+        return text
+    else:
+        raise InputException("Invalid commit hash")
 
 
 def has_command(command_words, input_words):

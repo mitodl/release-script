@@ -291,6 +291,68 @@ async def test_release(doof, test_repo, event_loop, mocker, command):
     assert wait_for_checkboxes_sync_mock.called is True
 
 
+# pylint: disable=too-many-locals
+async def test_hotfix_release(doof, test_repo, event_loop, mocker):
+    """
+    Doof should do a hotfix when asked
+    """
+    commit_hash = 'uthhg983u4thg9h5'
+    version = '0.1.2'
+    pr = ReleasePR(
+        version=version,
+        url='http://new.url',
+        body='Release PR body',
+    )
+    get_release_pr_mock = mocker.async_patch('bot.get_release_pr', side_effect=[None, pr, pr])
+    release_mock = mocker.async_patch('bot.release')
+
+    wait_for_deploy_sync_mock = mocker.async_patch('bot.wait_for_deploy')
+    authors = {'author1', 'author2'}
+    mocker.async_patch('bot.get_unchecked_authors', return_value=authors)
+
+    wait_for_checkboxes_sync_mock = mocker.async_patch('bot.Bot.wait_for_checkboxes')
+
+    old_version = "0.1.1"
+    update_version_mock = mocker.patch('bot.update_version', autospec=True, return_value=old_version)
+
+    command_words = ['hotfix', commit_hash]
+    me = 'mitodl_user'
+    await doof.run_command(
+        manager=me,
+        channel_id=test_repo.channel_id,
+        words=command_words,
+        loop=event_loop,
+    )
+
+    org, repo = get_org_and_repo(test_repo.repo_url)
+    get_release_pr_mock.assert_any_call(
+        github_access_token=GITHUB_ACCESS,
+        org=org,
+        repo=repo,
+    )
+    update_version_mock.assert_called_once_with("9.9.9")
+    release_mock.assert_called_once_with(
+        github_access_token=GITHUB_ACCESS,
+        repo_url=test_repo.repo_url,
+        new_version=pr.version,
+        branch='release',
+        commit_hash=commit_hash,
+    )
+    wait_for_deploy_sync_mock.assert_called_once_with(
+        github_access_token=GITHUB_ACCESS,
+        repo_url=test_repo.repo_url,
+        hash_url=test_repo.rc_hash_url,
+        watch_branch='release-candidate',
+    )
+    assert doof.said("Now deploying to RC...")
+    for channel_id in [test_repo.channel_id, ANNOUNCEMENTS_CHANNEL.channel_id]:
+        assert doof.said(
+            "These people have commits in this release: {}".format(', '.join(authors)),
+            channel_id=channel_id,
+        )
+    assert wait_for_checkboxes_sync_mock.called is True
+
+
 @pytest.mark.parametrize("command", ['release', 'start release'])
 async def test_release_in_progress(doof, test_repo, event_loop, mocker, command):
     """
