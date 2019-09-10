@@ -119,8 +119,8 @@ async def test_release_notes(doof, test_repo, event_loop, mocker):
     )
 
     update_version_mock.assert_called_once_with("9.9.9")
-    create_release_notes_mock.assert_called_once_with(old_version, with_checkboxes=False)
-    any_new_commits_mock.assert_called_once_with(old_version)
+    create_release_notes_mock.assert_called_once_with(old_version, with_checkboxes=False, base_branch="master")
+    any_new_commits_mock.assert_called_once_with(old_version, base_branch="master")
     get_release_pr_mock.assert_called_once_with(github_access_token=GITHUB_ACCESS, org=org, repo=repo)
 
     assert doof.said("Release notes since {}".format(old_version))
@@ -145,9 +145,9 @@ async def test_release_notes_no_new_notes(doof, test_repo, event_loop, mocker):
         loop=event_loop,
     )
 
-    any_new_commits_mock.assert_called_once_with(old_version)
+    any_new_commits_mock.assert_called_once_with(old_version, base_branch="master")
     update_version_mock.assert_called_once_with("9.9.9")
-    create_release_notes_mock.assert_called_once_with(old_version, with_checkboxes=False)
+    create_release_notes_mock.assert_called_once_with(old_version, with_checkboxes=False, base_branch="master")
     get_release_pr_mock.assert_called_once_with(github_access_token=GITHUB_ACCESS, org=org, repo=repo)
 
     assert doof.said("Release notes since {}".format(old_version))
@@ -171,9 +171,9 @@ async def test_release_notes_buttons(doof, test_repo, event_loop, mocker):
         loop=event_loop,
     )
 
-    any_new_commits_mock.assert_called_once_with(old_version)
+    any_new_commits_mock.assert_called_once_with(old_version, base_branch="master")
     update_version_mock.assert_called_once_with("9.9.9")
-    create_release_notes_mock.assert_called_once_with(old_version, with_checkboxes=False)
+    create_release_notes_mock.assert_called_once_with(old_version, with_checkboxes=False, base_branch="master")
     get_release_pr_mock.assert_called_once_with(github_access_token=GITHUB_ACCESS, org=org, repo=repo)
 
     assert doof.said("Release notes since {}".format(old_version))
