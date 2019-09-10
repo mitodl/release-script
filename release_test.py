@@ -1,10 +1,11 @@
 """Tests for release script"""
 import os
-from subprocess import check_call
+from subprocess import check_call, CalledProcessError
 from tempfile import TemporaryDirectory
 
 import pytest
 
+from exception import ReleaseException
 from release import (
     any_new_commits,
     create_release_notes,
@@ -13,6 +14,7 @@ from release import (
     generate_release_pr,
     GIT_RELEASE_NOTES_PATH,
     init_working_dir,
+    release,
     update_release_notes,
     UpdateVersionException,
     update_version,
@@ -277,7 +279,7 @@ async def test_create_release_notes(test_repo, with_checkboxes):
     make_empty_commit("User 2", "Commit #2")
     make_empty_commit("User 2", "Commit #3")
 
-    notes = await create_release_notes("0.0.1", with_checkboxes=with_checkboxes)
+    notes = await create_release_notes("0.0.1", with_checkboxes=with_checkboxes, base_branch="master")
     lines = notes.split("\n")
     if with_checkboxes:
         assert_starts_with(lines, [
@@ -304,7 +306,7 @@ async def test_create_release_notes_empty(test_repo, with_checkboxes):
     make_empty_commit("initial", "initial commit")
     check_call(["git", "tag", "v0.0.1"])
 
-    notes = await create_release_notes("0.0.1", with_checkboxes=with_checkboxes)
+    notes = await create_release_notes("0.0.1", with_checkboxes=with_checkboxes, base_branch="master")
     assert notes == "No new commits"
 
 
@@ -315,7 +317,7 @@ async def test_create_release_notes_amp(test_repo, with_checkboxes):
     check_call(["git", "tag", "v0.0.1"])
     make_empty_commit("User 1", "Commit & ' \"")
 
-    notes = await create_release_notes("0.0.1", with_checkboxes=with_checkboxes)
+    notes = await create_release_notes("0.0.1", with_checkboxes=with_checkboxes, base_branch="master")
     assert "Commit & \' \"" in notes
 
 
@@ -329,7 +331,7 @@ async def test_any_new_commits(test_repo, has_commits):
         make_empty_commit("User 1", "After 1")
     check_call(["git", "tag", "v0.0.2"])
 
-    assert await any_new_commits("0.0.1") is has_commits
+    assert await any_new_commits("0.0.1", base_branch="master") is has_commits
 
 
 async def test_update_release_notes(test_repo):
@@ -339,12 +341,12 @@ async def test_update_release_notes(test_repo):
 
     make_empty_commit("User 1", "Before")
     check_call(["git", "tag", "v0.3.0"])
-    await update_release_notes("0.2.0", "0.3.0")
+    await update_release_notes("0.2.0", "0.3.0", base_branch="master")
 
     make_empty_commit("User 2", "After 1")
     make_empty_commit("User 2", "After 2")
     make_empty_commit("User 3", "After 3")
-    await update_release_notes("0.3.0", "0.4.0")
+    await update_release_notes("0.3.0", "0.4.0", base_branch="master")
 
     assert open("RELEASE.rst").read() == """Release Notes
 =============
@@ -398,7 +400,7 @@ async def test_update_release_notes_initial(test_repo):
     make_empty_commit("User 1", "A commit between 2 and 3")
     check_call(["git", "tag", "v0.3.0"])
     os.unlink("RELEASE.rst")
-    await update_release_notes("0.2.0", "0.3.0")
+    await update_release_notes("0.2.0", "0.3.0", base_branch="master")
 
     assert open("RELEASE.rst").read() == """Release Notes
 =============
@@ -417,11 +419,11 @@ async def test_verify_new_commits(test_repo):
     check_call(["git", "checkout", "master"])
 
     with pytest.raises(Exception) as ex:
-        await verify_new_commits("0.0.1")
+        await verify_new_commits("0.0.1", base_branch="master")
     assert ex.value.args[0] == 'No new commits to put in release'
     make_empty_commit("User 1", "  Release 0.0.1  ")
     # No exception
-    await verify_new_commits("0.0.1")
+    await verify_new_commits("0.0.1", base_branch="master")
 
 
 async def test_generate_release_pr(mocker, test_repo):
@@ -435,10 +437,11 @@ async def test_generate_release_pr(mocker, test_repo):
     create_pr_mock = mocker.async_patch('release.create_pr')
     create_release_notes_mock = mocker.async_patch('release.create_release_notes', return_value=body)
     await generate_release_pr(
-        access_token,
-        repo_url,
-        old_version,
-        new_version,
+        github_access_token=access_token,
+        repo_url=repo_url,
+        old_version=old_version,
+        new_version=new_version,
+        base_branch="master",
     )
     create_pr_mock.assert_called_once_with(
         github_access_token=access_token,
@@ -448,7 +451,7 @@ async def test_generate_release_pr(mocker, test_repo):
         head="release-candidate",
         base="release",
     )
-    create_release_notes_mock.assert_called_once_with(old_version, with_checkboxes=True)
+    create_release_notes_mock.assert_called_once_with(old_version, with_checkboxes=True, base_branch="master")
 
 
 async def test_fetch_release_hash(mocker):
@@ -472,3 +475,69 @@ async def test_get_version_tag(mocker):
     a_hash = b'hash'
     mocker.async_patch('version.check_output', return_value=a_hash)
     assert await get_version_tag('github', 'http://github.com/mitodl/doof.git', 'commit') == a_hash.decode()
+
+
+@pytest.mark.parametrize("hotfix_hash", ["", "abcdef"])
+async def test_release(mocker, hotfix_hash):
+    """release should perform a release"""
+    token = "token"
+    repo_url = 'http://github.com/fake/repo.git'
+    old_version = "6.5.4"
+    new_version = '9.8.7'
+    branch = 'branch'
+    base_branch = "release-candidate" if hotfix_hash else "master"
+
+    validate_mock = mocker.async_patch('release.validate_dependencies')
+    check_call_mock = mocker.async_patch('release.check_call')
+    verify_mock = mocker.async_patch('release.verify_new_commits')
+    update_release_mock = mocker.async_patch('release.update_release_notes')
+    update_version_mock = mocker.patch('release.update_version', return_value=old_version)
+    generate_mock = mocker.async_patch('release.generate_release_pr')
+
+    await release(
+        github_access_token=token,
+        repo_url=repo_url,
+        new_version=new_version,
+        branch=branch,
+        commit_hash=hotfix_hash
+    )
+
+    validate_mock.assert_called_once_with()
+    generate_mock.assert_called_once_with(
+        github_access_token=token,
+        repo_url=repo_url,
+        old_version=old_version,
+        new_version=new_version,
+        base_branch=base_branch,
+    )
+    verify_mock.assert_called_once_with(old_version, base_branch=base_branch)
+    update_release_mock.assert_called_once_with(old_version, new_version, base_branch=base_branch)
+    update_version_mock.assert_called_once_with(new_version)
+    check_call_mock.assert_any_call(["git", "checkout", "-qb", "release-candidate"])
+    if hotfix_hash:
+        check_call_mock.assert_any_call(["git", "cherry-pick", hotfix_hash])
+    check_call_mock.assert_any_call(
+        ["git", "push", "--force", "-q", "origin", "release-candidate:release-candidate"]
+    )
+
+
+async def test_release_failed_cherry_pick(mocker):
+    """release should raise an exception if the cherry pick fails"""
+    commit_hash = "does_not_exist"
+
+    def fake_check_call(args):
+        if args[1] == "cherry-pick":
+            raise CalledProcessError(128, "git")
+
+    mocker.async_patch('release.check_call', side_effect=fake_check_call)
+
+    with pytest.raises(ReleaseException) as ex:
+        await release(
+            github_access_token="token",
+            repo_url="http://github.com/repo/url.git",
+            new_version="9.8.7",
+            branch="branch",
+            commit_hash=commit_hash
+        )
+
+    assert ex.value.args[0] == f'Cherry pick failed for the given hash {commit_hash}'

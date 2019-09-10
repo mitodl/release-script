@@ -107,10 +107,11 @@ async def test_set_release_date(test_repo, timezone, mocker):
     make_empty_commit("initial", "initial commit")
     await check_call(["git", "tag", "v0.1.0"])
     make_empty_commit("User 1", "Commit #1")
-    await create_release_notes("0.1.0", with_checkboxes=False)
+    base_branch = "master"
+    await create_release_notes("0.1.0", with_checkboxes=False, base_branch=base_branch)
     make_empty_commit("User 2", "Commit #2")
     await check_call(["git", "tag", "v0.2.0"])
-    await create_release_notes("0.2.0", with_checkboxes=False)
+    await create_release_notes("0.2.0", with_checkboxes=False, base_branch=base_branch)
     await set_release_date("0.2.0", timezone)
     with open('RELEASE.rst', 'r') as release_file:
         content = release_file.read()

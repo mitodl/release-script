@@ -630,8 +630,8 @@ class Bot:
         async with init_working_dir(self.github_access_token, repo_info.repo_url):
             last_version = update_version("9.9.9")
 
-            release_notes = await create_release_notes(last_version, with_checkboxes=False)
-            has_new_commits = await any_new_commits(last_version)
+            release_notes = await create_release_notes(last_version, with_checkboxes=False, base_branch="master")
+            has_new_commits = await any_new_commits(last_version, base_branch="master")
 
         await self.say_with_attachment(
             channel_id=repo_info.channel_id,
