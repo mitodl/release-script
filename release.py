@@ -224,7 +224,7 @@ async def update_release_notes(old_version, new_version, *, base_branch):
     release_filename = "RELEASE.rst"
     try:
         with open(release_filename) as f:
-            existing_note_lines = [line for line in f.readlines()]
+            existing_note_lines = f.readlines()
     except FileNotFoundError:
         existing_note_lines = []
 

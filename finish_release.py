@@ -55,7 +55,7 @@ async def set_release_date(version, timezone):
     await check_call(['git', 'checkout', 'release-candidate'])
 
     with open(release_filename) as f:
-        existing_note_lines = [line for line in f.readlines()]
+        existing_note_lines = f.readlines()
 
     with open(release_filename, "w") as f:
         for line in existing_note_lines:
