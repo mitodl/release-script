@@ -227,8 +227,7 @@ async def calculate_karma(*, github_access_token, begin_date, end_date):
                 )
             )
 
-    karma_list = [(k, v) for k, v in karma.items()]
-    karma_list = sorted(karma_list, key=lambda tup: tup[1], reverse=True)
+    karma_list = sorted(karma.items(), key=lambda tup: tup[1], reverse=True)
     return karma_list
 
 
