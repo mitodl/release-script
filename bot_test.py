@@ -895,7 +895,8 @@ async def test_help(doof, event_loop):
     assert doof.said("*help*: Show available commands")
 
 
-async def test_wait_for_checkboxes(mocker, doof, test_repo):
+@pytest.mark.parametrize("speak_initial", [True, False])
+async def test_wait_for_checkboxes(mocker, doof, test_repo, speak_initial):
     """wait_for_checkboxes should poll github, parse checkboxes and see if all are checked"""
     org, repo = get_org_and_repo(test_repo.repo_url)
 
@@ -912,8 +913,10 @@ async def test_wait_for_checkboxes(mocker, doof, test_repo):
     await doof.wait_for_checkboxes(
         manager=me,
         repo_info=test_repo,
+        speak_initial=speak_initial,
     )
-    assert doof.said("isn't evil enough until all the checkboxes are checked")
+    if speak_initial:
+        assert doof.said("isn't evil enough until all the checkboxes are checked")
     get_unchecked_patch.assert_any_call(
         github_access_token=GITHUB_ACCESS,
         org=org,
@@ -922,18 +925,19 @@ async def test_wait_for_checkboxes(mocker, doof, test_repo):
     assert get_unchecked_patch.call_count == 3
     assert sleep_sync_mock.call_count == 2
     get_release_pr_mock.assert_called_once_with(github_access_token=GITHUB_ACCESS, org=org, repo=repo)
-    assert doof.said(
-        "Release {version} is ready for the Merginator {name}".format(
-            version=pr.version,
-            name=format_user_id(me),
-        ),
-        attachments=[
-            {
-                'actions': [{'name': 'finish_release', 'text': 'Finish the release', 'type': 'button'}],
-                'callback_id': 'finish_release', 'fallback': 'Finish the release'
-            }
-        ]
-    )
+    if speak_initial:
+        assert doof.said(
+            "Release {version} is ready for the Merginator {name}".format(
+                version=pr.version,
+                name=format_user_id(me),
+            ),
+            attachments=[
+                {
+                    'actions': [{'name': 'finish_release', 'text': 'Finish the release', 'type': 'button'}],
+                    'callback_id': 'finish_release', 'fallback': 'Finish the release'
+                }
+            ]
+        )
     assert doof.said(
         "Thanks for checking off your boxes author1, author3!"
     )

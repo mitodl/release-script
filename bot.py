@@ -489,26 +489,27 @@ class Bot:
             org=org,
             repo=repo,
         )
-        await self.say(
-            channel_id=channel_id,
-            text="All checkboxes checked off. Release {version} is ready for the Merginator{name}!".format(
-                name=" " + format_user_id(manager) if manager else "",
-                version=pr.version
-            ),
-            attachments=[
-                {
-                    "fallback": "Finish the release",
-                    "callback_id": FINISH_RELEASE_ID,
-                    "actions": [
-                        {
-                            "name": "finish_release",
-                            "text": "Finish the release",
-                            "type": "button",
-                        }
-                    ]
-                }
-            ]
-        )
+        if speak_initial:
+            await self.say(
+                channel_id=channel_id,
+                text="All checkboxes checked off. Release {version} is ready for the Merginator{name}!".format(
+                    name=" " + format_user_id(manager) if manager else "",
+                    version=pr.version
+                ),
+                attachments=[
+                    {
+                        "fallback": "Finish the release",
+                        "callback_id": FINISH_RELEASE_ID,
+                        "actions": [
+                            {
+                                "name": "finish_release",
+                                "text": "Finish the release",
+                                "type": "button",
+                            }
+                        ]
+                    }
+                ]
+            )
 
     async def upload_to_pypitest(self, command_args):
         """

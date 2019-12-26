@@ -55,6 +55,8 @@ async def async_main():
         repos_info=repos_info
     )
 
+    await bot.startup(loop=asyncio.get_event_loop())
+
     await bot.handle_message(
         manager='mitodl_user',
         channel_id=channel_id,
