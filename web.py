@@ -10,19 +10,17 @@ class ButtonHandler(RequestHandler):
     """
     Handle button requests
     """
-    def initialize(self, token, bot, loop):  # pylint: disable=arguments-differ
+    def initialize(self, token, bot):  # pylint: disable=arguments-differ
         """
         Set variables
 
         Args:
             token (str): The slack webhook token used to authenticate
             bot (Bot): The bot
-            loop (asyncio.events.AbstractEventLoop): The event loop
         """
         # pylint: disable=attribute-defined-outside-init
         self.token = token
         self.bot = bot
-        self.loop = loop
 
     async def post(self, *args, **kwargs):  # pylint: disable=unused-argument
         """Handle webhook POST"""
@@ -33,21 +31,20 @@ class ButtonHandler(RequestHandler):
             self.finish("")
             return
 
-        self.loop.create_task(
-            self.bot.handle_webhook(webhook_dict=arguments, loop=self.loop)
+        self.bot.loop.create_task(
+            self.bot.handle_webhook(webhook_dict=arguments)
         )
 
         self.finish("")
 
 
-def make_app(token, bot, loop):
+def make_app(token, bot):
     """
     Create the application handling the webhook requests
 
     Args:
         token (str): The slack webhook token used to authenticate
         bot (Bot): The bot
-        loop (asyncio.events.AbstractEventLoop): The event loop
 
     Returns:
         Application: A tornado application
@@ -56,6 +53,5 @@ def make_app(token, bot, loop):
         (r'/api/v0/buttons/', ButtonHandler, {
             'token': token,
             'bot': bot,
-            'loop': loop,
         }),
     ])
