@@ -185,7 +185,8 @@ async def test_release_notes_buttons(doof, test_repo, event_loop, mocker):
             'callback_id': 'new_release',
             'actions': [
                 {'name': 'minor_release', 'text': minor_version, 'value': minor_version, 'type': 'button'},
-                {'name': 'patch_release', 'text': patch_version, 'value': patch_version, 'type': 'button'}
+                {'name': 'patch_release', 'text': patch_version, 'value': patch_version, 'type': 'button'},
+                {'name': 'cancel', 'text': "Dismiss", 'value': "cancel", 'type': 'button', "style": "danger"}
             ]
         }
     ])
@@ -741,7 +742,8 @@ async def test_webhook_start_release(doof, test_repo, event_loop, mocker):
             },
             "actions": [
                 {
-                    "value": version
+                    "value": version,
+                    "name": "minor_release",
                 }
             ]
         },
@@ -778,7 +780,8 @@ async def test_webhook_start_release_fail(doof, event_loop, mocker):
                 },
                 "actions": [
                     {
-                        "value": version
+                        "value": version,
+                        "name": "minor_release",
                     }
                 ]
             },
@@ -933,7 +936,16 @@ async def test_wait_for_checkboxes(mocker, doof, test_repo, speak_initial):
             ),
             attachments=[
                 {
-                    'actions': [{'name': 'finish_release', 'text': 'Finish the release', 'type': 'button'}],
+                    'actions': [
+                        {
+                            'name': 'finish_release', 'text': 'Finish the release', 'type': 'button',
+                            "confirm": {
+                                "title": "Are you sure?",
+                                "ok_text": "Finish the release",
+                                "dismiss_text": "Cancel",
+                            }
+                        },
+                    ],
                     'callback_id': 'finish_release', 'fallback': 'Finish the release'
                 }
             ]
