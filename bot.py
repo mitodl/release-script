@@ -521,6 +521,11 @@ class Bot:
                                 "name": "finish_release",
                                 "text": "Finish the release",
                                 "type": "button",
+                                "confirm": {
+                                    "title": "Are you sure?",
+                                    "ok_text": "Finish the release",
+                                    "dismiss_text": "Cancel",
+                                }
                             }
                         ]
                     }
@@ -687,7 +692,7 @@ class Bot:
                             },
                             {
                                 "name": "cancel",
-                                "text": "Cancel",
+                                "text": "Dismiss",
                                 "value": "cancel",
                                 "style": "danger",
                                 "type": "button",
@@ -1113,7 +1118,7 @@ class Bot:
 
         elif callback_id == NEW_RELEASE_ID:
             repo_info = self.get_repo_info(channel_id)
-            name = webhook_dict['actions'][0]['value']
+            name = webhook_dict['actions'][0]['name']
             if name == "cancel":
                 await self.delete_message(
                     channel_id=channel_id,
