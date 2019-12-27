@@ -52,16 +52,16 @@ async def async_main():
         slack_access_token=envs['SLACK_ACCESS_TOKEN'],
         github_access_token=envs['GITHUB_ACCESS_TOKEN'],
         timezone=envs['TIMEZONE'],
-        repos_info=repos_info
+        repos_info=repos_info,
+        loop=asyncio.get_event_loop(),
     )
 
-    await bot.startup(loop=asyncio.get_event_loop())
+    await bot.startup()
 
     await bot.handle_message(
         manager='mitodl_user',
         channel_id=channel_id,
         words=words,
-        loop=asyncio.get_event_loop(),
     )
 
 

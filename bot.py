@@ -66,7 +66,7 @@ from web import make_app
 log = logging.getLogger(__name__)
 
 
-CommandArgs = namedtuple('CommandArgs', ['channel_id', 'repo_info', 'args', 'loop', 'manager'])
+CommandArgs = namedtuple('CommandArgs', ['channel_id', 'repo_info', 'args', 'manager'])
 Command = namedtuple('Command', ['command', 'parsers', 'command_func', 'description', 'supported_project_types'])
 Parser = namedtuple('Parser', ['func', 'description'])
 
@@ -96,7 +96,7 @@ def get_envs():
 class Bot:
     """Slack bot used to manage the release"""
 
-    def __init__(self, *, websocket, slack_access_token, github_access_token, timezone, repos_info):
+    def __init__(self, *, websocket, slack_access_token, github_access_token, timezone, repos_info, loop):
         """
         Create the slack bot
 
@@ -106,12 +106,14 @@ class Bot:
             github_access_token (str): The Github access token used to interact with Github
             timezone (tzinfo): The time zone of the team interacting with the bot
             repos_info (list of RepoInfo): Information about the repositories connected to channels
+            loop (asyncio.events.AbstractEventLoop): The asyncio event loop
         """
         self.websocket = websocket
         self.slack_access_token = slack_access_token
         self.github_access_token = github_access_token
         self.timezone = timezone
         self.repos_info = repos_info
+        self.loop = loop
 
         # Used for only websocket messages
         self.message_count = 0
@@ -378,7 +380,7 @@ class Bot:
         )
 
         await self.wait_for_checkboxes(repo_info, command_args.manager)
-        command_args.loop.create_task(self.delay_message(repo_info))
+        self.loop.create_task(self.delay_message(repo_info))
 
     async def release_command(self, command_args):
         """
@@ -936,7 +938,7 @@ class Bot:
         ]
 
     # pylint: disable=too-many-locals
-    async def run_command(self, *, manager, channel_id, words, loop):
+    async def run_command(self, *, manager, channel_id, words):
         """
         Run a command
 
@@ -944,7 +946,6 @@ class Bot:
             manager (str): The user id for the person giving the command
             channel_id (str): The channel id
             words (list of str): the words making up a command
-            loop (asyncio.events.AbstractEventLoop): The asyncio event loop
         """
         await self.typing(channel_id)
         for command in self.make_commands():
@@ -1001,7 +1002,6 @@ class Bot:
                         repo_info=repo_info,
                         channel_id=channel_id,
                         args=parsed_args,
-                        loop=loop,
                         manager=manager,
                     )
                 )
@@ -1015,7 +1015,7 @@ class Bot:
             " Y'know, unless, one of you happens to be really good with computers."
         )
 
-    async def handle_message(self, *, manager, channel_id, words, loop):
+    async def handle_message(self, *, manager, channel_id, words):
         """
         Handle the message
 
@@ -1023,20 +1023,18 @@ class Bot:
             manager (str): The user id for the person giving the command
             channel_id (str): The channel id
             words (list of str): the words making up a command
-            loop (asyncio.events.AbstractEventLoop): The asyncio event loop
         """
         try:
             await self.run_command(
                 manager=manager,
                 channel_id=channel_id,
                 words=words,
-                loop=loop
             )
         except (InputException, ReleaseException) as ex:
             log.exception("A BotException was raised:")
             await self.say(channel_id=channel_id, text="Oops! {}".format(ex))
         except ResetException:
-            loop.stop()
+            self.loop.stop()
         except:  # pylint: disable=bare-except
             log.exception("Exception found when handling a message")
             await self.say(
@@ -1045,13 +1043,12 @@ class Bot:
                      "Don't push the self-destruct button. This one right here.",
             )
 
-    async def handle_webhook(self, *, webhook_dict, loop):
+    async def handle_webhook(self, webhook_dict):
         """
         Handle a webhook coming from Slack. The payload has already been verified at this point.
 
         Args:
             webhook_dict (dict): The dict from Slack containing the webhook information
-            loop (asyncio.events.AbstractEventLoop): The asyncio event loop
         """
 
         channel_id = webhook_dict['channel']['id']
@@ -1075,7 +1072,6 @@ class Bot:
                     channel_id=channel_id,
                     repo_info=repo_info,
                     args=[],
-                    loop=loop,
                     manager=user_id,
                 ))
             except:
@@ -1105,7 +1101,6 @@ class Bot:
                     channel_id=channel_id,
                     repo_info=repo_info,
                     args=[version],
-                    loop=loop,
                     manager=user_id,
                 ))
             except:
@@ -1121,12 +1116,9 @@ class Bot:
         else:
             log.warning("Unknown callback id: %s", callback_id)
 
-    async def startup(self, *, loop):
+    async def startup(self):
         """
         Run various tasks when bot starts
-
-        Args:
-            loop (asyncio.events.AbstractEventLoop): The asyncio event loop
         """
         for repo_info in self.repos_info:
             if repo_info.project_type != WEB_APPLICATION_TYPE:
@@ -1141,7 +1133,7 @@ class Bot:
             if not release_pr:
                 continue
 
-            loop.create_task(self.wait_for_checkboxes(manager=None, repo_info=repo_info, speak_initial=False))
+            self.loop.create_task(self.wait_for_checkboxes(manager=None, repo_info=repo_info, speak_initial=False))
 
 
 def get_version_number(text):
@@ -1223,8 +1215,9 @@ async def async_main():
                 github_access_token=envs['GITHUB_ACCESS_TOKEN'],
                 timezone=pytz.timezone(envs['TIMEZONE']),
                 repos_info=repos_info,
+                loop=loop,
             )
-            app = make_app(token=envs['SLACK_WEBHOOK_TOKEN'], bot=bot, loop=loop)
+            app = make_app(token=envs['SLACK_WEBHOOK_TOKEN'], bot=bot)
             app.listen(port)
 
             async def ping():
@@ -1241,7 +1234,7 @@ async def async_main():
 
             asyncio.create_task(ping())
 
-            await bot.startup(loop=loop)
+            await bot.startup()
 
             async for message in websocket:
                 message = json.loads(message)
@@ -1269,7 +1262,6 @@ async def async_main():
                                 manager=message['user'],
                                 channel_id=channel_id,
                                 words=words,
-                                loop=loop,
                             )
                         )
     await connect_to_message_server(asyncio.get_event_loop())
