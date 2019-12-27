@@ -56,6 +56,7 @@ from lib import (
 from slack import get_channels_info
 from wait_for_deploy import (
     fetch_release_hash,
+    is_release_deployed,
     wait_for_deploy,
 )
 from version import get_version_tag
@@ -66,9 +67,24 @@ from web import make_app
 log = logging.getLogger(__name__)
 
 
+Task = namedtuple('Task', ['channel_id', 'task'])
 CommandArgs = namedtuple('CommandArgs', ['channel_id', 'repo_info', 'args', 'manager'])
 Command = namedtuple('Command', ['command', 'parsers', 'command_func', 'description', 'supported_project_types'])
 Parser = namedtuple('Parser', ['func', 'description'])
+
+
+def unique_task(func):
+    """Decorator to prevent coroutine func from being run twice for same channel and task"""
+    async def decorated_func(bot, *args, repo_info, **kwargs):
+        key = Task(channel_id=repo_info.channel_id, task=func.__name__)
+        if key in bot.tasks:
+            return
+        bot.tasks.add(key)
+        result = await func(bot, *args, repo_info=repo_info, **kwargs)
+        bot.tasks.remove(key)
+        return result
+
+    return decorated_func
 
 
 def get_envs():
@@ -114,6 +130,8 @@ class Bot:
         self.timezone = timezone
         self.repos_info = repos_info
         self.loop = loop
+        # Keep track of long running or scheduled tasks
+        self.tasks = set()
 
         # Used for only websocket messages
         self.message_count = 0
@@ -300,11 +318,21 @@ class Bot:
             new_version=version,
         )
 
-        org, repo = get_org_and_repo(repo_url)
         await self.say(
             channel_id=channel_id,
             text=f"My evil scheme {version} for {repo_info.name} has been released! Waiting for Travis..."
         )
+        await self._wait_for_travis(
+            repo_info=repo_info,
+            version=version,
+        )
+
+    @unique_task
+    async def _wait_for_travis(self, *, repo_info, version):
+        """Wait for travis then finish the library release"""
+        repo_url = repo_info.repo_url
+        channel_id = repo_info.channel_id
+        org, repo = get_org_and_repo(repo_url)
         status = await wait_for_travis(
             github_access_token=self.github_access_token,
             org=org,
@@ -341,7 +369,6 @@ class Bot:
         passed_arg = command_args.args[0]
         repo_url = repo_info.repo_url
         channel_id = repo_info.channel_id
-        org, repo = get_org_and_repo(repo_url)
         if hotfix_version:
             await release(
                 github_access_token=self.github_access_token,
@@ -366,6 +393,48 @@ class Bot:
                 text=f"Behold, my new evil scheme - release {passed_arg} for {repo_info.name}! Now deploying to RC..."
             )
 
+        await self._wait_for_deploy_rc(
+            repo_info=repo_info,
+        )
+        await self.wait_for_checkboxes(
+            repo_info=repo_info,
+            manager=command_args.manager,
+        )
+        self.loop.create_task(self.wait_for_checkboxes_reminder(repo_info=repo_info))
+
+    async def wait_for_deploy(self, *, repo_info):
+        """
+        Check hash values periodically and wait for deployment
+        """
+        if not await is_release_deployed(
+                github_access_token=self.github_access_token,
+                repo_url=repo_info.repo_url,
+                hash_url=repo_info.rc_hash_url,
+                branch="release-candidate"
+        ):
+            await self._wait_for_deploy_rc(
+                repo_info=repo_info,
+            )
+        if not await is_release_deployed(
+                github_access_token=self.github_access_token,
+                repo_url=repo_info.repo_url,
+                hash_url=repo_info.prod_hash_url,
+                branch="release"
+        ):
+            await self._wait_for_deploy_prod(
+                repo_info=repo_info,
+            )
+
+    @unique_task
+    async def _wait_for_deploy_rc(
+            self, *, repo_info,
+    ):
+        """
+        Check hash values to wait for deployment for RC
+        """
+        repo_url = repo_info.repo_url
+        channel_id = repo_info.channel_id
+        org, repo = get_org_and_repo(repo_url)
         await wait_for_deploy(
             github_access_token=self.github_access_token,
             repo_url=repo_url,
@@ -385,18 +454,36 @@ class Bot:
         )
         await self.say(
             channel_id=channel_id,
-            text="Release {version} for {project} was deployed! PR is up at {pr_url}."
-            " These people have commits in this release: {authors}".format(
-                version=hotfix_version if hotfix_version else passed_arg,
-                authors=", ".join(slack_usernames),
-                pr_url=pr.url,
-                project=repo_info.name,
+            text=(
+                f"Release {pr.version} for {repo_info.name} was deployed! PR is up at {pr.url}."
+                f" These people have commits in this release: {', '.join(slack_usernames)}"
             ),
             is_announcement=True
         )
 
-        await self.wait_for_checkboxes(repo_info, command_args.manager)
-        self.loop.create_task(self.delay_message(repo_info))
+    @unique_task
+    async def _wait_for_deploy_prod(self, *, repo_info):
+        """
+        Check hash values to wait for deployment for production
+        """
+        repo_url = repo_info.repo_url
+        channel_id = repo_info.channel_id
+        version = await get_version_tag(self.github_access_token, repo_url, "release")
+
+        await wait_for_deploy(
+            github_access_token=self.github_access_token,
+            repo_url=repo_url,
+            hash_url=repo_info.prod_hash_url,
+            watch_branch="release",
+        )
+        await self.say(
+            channel_id=channel_id,
+            text=(
+                f"My evil scheme {version} for {repo_info.name} has been released to production. "
+                "And by 'released', I mean completely...um...leased."
+            ),
+            is_announcement=True,
+        )
 
     async def release_command(self, command_args):
         """
@@ -456,9 +543,10 @@ class Bot:
         Args:
             command_args (CommandArgs): The arguments for this command
         """
-        await self.wait_for_checkboxes(command_args.repo_info, command_args.manager)
+        await self.wait_for_checkboxes(repo_info=command_args.repo_info, manager=command_args.manager)
 
-    async def wait_for_checkboxes(self, repo_info, manager, speak_initial=True):
+    @unique_task
+    async def wait_for_checkboxes(self, *, repo_info, manager, speak_initial=True):
         """
         Poll the Release PR and wait until all checkboxes are checked off
 
@@ -608,21 +696,7 @@ class Bot:
                 project=repo_info.name,
             ),
         )
-        await wait_for_deploy(
-            github_access_token=self.github_access_token,
-            repo_url=repo_url,
-            hash_url=repo_info.prod_hash_url,
-            watch_branch="release",
-        )
-        await self.say(
-            channel_id=channel_id,
-            text="My evil scheme {version} for {project} has been released to production. "
-            "And by 'released', I mean completely...um...leased.".format(
-                version=version,
-                project=repo_info.name,
-            ),
-            is_announcement=True,
-        )
+        await self._wait_for_deploy_prod(repo_info=repo_info)
 
     async def report_version(self, command_args):
         """
@@ -728,7 +802,8 @@ class Bot:
                 )
             )
 
-    async def delay_message(self, repo_info):
+    @unique_task
+    async def wait_for_checkboxes_reminder(self, *, repo_info):
         """
         sleep until 10am next day, then message
 
@@ -849,6 +924,25 @@ class Bot:
         await self.say(channel_id=command_args.channel_id, text="Um, hello, falling to my doom here!")
         raise ResetException()
 
+    async def list_tasks(self, command_args):
+        """
+        List the long term or scheduled tasks which Doof is tracking
+
+        Args:
+            command_args (CommandArgs): The arguments for this command
+        """
+        title = (
+            "Oh! Take that! And that! Perry the Platypus! I, uh, I uh, uh... "
+            "There's no one else here. I mean, w-what are you doing here, Perry the Platypus?"
+        )
+        await self.say_with_attachment(
+            channel_id=command_args.channel_id,
+            title=title,
+            text="\n".join(
+                f"{task.task} on {task.channel_id}" for task in self.tasks
+            ) if self.tasks else "No tasks running or scheduled"
+        )
+
     def make_commands(self):
         """
         Describe the commands which are available
@@ -961,6 +1055,13 @@ class Bot:
                 parsers=[],
                 command_func=self.reset,
                 description="Tell Doof to stop everything he's doing",
+                supported_project_types=None,
+            ),
+            Command(
+                command='list tasks',
+                parsers=[],
+                command_func=self.list_tasks,
+                description="List running or scheduled tasks",
                 supported_project_types=None,
             ),
         ]
@@ -1169,6 +1270,7 @@ class Bot:
                 continue
 
             self.loop.create_task(self.wait_for_checkboxes(manager=None, repo_info=repo_info, speak_initial=False))
+            self.loop.create_task(self.wait_for_deploy(repo_info=repo_info))
 
 
 def get_version_number(text):

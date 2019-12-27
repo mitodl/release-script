@@ -27,4 +27,3 @@ async def wait_for_travis(*, github_access_token, org, repo, branch):
 
         # Wait 30 seconds then try again
         await asyncio.sleep(30)
-        print(".", end='')

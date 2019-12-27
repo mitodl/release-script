@@ -1,14 +1,9 @@
 """Wait for hash on server to match with deployed code"""
-import argparse
 import asyncio
-import os
 
 from async_subprocess import check_output
 from client_wrapper import ClientWrapper
-from release import (
-    init_working_dir,
-    validate_dependencies,
-)
+from release import init_working_dir
 
 
 async def fetch_release_hash(hash_url):
@@ -25,53 +20,32 @@ async def fetch_release_hash(hash_url):
     return release_hash
 
 
-async def wait_for_deploy(*, github_access_token, repo_url, hash_url, watch_branch):
-    """Wait until server is finished with the deploy"""
-    await validate_dependencies()
+async def is_release_deployed(*, github_access_token, repo_url, hash_url, branch):
+    """
+    Is server finished with the deploy?
+    """
+    async with init_working_dir(github_access_token, repo_url):
+        output = await check_output(["git", "rev-parse", "origin/{}".format(branch)])
+        latest_hash = output.decode().strip()
+    return await fetch_release_hash(hash_url) == latest_hash
 
+
+async def wait_for_deploy(*, github_access_token, repo_url, hash_url, watch_branch):
+    """
+    Wait until server is finished with the deploy
+
+    Args:
+        github_access_token (str): A github access token
+        repo_url (str): The repository URL which has the latest commit hash to check
+        hash_url (str): The deployment URL which has the commit of the deployed app
+        watch_branch (str): The branch in the repository which has the latest commit
+
+    Returns:
+        bool:
+            True if the hashes matched immediately on checking, False if hashes matched only after checking
+    """
     async with init_working_dir(github_access_token, repo_url):
         output = await check_output(["git", "rev-parse", "origin/{}".format(watch_branch)])
         latest_hash = output.decode().strip()
-    print("Polling {url} for {hash}...".format(url=hash_url, hash=latest_hash))
     while await fetch_release_hash(hash_url) != latest_hash:
         await asyncio.sleep(30)
-        print(".", end='')
-    print("Hashes match, deployment was successful!")
-
-
-def main():
-    """
-    Deploy a release to production
-    """
-    try:
-        github_access_token = os.environ['GITHUB_ACCESS_TOKEN']
-    except KeyError:
-        raise Exception("Missing GITHUB_ACCESS_TOKEN")
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("repo_url")
-    parser.add_argument(
-        "hash_url",
-        help="a hash URL containing the deployed git hash version. "
-             "For example, for micromasters https://micromasters-rc.herokuapp.com/static/hash.txt"
-    )
-    parser.add_argument("watch_branch", help="a branch whose latest commit will match the deployed hash")
-    args = parser.parse_args()
-
-    if not args.hash_url.startswith("https"):
-        raise Exception("You must specify a hash URL to compare the deployed git hash version")
-
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(
-        wait_for_deploy(
-            github_access_token=github_access_token,
-            repo_url=args.repo_url,
-            hash_url=args.hash_url,
-            watch_branch=args.watch_branch,
-        )
-    )
-    loop.close()
-
-
-if __name__ == "__main__":
-    main()

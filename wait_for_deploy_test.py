@@ -23,7 +23,6 @@ async def test_wait_for_deploy(mocker):
         'wait_for_deploy.check_output',
     )
     check_output_patch.return_value = " {} ".format(matched_hash).encode()
-    validate_patch = mocker.async_patch('wait_for_deploy.validate_dependencies')
 
     @asynccontextmanager
     async def fake_init(*args, **kwargs):  # pylint: disable=unused-argument
@@ -44,7 +43,6 @@ async def test_wait_for_deploy(mocker):
         watch_branch=watch_branch,
     )
 
-    validate_patch.assert_called_once_with()
     check_output_patch.assert_called_once_with(["git", "rev-parse", "origin/{}".format(watch_branch)])
     fetch_release_patch.assert_any_call(hash_url)
     assert fetch_release_patch.call_count == 3

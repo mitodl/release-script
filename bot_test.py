@@ -520,7 +520,7 @@ async def test_finish_release(doof, test_repo, mocker):
     get_release_pr_mock = mocker.async_patch('bot.get_release_pr', return_value=pr)
     finish_release_mock = mocker.async_patch('bot.finish_release')
 
-    wait_for_deploy_sync_mock = mocker.async_patch('bot.wait_for_deploy')
+    wait_for_deploy_prod_mock = mocker.async_patch('bot.Bot._wait_for_deploy_prod')
 
     await doof.run_command(
         manager='mitodl_user',
@@ -541,13 +541,10 @@ async def test_finish_release(doof, test_repo, mocker):
         timezone=doof.timezone
     )
     assert doof.said('deploying to production...')
-    wait_for_deploy_sync_mock.assert_called_once_with(
-        github_access_token=GITHUB_ACCESS,
-        repo_url=test_repo.repo_url,
-        hash_url=test_repo.prod_hash_url,
-        watch_branch='release',
+    wait_for_deploy_prod_mock.assert_called_once_with(
+        doof,
+        repo_info=test_repo
     )
-    assert doof.said('has been released to production')
 
 
 async def test_finish_release_no_release(doof, test_repo, mocker):
@@ -583,7 +580,7 @@ async def test_delay_message(doof, test_repo, mocker):
 
     mocker.async_patch('bot.get_unchecked_authors', return_value={'author1'})
 
-    await doof.delay_message(test_repo)
+    await doof.wait_for_checkboxes_reminder(repo_info=test_repo)
     assert doof.said(
         'The following authors have not yet checked off their boxes for doof_repo: author1',
     )
@@ -625,8 +622,6 @@ async def test_webhook_finish_release(doof, mocker):
     """
     Finish the release
     """
-    wait_for_deploy_sync_mock = mocker.async_patch('bot.wait_for_deploy')
-
     pr_body = ReleasePR(
         version='version',
         url='url',
@@ -634,6 +629,7 @@ async def test_webhook_finish_release(doof, mocker):
     )
     get_release_pr_mock = mocker.async_patch('bot.get_release_pr', return_value=pr_body)
     finish_release_mock = mocker.async_patch('bot.finish_release')
+    wait_for_deploy_prod_mock = mocker.async_patch('bot.Bot._wait_for_deploy_prod')
 
     await doof.handle_webhook(
         webhook_dict={
@@ -653,13 +649,10 @@ async def test_webhook_finish_release(doof, mocker):
     )
 
     repo_url = WEB_TEST_REPO_INFO.repo_url
-    hash_url = WEB_TEST_REPO_INFO.prod_hash_url
     org, repo = get_org_and_repo(repo_url)
-    wait_for_deploy_sync_mock.assert_any_call(
-        github_access_token=doof.github_access_token,
-        hash_url=hash_url,
-        repo_url=repo_url,
-        watch_branch='release',
+    wait_for_deploy_prod_mock.assert_any_call(
+        doof,
+        repo_info=WEB_TEST_REPO_INFO,
     )
     get_release_pr_mock.assert_any_call(
         github_access_token=doof.github_access_token,
@@ -986,7 +979,7 @@ async def test_wait_for_checkboxes(mocker, doof, test_repo, speak_initial):
     [ANNOUNCEMENTS_CHANNEL, False, False],
     [ANNOUNCEMENTS_CHANNEL, True, False],
 ])
-async def test_startup(doof, event_loop, mocker, repo_info, has_release_pr, has_expected):
+async def test_startup(doof, mocker, repo_info, has_release_pr, has_expected):
     """
     Test that doof will show help text
     """
@@ -999,11 +992,8 @@ async def test_startup(doof, event_loop, mocker, repo_info, has_release_pr, has_
     mocker.async_patch('bot.get_release_pr', return_value=(
         release_pr if has_release_pr else None
     ))
-    wait_for_checkboxes_sync_mock = mocker.Mock()
-    async def wait_for_checkboxes_fake(*args, **kwargs):
-        """await cannot be used with mock objects"""
-        wait_for_checkboxes_sync_mock(*args, **kwargs)
-    doof.wait_for_checkboxes = wait_for_checkboxes_fake
+    wait_for_checkboxes_mock = mocker.async_patch('bot.Bot.wait_for_checkboxes')
+    wait_for_deploy_mock = mocker.async_patch('bot.Bot.wait_for_deploy')
 
     await doof.startup()
     # iterate once through event loop
@@ -1011,6 +1001,100 @@ async def test_startup(doof, event_loop, mocker, repo_info, has_release_pr, has_
     assert not doof.said("isn't evil enough until all the checkboxes are checked")
 
     if has_expected:
-        wait_for_checkboxes_sync_mock.assert_called_once_with(manager=None, repo_info=repo_info, speak_initial=False)
+        wait_for_checkboxes_mock.assert_called_once_with(doof, manager=None, repo_info=repo_info, speak_initial=False)
+        wait_for_deploy_mock.assert_called_once_with(doof, repo_info=repo_info)
     else:
-        assert wait_for_checkboxes_sync_mock.call_count == 0
+        assert wait_for_checkboxes_mock.call_count == 0
+        assert wait_for_deploy_mock.call_count == 0
+
+
+@pytest.mark.parametrize("needs_deploy_rc", [True, False])
+@pytest.mark.parametrize("needs_deploy_prod", [True, False])
+async def test_wait_for_deploy(doof, test_repo, needs_deploy_rc, needs_deploy_prod, mocker):
+    """bot.wait_for_deploy should check if deploys are needed for RC or PROD"""
+
+    def _is_release_deployed(branch, **kwargs):  # pylint: disable=unused-argument
+        """Helper function to provide right value for is_release_deployed"""
+        if branch == "release":
+            return not needs_deploy_prod
+        elif branch == "release-candidate":
+            return not needs_deploy_rc
+        raise Exception("Unexpected branch")
+
+    is_release_deployed_mock = mocker.async_patch(
+        'bot.is_release_deployed', side_effect=_is_release_deployed
+    )
+    wait_for_deploy_rc_mock = mocker.async_patch('bot.Bot._wait_for_deploy_rc')
+    wait_for_deploy_prod_mock = mocker.async_patch('bot.Bot._wait_for_deploy_prod')
+
+    await doof.wait_for_deploy(repo_info=test_repo)
+
+    is_release_deployed_mock.assert_any_call(
+        github_access_token=GITHUB_ACCESS,
+        repo_url=test_repo.repo_url,
+        hash_url=test_repo.prod_hash_url,
+        branch="release",
+    )
+    is_release_deployed_mock.assert_any_call(
+        github_access_token=GITHUB_ACCESS,
+        repo_url=test_repo.repo_url,
+        hash_url=test_repo.rc_hash_url,
+        branch="release-candidate",
+    )
+    if needs_deploy_rc:
+        wait_for_deploy_rc_mock.assert_called_once_with(doof, repo_info=test_repo)
+    else:
+        assert wait_for_deploy_rc_mock.called is False
+    if needs_deploy_prod:
+        wait_for_deploy_prod_mock.assert_called_once_with(doof, repo_info=test_repo)
+    else:
+        assert wait_for_deploy_prod_mock.called is False
+
+
+async def test_wait_for_deploy_rc(doof, test_repo, mocker):
+    """Bot._wait_for_deploy_prod should wait until repo has been deployed to RC"""
+    wait_for_deploy_mock = mocker.async_patch('bot.wait_for_deploy')
+    get_unchecked_patch = mocker.async_patch(
+        'bot.get_unchecked_authors', return_value={'author1', 'author2', 'author3'}
+    )
+    org, repo = get_org_and_repo(test_repo.repo_url)
+    release_pr = ReleasePR('version', f'https://github.com/{org}/{repo}/pulls/123456', 'body')
+    get_release_pr_mock = mocker.async_patch('bot.get_release_pr', return_value=release_pr)
+
+    await doof._wait_for_deploy_rc(repo_info=test_repo)  # pylint: disable=protected-access
+
+    assert doof.said('These people have commits in this release')
+    wait_for_deploy_mock.assert_called_once_with(
+        github_access_token=GITHUB_ACCESS,
+        repo_url=test_repo.repo_url,
+        hash_url=test_repo.rc_hash_url,
+        watch_branch='release-candidate'
+    )
+    get_unchecked_patch.assert_called_once_with(
+        github_access_token=GITHUB_ACCESS,
+        org=org,
+        repo=repo,
+    )
+    get_release_pr_mock.assert_called_once_with(
+        github_access_token=GITHUB_ACCESS,
+        org=org,
+        repo=repo,
+    )
+
+
+async def test_wait_for_deploy_prod(doof, test_repo, mocker):
+    """Bot._wait_for_deploy_prod should wait until repo has been deployed to production"""
+    wait_for_deploy_mock = mocker.async_patch('bot.wait_for_deploy')
+    version = "1.2.345"
+    get_version_tag_mock = mocker.async_patch('bot.get_version_tag', return_value="v{}".format(version))
+
+    await doof._wait_for_deploy_prod(repo_info=test_repo)  # pylint: disable=protected-access
+
+    get_version_tag_mock.assert_called_once_with(GITHUB_ACCESS, test_repo.repo_url, "release")
+    assert doof.said('has been released to production')
+    wait_for_deploy_mock.assert_called_once_with(
+        github_access_token=GITHUB_ACCESS,
+        repo_url=test_repo.repo_url,
+        hash_url=test_repo.prod_hash_url,
+        watch_branch='release'
+    )
