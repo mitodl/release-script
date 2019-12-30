@@ -41,7 +41,7 @@ GITHUB_ACCESS = 'github'
 SLACK_ACCESS = 'slack'
 
 
-# pylint: disable=redefined-outer-name
+# pylint: disable=redefined-outer-name, too-many-lines
 class DoofSpoof(Bot):
     """Testing bot"""
     def __init__(self):
