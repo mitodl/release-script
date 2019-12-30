@@ -529,8 +529,8 @@ class Bot:
             )
             raise ReleaseException(f"There is a release already in progress: {release_pr.url}. Close that first!")
 
-        async with init_working_dir(self.github_access_token, repo_info.repo_url):
-            last_version = update_version("9.9.9")
+        async with init_working_dir(self.github_access_token, repo_info.repo_url) as working_dir:
+            last_version = update_version("9.9.9", working_dir=working_dir)
 
         _, new_patch = next_versions(last_version)
 
@@ -650,8 +650,12 @@ class Bot:
         repo_info = command_args.repo_info
         version = command_args.args[0]
 
-        async with init_working_dir(self.github_access_token, repo_info.repo_url, branch="v{}".format(version)):
-            await upload_to_pypi(repo_info=repo_info, testing=testing)
+        await upload_to_pypi(
+            repo_info=repo_info,
+            testing=testing,
+            version=version,
+            github_access_token=self.github_access_token,
+        )
 
         await self.say(
             channel_id=command_args.channel_id,
@@ -725,11 +729,13 @@ class Bot:
             command_args (CommandArgs): The arguments for this command
         """
         repo_info = command_args.repo_info
-        async with init_working_dir(self.github_access_token, repo_info.repo_url):
-            last_version = update_version("9.9.9")
+        async with init_working_dir(self.github_access_token, repo_info.repo_url) as working_dir:
+            last_version = update_version("9.9.9", working_dir=working_dir)
 
-            release_notes = await create_release_notes(last_version, with_checkboxes=False, base_branch="master")
-            has_new_commits = await any_new_commits(last_version, base_branch="master")
+            release_notes = await create_release_notes(
+                last_version, with_checkboxes=False, base_branch="master", root=working_dir
+            )
+            has_new_commits = await any_new_commits(last_version, base_branch="master", root=working_dir)
 
         await self.say_with_attachment(
             channel_id=repo_info.channel_id,

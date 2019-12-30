@@ -1,11 +1,12 @@
 """Tests for release script"""
 import os
-from subprocess import check_call, CalledProcessError
+from subprocess import CalledProcessError
 from tempfile import TemporaryDirectory
 
 import pytest
 
 from exception import ReleaseException
+from lib import url_with_access_token
 from release import (
     any_new_commits,
     create_release_notes,
@@ -19,10 +20,10 @@ from release import (
     UpdateVersionException,
     update_version,
     update_version_in_file,
-    url_with_access_token,
     validate_dependencies,
     verify_new_commits,
 )
+from test_util import async_context_manager_yielder, sync_check_call as check_call
 from version import get_version_tag
 from wait_for_deploy import fetch_release_hash
 
@@ -31,14 +32,14 @@ pytestmark = pytest.mark.asyncio
 
 
 # pylint: disable=redefined-outer-name, unused-argument
-async def test_update_version_settings(test_repo):
+async def test_update_version_settings(test_repo_directory):
     """update_version should return the old version and replace the appropriate file's text with the new version"""
     new_version = "9.9.99"
-    path = "ccxcon/settings.py"
+    path = os.path.join(test_repo_directory, "ccxcon/settings.py")
 
     old_lines = open(path).readlines()
 
-    old_version = update_version(new_version)
+    old_version = update_version(new_version, working_dir=test_repo_directory)
     assert old_version == "0.2.0"
     new_lines = open(path).readlines()
 
@@ -60,17 +61,17 @@ async def test_update_version_settings(test_repo):
     assert found_new_version, "Unable to find updated version"
 
 
-async def test_update_version_init(test_repo):
+async def test_update_version_init(test_repo_directory):
     """If we detect a version in a __init__.py file we should update it properly"""
     old_version = '1.2.3'
-    os.unlink("ccxcon/settings.py")
-    with open("ccxcon/__init__.py", "w") as f:
+    os.unlink(os.path.join(test_repo_directory, "ccxcon/settings.py"))
+    with open(os.path.join(test_repo_directory, "ccxcon/__init__.py"), "w") as f:
         f.write("__version__ = '{}'".format(old_version))
     new_version = "4.5.6"
-    assert update_version(new_version) == old_version
+    assert update_version(new_version, working_dir=test_repo_directory) == old_version
 
     found_new_version = False
-    with open("ccxcon/__init__.py") as f:
+    with open(os.path.join(test_repo_directory, "ccxcon/__init__.py")) as f:
         for line in f.readlines():
             if line.strip() == "__version__ = '{}'".format(new_version):
                 found_new_version = True
@@ -78,11 +79,11 @@ async def test_update_version_init(test_repo):
     assert found_new_version, "Unable to find updated version"
 
 
-async def test_update_version_setup(test_repo):
+async def test_update_version_setup(test_repo_directory):
     """If we detect a version in setup.py we should update it properly"""
     old_version = '0.2.0'
-    os.unlink("ccxcon/settings.py")
-    with open("setup.py", "w") as f:
+    os.unlink(os.path.join(test_repo_directory, "ccxcon/settings.py"))
+    with open(os.path.join(test_repo_directory, "setup.py"), "w") as f:
         f.write("""
 setup(
     name='pylmod',
@@ -92,10 +93,10 @@ setup(
     zip_safe=True,
 )        """)
     new_version = '4.5.6'
-    assert update_version(new_version) == old_version
+    assert update_version(new_version, working_dir=test_repo_directory) == old_version
 
     found_new_version = False
-    with open("setup.py") as f:
+    with open(os.path.join(test_repo_directory, "setup.py")) as f:
         for line in f.readlines():
             if line.strip() == "version='{}',".format(new_version):
                 found_new_version = True
@@ -103,35 +104,35 @@ setup(
     assert found_new_version, "Unable to find updated version"
 
 
-async def test_update_version_missing(test_repo):
+async def test_update_version_missing(test_repo_directory):
     """If there is no version we should return None"""
-    os.unlink("ccxcon/settings.py")
+    os.unlink(os.path.join(test_repo_directory, "ccxcon/settings.py"))
     contents = """
 setup(
     name='pylmod',
 )        """
-    with open("setup.py", "w") as f:
+    with open(os.path.join(test_repo_directory, "setup.py"), "w") as f:
         f.write(contents)
     with pytest.raises(UpdateVersionException) as ex:
-        update_version("4.5.6")
+        update_version("4.5.6", working_dir=test_repo_directory)
     assert ex.value.args[0] == "Unable to find previous version number"
 
 
-async def test_update_version_duplicate(test_repo):
+async def test_update_version_duplicate(test_repo_directory):
     """If there are two detected versions in different files we should raise an exception"""
     contents = """
 setup(
     name='pylmod',
     version='1.2.3',
 )        """
-    with open("setup.py", "w") as f:
+    with open(os.path.join(test_repo_directory, "setup.py"), "w") as f:
         f.write(contents)
     with pytest.raises(UpdateVersionException) as ex:
-        update_version("4.5.6")
+        update_version("4.5.6", working_dir=test_repo_directory)
     assert ex.value.args[0] == "Found at least two files with updatable versions: settings.py and setup.py"
 
 
-async def test_update_version_duplicate_same_file(test_repo):
+async def test_update_version_duplicate_same_file(test_repo_directory):
     """If there are two detected versions in the same file we should raise an exception"""
     contents = """
 setup(
@@ -139,10 +140,10 @@ setup(
     version='1.2.3',
     version='4.5.6',
 )        """
-    with open("setup.py", "w") as f:
+    with open(os.path.join(test_repo_directory, "setup.py"), "w") as f:
         f.write(contents)
     with pytest.raises(UpdateVersionException) as ex:
-        update_version("4.5.6")
+        update_version("4.5.6", working_dir=test_repo_directory)
     assert ex.value.args[0] == "Expected only one version for setup.py but found 2"
 
 
@@ -217,7 +218,7 @@ async def test_init_working_dir(mocker, branch):
     """init_working_dir should initialize a valid git repo, and clean up after itself"""
     repo_url = "https://github.com/mitodl/release-script.git"
     access_token = 'fake_access_token'
-    check_call_mock = mocker.async_patch('release.check_call')
+    check_call_mock = mocker.async_patch('lib.check_call')
     async with init_working_dir(
             access_token, repo_url, branch=branch,
     ) as other_directory:
@@ -242,25 +243,15 @@ async def test_init_working_dir_real():
             access_token, repo_url,
     ) as other_directory:
         assert os.path.exists(other_directory)
-        check_call(["git", "status"])
+        check_call(["git", "status"], cwd=other_directory)
     assert not os.path.exists(other_directory)
 
 
-async def test_gitconfig():
-    """make sure we have a valid gitconfig file"""
-    with TemporaryDirectory() as directory:
-        check_call(["git", "init"], cwd=directory)
-        with open(os.path.join(directory, ".git", "config"), "w") as new_config:
-            with open(os.path.join(".gitconfig")) as old_config:
-                new_config.write(old_config.read())
-        check_call(["git", "status"], cwd=directory)
-
-
-def make_empty_commit(user, message):
+def make_empty_commit(user, message, *, cwd):
     """Helper function to create an empty commit as a particular user"""
-    check_call(["git", "config", "user.email", "{}@example.com".format(user)])
-    check_call(["git", "config", "user.name", user])
-    check_call(["git", "commit", "--allow-empty", "-m", message])
+    check_call(["git", "config", "user.email", "{}@example.com".format(user)], cwd=cwd)
+    check_call(["git", "config", "user.name", user], cwd=cwd)
+    check_call(["git", "commit", "--allow-empty", "-m", message], cwd=cwd)
 
 
 def assert_starts_with(lines, expected):
@@ -271,15 +262,17 @@ def assert_starts_with(lines, expected):
 
 
 @pytest.mark.parametrize("with_checkboxes", [True, False])
-async def test_create_release_notes(test_repo, with_checkboxes):
+async def test_create_release_notes(test_repo_directory, with_checkboxes):
     """create_release_notes should create release notes for a particular release, possibly with checkboxes"""
-    make_empty_commit("initial", "initial commit")
-    check_call(["git", "tag", "v0.0.1"])
-    make_empty_commit("User 1", "Commit #1")
-    make_empty_commit("User 2", "Commit #2")
-    make_empty_commit("User 2", "Commit #3")
+    make_empty_commit("initial", "initial commit", cwd=test_repo_directory)
+    check_call(["git", "tag", "v0.0.1"], cwd=test_repo_directory)
+    make_empty_commit("User 1", "Commit #1", cwd=test_repo_directory)
+    make_empty_commit("User 2", "Commit #2", cwd=test_repo_directory)
+    make_empty_commit("User 2", "Commit #3", cwd=test_repo_directory)
 
-    notes = await create_release_notes("0.0.1", with_checkboxes=with_checkboxes, base_branch="master")
+    notes = await create_release_notes(
+        "0.0.1", with_checkboxes=with_checkboxes, base_branch="master", root=test_repo_directory
+    )
     lines = notes.split("\n")
     if with_checkboxes:
         assert_starts_with(lines, [
@@ -301,54 +294,58 @@ async def test_create_release_notes(test_repo, with_checkboxes):
 
 
 @pytest.mark.parametrize("with_checkboxes", [True, False])
-async def test_create_release_notes_empty(test_repo, with_checkboxes):
+async def test_create_release_notes_empty(test_repo_directory, with_checkboxes):
     """create_release_notes should return a string saying there are no new commits"""
-    make_empty_commit("initial", "initial commit")
-    check_call(["git", "tag", "v0.0.1"])
+    make_empty_commit("initial", "initial commit", cwd=test_repo_directory)
+    check_call(["git", "tag", "v0.0.1"], cwd=test_repo_directory)
 
-    notes = await create_release_notes("0.0.1", with_checkboxes=with_checkboxes, base_branch="master")
+    notes = await create_release_notes(
+        "0.0.1", with_checkboxes=with_checkboxes, base_branch="master", root=test_repo_directory
+    )
     assert notes == "No new commits"
 
 
 @pytest.mark.parametrize("with_checkboxes", [True, False])
-async def test_create_release_notes_amp(test_repo, with_checkboxes):
+async def test_create_release_notes_amp(test_repo_directory, with_checkboxes):
     """create_release_notes should not escape html entities"""
-    make_empty_commit("initial", "initial commit")
-    check_call(["git", "tag", "v0.0.1"])
-    make_empty_commit("User 1", "Commit & ' \"")
+    make_empty_commit("initial", "initial commit", cwd=test_repo_directory)
+    check_call(["git", "tag", "v0.0.1"], cwd=test_repo_directory)
+    make_empty_commit("User 1", "Commit & ' \"", cwd=test_repo_directory)
 
-    notes = await create_release_notes("0.0.1", with_checkboxes=with_checkboxes, base_branch="master")
+    notes = await create_release_notes(
+        "0.0.1", with_checkboxes=with_checkboxes, base_branch="master", root=test_repo_directory
+    )
     assert "Commit & \' \"" in notes
 
 
 @pytest.mark.parametrize("has_commits", [True, False])
-async def test_any_new_commits(test_repo, has_commits):
+async def test_any_new_commits(test_repo_directory, has_commits):
     """any_new_commits should return a bool value saying whether there are new commits or not"""
-    make_empty_commit("initial", "initial commit")
-    check_call(["git", "tag", "v0.0.1"])
+    make_empty_commit("initial", "initial commit", cwd=test_repo_directory)
+    check_call(["git", "tag", "v0.0.1"], cwd=test_repo_directory)
 
     if has_commits:
-        make_empty_commit("User 1", "After 1")
-    check_call(["git", "tag", "v0.0.2"])
+        make_empty_commit("User 1", "After 1", cwd=test_repo_directory)
+    check_call(["git", "tag", "v0.0.2"], cwd=test_repo_directory)
 
-    assert await any_new_commits("0.0.1", base_branch="master") is has_commits
+    assert await any_new_commits("0.0.1", base_branch="master", root=test_repo_directory) is has_commits
 
 
-async def test_update_release_notes(test_repo):
+async def test_update_release_notes(test_repo_directory):
     """update_release_notes should update the existing release notes and add new notes for the new commits"""
-    check_call(["git", "checkout", "master"])
-    check_call(["git", "tag", "v0.2.0"])
+    check_call(["git", "checkout", "master"], cwd=test_repo_directory)
+    check_call(["git", "tag", "v0.2.0"], cwd=test_repo_directory)
 
-    make_empty_commit("User 1", "Before")
-    check_call(["git", "tag", "v0.3.0"])
-    await update_release_notes("0.2.0", "0.3.0", base_branch="master")
+    make_empty_commit("User 1", "Before", cwd=test_repo_directory)
+    check_call(["git", "tag", "v0.3.0"], cwd=test_repo_directory)
+    await update_release_notes("0.2.0", "0.3.0", base_branch="master", root=test_repo_directory)
 
-    make_empty_commit("User 2", "After 1")
-    make_empty_commit("User 2", "After 2")
-    make_empty_commit("User 3", "After 3")
-    await update_release_notes("0.3.0", "0.4.0", base_branch="master")
+    make_empty_commit("User 2", "After 1", cwd=test_repo_directory)
+    make_empty_commit("User 2", "After 2", cwd=test_repo_directory)
+    make_empty_commit("User 3", "After 3", cwd=test_repo_directory)
+    await update_release_notes("0.3.0", "0.4.0", base_branch="master", root=test_repo_directory)
 
-    assert open("RELEASE.rst").read() == """Release Notes
+    assert open(os.path.join(test_repo_directory, "RELEASE.rst")).read() == """Release Notes
 =============
 
 Version 0.4.0
@@ -392,17 +389,17 @@ Version 0.1.0
 """
 
 
-async def test_update_release_notes_initial(test_repo):
+async def test_update_release_notes_initial(test_repo_directory):
     """If RELEASE.rst doesn't exist update_release_notes should create it"""
-    check_call(["git", "checkout", "master"])
-    check_call(["git", "tag", "v0.2.0"])
+    check_call(["git", "checkout", "master"], cwd=test_repo_directory)
+    check_call(["git", "tag", "v0.2.0"], cwd=test_repo_directory)
 
-    make_empty_commit("User 1", "A commit between 2 and 3")
-    check_call(["git", "tag", "v0.3.0"])
-    os.unlink("RELEASE.rst")
-    await update_release_notes("0.2.0", "0.3.0", base_branch="master")
+    make_empty_commit("User 1", "A commit between 2 and 3", cwd=test_repo_directory)
+    check_call(["git", "tag", "v0.3.0"], cwd=test_repo_directory)
+    os.unlink(os.path.join(test_repo_directory, "RELEASE.rst"))
+    await update_release_notes("0.2.0", "0.3.0", base_branch="master", root=test_repo_directory)
 
-    assert open("RELEASE.rst").read() == """Release Notes
+    assert open(os.path.join(test_repo_directory, "RELEASE.rst")).read() == """Release Notes
 =============
 
 Version 0.3.0
@@ -413,20 +410,20 @@ Version 0.3.0
 """
 
 
-async def test_verify_new_commits(test_repo):
+async def test_verify_new_commits(test_repo_directory):
     """verify_new_commits should error if there is no commit to put in the release"""
-    check_call(["git", "tag", "v0.0.1"])
-    check_call(["git", "checkout", "master"])
+    check_call(["git", "tag", "v0.0.1"], cwd=test_repo_directory)
+    check_call(["git", "checkout", "master"], cwd=test_repo_directory)
 
     with pytest.raises(Exception) as ex:
-        await verify_new_commits("0.0.1", base_branch="master")
+        await verify_new_commits("0.0.1", base_branch="master", root=test_repo_directory)
     assert ex.value.args[0] == 'No new commits to put in release'
-    make_empty_commit("User 1", "  Release 0.0.1  ")
+    make_empty_commit("User 1", "  Release 0.0.1  ", cwd=test_repo_directory)
     # No exception
-    await verify_new_commits("0.0.1", base_branch="master")
+    await verify_new_commits("0.0.1", base_branch="master", root=test_repo_directory)
 
 
-async def test_generate_release_pr(mocker, test_repo):
+async def test_generate_release_pr(mocker):
     """generate_release_pr should create a PR"""
     access_token = 'access_token'
     repo_url = 'http://repo.url.fake/'
@@ -442,6 +439,7 @@ async def test_generate_release_pr(mocker, test_repo):
         old_version=old_version,
         new_version=new_version,
         base_branch="master",
+        root=".",
     )
     create_pr_mock.assert_called_once_with(
         github_access_token=access_token,
@@ -451,7 +449,9 @@ async def test_generate_release_pr(mocker, test_repo):
         head="release-candidate",
         base="release",
     )
-    create_release_notes_mock.assert_called_once_with(old_version, with_checkboxes=True, base_branch="master")
+    create_release_notes_mock.assert_called_once_with(
+        old_version, with_checkboxes=True, base_branch="master", root="."
+    )
 
 
 async def test_fetch_release_hash(mocker):
@@ -478,7 +478,7 @@ async def test_get_version_tag(mocker):
 
 
 @pytest.mark.parametrize("hotfix_hash", ["", "abcdef"])
-async def test_release(mocker, hotfix_hash):
+async def test_release(mocker, hotfix_hash, test_repo_directory):
     """release should perform a release"""
     token = "token"
     repo_url = 'http://github.com/fake/repo.git'
@@ -493,6 +493,7 @@ async def test_release(mocker, hotfix_hash):
     update_release_mock = mocker.async_patch('release.update_release_notes')
     update_version_mock = mocker.patch('release.update_version', return_value=old_version)
     generate_mock = mocker.async_patch('release.generate_release_pr')
+    mocker.patch('release.init_working_dir', side_effect=async_context_manager_yielder(test_repo_directory))
 
     await release(
         github_access_token=token,
@@ -509,27 +510,31 @@ async def test_release(mocker, hotfix_hash):
         old_version=old_version,
         new_version=new_version,
         base_branch=base_branch,
+        root=test_repo_directory,
     )
-    verify_mock.assert_called_once_with(old_version, base_branch=base_branch)
-    update_release_mock.assert_called_once_with(old_version, new_version, base_branch=base_branch)
-    update_version_mock.assert_called_once_with(new_version)
-    check_call_mock.assert_any_call(["git", "checkout", "-qb", "release-candidate"])
+    verify_mock.assert_called_once_with(old_version, base_branch=base_branch, root=test_repo_directory)
+    update_release_mock.assert_called_once_with(
+        old_version, new_version, base_branch=base_branch, root=test_repo_directory
+    )
+    update_version_mock.assert_called_once_with(new_version, working_dir=test_repo_directory)
+    check_call_mock.assert_any_call(["git", "checkout", "-qb", "release-candidate"], cwd=test_repo_directory)
     if hotfix_hash:
-        check_call_mock.assert_any_call(["git", "cherry-pick", hotfix_hash])
+        check_call_mock.assert_any_call(["git", "cherry-pick", hotfix_hash], cwd=test_repo_directory)
     check_call_mock.assert_any_call(
-        ["git", "push", "--force", "-q", "origin", "release-candidate:release-candidate"]
+        ["git", "push", "--force", "-q", "origin", "release-candidate:release-candidate"], cwd=test_repo_directory
     )
 
 
-async def test_release_failed_cherry_pick(mocker):
+async def test_release_failed_cherry_pick(test_repo_directory, mocker):
     """release should raise an exception if the cherry pick fails"""
     commit_hash = "does_not_exist"
 
-    def fake_check_call(args):
+    def fake_check_call(args, *, cwd):  # pylint: disable=unused-argument
         if args[1] == "cherry-pick":
             raise CalledProcessError(128, "git")
 
     mocker.async_patch('release.check_call', side_effect=fake_check_call)
+    mocker.patch('release.init_working_dir', side_effect=async_context_manager_yielder(test_repo_directory))
 
     with pytest.raises(ReleaseException) as ex:
         await release(
@@ -537,7 +542,7 @@ async def test_release_failed_cherry_pick(mocker):
             repo_url="http://github.com/repo/url.git",
             new_version="9.8.7",
             branch="branch",
-            commit_hash=commit_hash
+            commit_hash=commit_hash,
         )
 
     assert ex.value.args[0] == f'Cherry pick failed for the given hash {commit_hash}'

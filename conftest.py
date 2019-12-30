@@ -1,13 +1,5 @@
 """Fixtures for tests"""
-from contextlib import contextmanager
-import gzip
 import os
-from shutil import copyfileobj
-from tempfile import (
-    TemporaryFile,
-    TemporaryDirectory,
-)
-from subprocess import check_call
 
 import pytest
 import pytz
@@ -16,9 +8,9 @@ from bot import (
     LIBRARY_TYPE,
     WEB_APPLICATION_TYPE,
 )
-from lib import async_wrapper
-from release import SCRIPT_DIR
 from repo_info import RepoInfo
+from test_util import make_test_repo
+from test_util import async_wrapper
 
 
 SETUP_PY = """
@@ -46,33 +38,6 @@ setup(
 """
 
 
-@contextmanager
-def _make_temp_repo():
-    """
-    Create a temporary directory with the test repo, similar to init_working_dir
-    but without connecting to the internet
-    """
-    pwd = os.getcwd()
-
-    try:
-        with TemporaryDirectory() as directory:
-            os.chdir(directory)
-            check_call(["git", "init", "--quiet"])
-            with gzip.open(os.path.join(SCRIPT_DIR, "test-repo.gz"), "rb") as test_repo_file:
-                # Passing this handle directly to check_call(...) below doesn't work, the data remains
-                # compressed. Why read() decompresses the data but passing the file object doesn't:
-                # https://bugs.python.org/issue24358
-                with TemporaryFile("wb") as temp_file:
-                    copyfileobj(test_repo_file, temp_file)
-                    temp_file.seek(0)
-
-                    check_call(["git", "fast-import", "--quiet"], stdin=temp_file)
-            check_call(["git", "checkout", "--quiet", "master"])
-            yield
-    finally:
-        os.chdir(pwd)
-
-
 WEB_TEST_REPO_INFO = RepoInfo(
     name='doof_repo',
     repo_url='http://github.com/mitodl/doof.git',
@@ -86,11 +51,18 @@ WEB_TEST_REPO_INFO = RepoInfo(
 )
 
 
+# pylint: disable=redefined-outer-name, unused-argument
 @pytest.fixture
-def test_repo():
+def test_repo_directory():
+    """Helper function to make a repo for testing"""
+    with make_test_repo() as working_dir:
+        yield working_dir
+
+
+@pytest.fixture
+def test_repo(test_repo_directory):
     """Initialize the testing repo from the gzipped file"""
-    with _make_temp_repo():
-        yield WEB_TEST_REPO_INFO
+    yield WEB_TEST_REPO_INFO
 
 
 LIBRARY_TEST_REPO_INFO = RepoInfo(
@@ -120,14 +92,13 @@ ANNOUNCEMENTS_CHANNEL = RepoInfo(
 
 
 @pytest.fixture
-def library_test_repo():
+def library_test_repo(test_repo_directory):
     """Initialize the library test repo from the gzipped file"""
-    with _make_temp_repo():
-        with open("setup.py", "w") as f:
-            # Hacky way to convert a web application project to a library
-            f.write(SETUP_PY)
+    with open(os.path.join(test_repo_directory, "setup.py"), "w") as f:
+        # Hacky way to convert a web application project to a library
+        f.write(SETUP_PY)
 
-        yield LIBRARY_TEST_REPO_INFO
+    yield LIBRARY_TEST_REPO_INFO
 
 
 @pytest.fixture

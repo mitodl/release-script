@@ -4,7 +4,7 @@ import subprocess
 import pytest
 
 from async_subprocess import check_call, check_output, call
-from lib import async_wrapper
+from test_util import async_wrapper
 
 
 pytestmark = pytest.mark.asyncio
@@ -18,10 +18,10 @@ async def test_check_call_shell(mocker, is_success):
 
     cmd = "git checkout shell"
     if is_success:
-        await check_call(cmd, shell=True)
+        await check_call(cmd, shell=True, cwd=".")
     else:
         with pytest.raises(subprocess.CalledProcessError):
-            await check_call(cmd, shell=True)
+            await check_call(cmd, shell=True, cwd=".")
 
 
 @pytest.mark.parametrize("is_success", [True, False])
@@ -32,10 +32,10 @@ async def test_check_call_exec(mocker, is_success):
 
     args = ["git", "checkout", "shell"]
     if is_success:
-        await check_call(args, shell=False)
+        await check_call(args, shell=False, cwd=".")
     else:
         with pytest.raises(subprocess.CalledProcessError):
-            await check_call(args, shell=False)
+            await check_call(args, shell=False, cwd=".")
 
 
 @pytest.mark.parametrize("is_success", [True, False])
@@ -46,7 +46,7 @@ async def test_call_shell(mocker, is_success):
     patched.return_value.wait = async_wrapper(lambda: expected_return)
 
     cmd = "git checkout shell"
-    assert await call(cmd, shell=True) == expected_return
+    assert await call(cmd, shell=True, cwd=".") == expected_return
 
 
 @pytest.mark.parametrize("is_success", [True, False])
@@ -57,7 +57,7 @@ async def test_call_exec(mocker, is_success):
     patched.return_value.wait = async_wrapper(lambda: expected_return)
 
     args = ["git", "checkout", "shell"]
-    assert await call(args, shell=False) == expected_return
+    assert await call(args, shell=False, cwd=".") == expected_return
 
 
 @pytest.mark.parametrize("is_success", [True, False])
@@ -70,10 +70,10 @@ async def test_check_output_shell(mocker, is_success):
 
     cmd = "git checkout shell"
     if is_success:
-        assert await check_output(cmd, shell=True) == expected_return
+        assert await check_output(cmd, shell=True, cwd=".") == expected_return
     else:
         with pytest.raises(subprocess.CalledProcessError):
-            await check_output(cmd, shell=True)
+            await check_output(cmd, shell=True, cwd=".")
 
 
 @pytest.mark.parametrize("is_success", [True, False])
@@ -86,7 +86,7 @@ async def test_check_output_exec(mocker, is_success):
 
     args = ["git", "checkout", "shell"]
     if is_success:
-        assert await check_output(args, shell=False) == expected_return
+        assert await check_output(args, shell=False, cwd=".") == expected_return
     else:
         with pytest.raises(subprocess.CalledProcessError):
-            await check_output(args, shell=False)
+            await check_output(args, shell=False, cwd=".")

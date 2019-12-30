@@ -2,14 +2,12 @@
 from datetime import datetime, timezone
 from itertools import product
 import os
-from subprocess import call
 
 from requests import Response, HTTPError
 import pytest
 
 from github import github_auth_headers
 from lib import (
-    async_wrapper,
     get_release_pr,
     get_unchecked_authors,
     load_repos_info,
@@ -23,6 +21,7 @@ from lib import (
     url_with_access_token,
 )
 from repo_info import RepoInfo
+from test_util import async_wrapper, async_context_manager_yielder, sync_call as call
 
 
 pytestmark = pytest.mark.asyncio
@@ -237,8 +236,9 @@ async def test_url_with_access_token():
     ) == "https://access@github.com/mitodl/release-script.git"
 
 
+# pylint: disable=too-many-arguments
 @pytest.mark.parametrize("testing,python2,python3", list(product([True, False], repeat=3)))
-async def test_upload_to_pypi(testing, python2, python3, mocker, library_test_repo):
+async def test_upload_to_pypi(testing, python2, python3, mocker, library_test_repo, test_repo_directory):
     """upload_to_pypi should create a dist based on a version and upload to pypi or pypitest"""
 
     twine_env = {
@@ -288,8 +288,18 @@ async def test_upload_to_pypi(testing, python2, python3, mocker, library_test_re
     call_mock = mocker.async_patch('lib.call', side_effect=check_call_func)
     mocker.async_patch('lib.check_output', return_value=b'x=y=z')
     mocker.patch.dict('os.environ', twine_env, clear=False)
-    await upload_to_pypi(repo_info=library_test_repo, testing=testing)
-    assert call_mock.call_args[1] == {'env': {'x': 'y=z'}}
+
+    init_working_dir_mock = mocker.patch(
+        'lib.init_working_dir', side_effect=async_context_manager_yielder(test_repo_directory)
+    )
+
+    version = "4.5.6"
+    token = "token"
+    await upload_to_pypi(
+        repo_info=library_test_repo, testing=testing, github_access_token=token, version=version
+    )
+    assert call_mock.call_args[1] == {'env': {'x': 'y=z'}, 'cwd': test_repo_directory}
+    init_working_dir_mock.assert_called_once_with(token, library_test_repo.repo_url, branch=f"v{version}")
 
 
 async def test_load_repos_info(mocker):
@@ -348,5 +358,5 @@ async def test_async_patch(mocker):
     """async_patch should patch with an async function"""
     mocked = mocker.async_patch('lib_test.call')
     mocked.return_value = 123
-    assert await call(["ls"]) == 123
-    assert await call(["ls"]) == 123
+    assert await call(["ls"], cwd="/") == 123
+    assert await call(["ls"], cwd="/") == 123

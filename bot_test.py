@@ -32,6 +32,7 @@ from lib import (
     next_versions,
     ReleasePR,
 )
+from test_util import async_context_manager_yielder
 
 
 pytestmark = pytest.mark.asyncio
@@ -109,10 +110,13 @@ def doof(event_loop):
     yield DoofSpoof(loop=event_loop)
 
 
-async def test_release_notes(doof, test_repo, mocker):
+async def test_release_notes(doof, test_repo, test_repo_directory, mocker):
     """Doof should show release notes"""
     old_version = "0.1.2"
     update_version_mock = mocker.patch('bot.update_version', autospec=True, return_value=old_version)
+    mocker.patch(
+        'bot.init_working_dir', side_effect=async_context_manager_yielder(test_repo_directory)
+    )
     notes = "some notes"
     create_release_notes_mock = mocker.async_patch('bot.create_release_notes', return_value=notes)
     any_new_commits_mock = mocker.async_patch('bot.any_new_commits', return_value=True)
@@ -126,9 +130,11 @@ async def test_release_notes(doof, test_repo, mocker):
         words=['release', 'notes'],
     )
 
-    update_version_mock.assert_called_once_with("9.9.9")
-    create_release_notes_mock.assert_called_once_with(old_version, with_checkboxes=False, base_branch="master")
-    any_new_commits_mock.assert_called_once_with(old_version, base_branch="master")
+    update_version_mock.assert_called_once_with("9.9.9", working_dir=test_repo_directory)
+    create_release_notes_mock.assert_called_once_with(
+        old_version, with_checkboxes=False, base_branch="master", root=test_repo_directory
+    )
+    any_new_commits_mock.assert_called_once_with(old_version, base_branch="master", root=test_repo_directory)
     get_release_pr_mock.assert_called_once_with(github_access_token=GITHUB_ACCESS, org=org, repo=repo)
 
     assert doof.said("Release notes since {}".format(old_version))
@@ -136,8 +142,11 @@ async def test_release_notes(doof, test_repo, mocker):
     assert doof.said(f"And also! There is a release already in progress: {release_pr.url}")
 
 
-async def test_release_notes_no_new_notes(doof, test_repo, mocker):
+async def test_release_notes_no_new_notes(doof, test_repo, test_repo_directory, mocker):
     """Doof should show that there are no new commits"""
+    mocker.patch(
+        'bot.init_working_dir', side_effect=async_context_manager_yielder(test_repo_directory)
+    )
     old_version = "0.1.2"
     update_version_mock = mocker.patch('bot.update_version', autospec=True, return_value=old_version)
     notes = "no new commits"
@@ -152,17 +161,22 @@ async def test_release_notes_no_new_notes(doof, test_repo, mocker):
         words=['release', 'notes'],
     )
 
-    any_new_commits_mock.assert_called_once_with(old_version, base_branch="master")
-    update_version_mock.assert_called_once_with("9.9.9")
-    create_release_notes_mock.assert_called_once_with(old_version, with_checkboxes=False, base_branch="master")
+    any_new_commits_mock.assert_called_once_with(old_version, base_branch="master", root=test_repo_directory)
+    update_version_mock.assert_called_once_with("9.9.9", working_dir=test_repo_directory)
+    create_release_notes_mock.assert_called_once_with(
+        old_version, with_checkboxes=False, base_branch="master", root=test_repo_directory
+    )
     get_release_pr_mock.assert_called_once_with(github_access_token=GITHUB_ACCESS, org=org, repo=repo)
 
     assert doof.said("Release notes since {}".format(old_version))
     assert not doof.said("Start a new release?")
 
 
-async def test_release_notes_buttons(doof, test_repo, mocker):
+async def test_release_notes_buttons(doof, test_repo, test_repo_directory, mocker):
     """Doof should show release notes and then offer buttons to start a release"""
+    mocker.patch(
+        'bot.init_working_dir', side_effect=async_context_manager_yielder(test_repo_directory)
+    )
     old_version = "0.1.2"
     update_version_mock = mocker.patch('bot.update_version', autospec=True, return_value=old_version)
     notes = "some notes"
@@ -177,9 +191,11 @@ async def test_release_notes_buttons(doof, test_repo, mocker):
         words=['release', 'notes'],
     )
 
-    any_new_commits_mock.assert_called_once_with(old_version, base_branch="master")
-    update_version_mock.assert_called_once_with("9.9.9")
-    create_release_notes_mock.assert_called_once_with(old_version, with_checkboxes=False, base_branch="master")
+    any_new_commits_mock.assert_called_once_with(old_version, base_branch="master", root=test_repo_directory)
+    update_version_mock.assert_called_once_with("9.9.9", working_dir=test_repo_directory)
+    create_release_notes_mock.assert_called_once_with(
+        old_version, with_checkboxes=False, base_branch="master", root=test_repo_directory
+    )
     get_release_pr_mock.assert_called_once_with(github_access_token=GITHUB_ACCESS, org=org, repo=repo)
 
     assert doof.said("Release notes since {}".format(old_version))
@@ -296,10 +312,13 @@ async def test_release(doof, test_repo, mocker, command):
 
 
 # pylint: disable=too-many-locals
-async def test_hotfix_release(doof, test_repo, mocker):
+async def test_hotfix_release(doof, test_repo, test_repo_directory, mocker):
     """
     Doof should do a hotfix when asked
     """
+    mocker.patch(
+        'bot.init_working_dir', side_effect=async_context_manager_yielder(test_repo_directory)
+    )
     commit_hash = 'uthhg983u4thg9h5'
     version = '0.1.2'
     pr = ReleasePR(
@@ -333,7 +352,7 @@ async def test_hotfix_release(doof, test_repo, mocker):
         org=org,
         repo=repo,
     )
-    update_version_mock.assert_called_once_with("9.9.9")
+    update_version_mock.assert_called_once_with("9.9.9", working_dir=test_repo_directory)
     release_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
         repo_url=test_repo.repo_url,
