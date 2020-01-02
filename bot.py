@@ -234,6 +234,22 @@ class Bot:
         })
         resp.raise_for_status()
 
+    async def delete_message(self, *, channel_id, timestamp):
+        """
+        Deletes an existing message in slack
+
+        Args:
+            channel_id (str): The channel id
+            timestamp (str): The timestamp of the message to update
+        """
+        client = ClientWrapper()
+        resp = await client.post("https://slack.com/api/chat.delete", data={
+            "token": self.slack_access_token,
+            "channel": channel_id,
+            "ts": timestamp
+        })
+        resp.raise_for_status()
+
     async def say_with_attachment(self, *, channel_id, title, text, is_announcement=False):
         """
         Post a message in the Slack channel, putting the text in an attachment with markdown enabled
@@ -505,6 +521,11 @@ class Bot:
                                 "name": "finish_release",
                                 "text": "Finish the release",
                                 "type": "button",
+                                "confirm": {
+                                    "title": "Are you sure?",
+                                    "ok_text": "Finish the release",
+                                    "dismiss_text": "Cancel",
+                                }
                             }
                         ]
                     }
@@ -668,7 +689,14 @@ class Bot:
                                 "text": new_patch,
                                 "value": new_patch,
                                 "type": "button",
-                            }
+                            },
+                            {
+                                "name": "cancel",
+                                "text": "Dismiss",
+                                "value": "cancel",
+                                "style": "danger",
+                                "type": "button",
+                            },
                         ]
                     }
                 ]
@@ -1053,7 +1081,6 @@ class Bot:
             webhook_dict (dict): The dict from Slack containing the webhook information
             loop (asyncio.events.AbstractEventLoop): The asyncio event loop
         """
-
         channel_id = webhook_dict['channel']['id']
         user_id = webhook_dict['user']['id']
         callback_id = webhook_dict['callback_id']
@@ -1091,6 +1118,14 @@ class Bot:
 
         elif callback_id == NEW_RELEASE_ID:
             repo_info = self.get_repo_info(channel_id)
+            name = webhook_dict['actions'][0]['name']
+            if name == "cancel":
+                await self.delete_message(
+                    channel_id=channel_id,
+                    timestamp=timestamp,
+                )
+                return
+
             version = webhook_dict['actions'][0]['value']
             await self.update_message(
                 channel_id=channel_id,

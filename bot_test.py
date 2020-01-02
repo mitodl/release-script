@@ -41,7 +41,7 @@ GITHUB_ACCESS = 'github'
 SLACK_ACCESS = 'slack'
 
 
-# pylint: disable=redefined-outer-name
+# pylint: disable=redefined-outer-name, too-many-lines
 class DoofSpoof(Bot):
     """Testing bot"""
     def __init__(self):
@@ -61,11 +61,15 @@ class DoofSpoof(Bot):
         """Users in the channel"""
         return self.slack_users
 
-    async def _say(self, *, channel_id, text=None, attachments=None, message_type=None):
-        """Quick and dirty message recording"""
+    def _append(self, channel_id, message_dict):
+        """Add a message to the list so we can assert it was sent"""
         if channel_id not in self.messages:
             self.messages[channel_id] = []
-        self.messages[channel_id].append({"text": text, "attachments": attachments, "message_type": message_type})
+        self.messages[channel_id].append(message_dict)
+
+    async def _say(self, *, channel_id, text=None, attachments=None, message_type=None):
+        """Quick and dirty message recording"""
+        self._append(channel_id, {"text": text, "attachments": attachments, "message_type": message_type})
 
     async def typing(self, channel_id):
         """Ignore typing"""
@@ -74,9 +78,13 @@ class DoofSpoof(Bot):
         """
         Record message updates
         """
-        if channel_id not in self.messages:
-            self.messages[channel_id] = []
-        self.messages[channel_id].append(f"{text} {attachments} {timestamp}")
+        self._append(channel_id, {"text": text, "attachments": attachments, "timestamp": timestamp})
+
+    async def delete_message(self, *, channel_id, timestamp):
+        """
+        Record message delete
+        """
+        self._append(channel_id, {"timestamp": timestamp})
 
     def said(self, text, *, attachments=None, channel_id=None):
         """Did doof say this thing?"""
@@ -185,7 +193,8 @@ async def test_release_notes_buttons(doof, test_repo, event_loop, mocker):
             'callback_id': 'new_release',
             'actions': [
                 {'name': 'minor_release', 'text': minor_version, 'value': minor_version, 'type': 'button'},
-                {'name': 'patch_release', 'text': patch_version, 'value': patch_version, 'type': 'button'}
+                {'name': 'patch_release', 'text': patch_version, 'value': patch_version, 'type': 'button'},
+                {'name': 'cancel', 'text': "Dismiss", 'value': "cancel", 'type': 'button', "style": "danger"}
             ]
         }
     ])
@@ -741,7 +750,8 @@ async def test_webhook_start_release(doof, test_repo, event_loop, mocker):
             },
             "actions": [
                 {
-                    "value": version
+                    "value": version,
+                    "name": "minor_release",
                 }
             ]
         },
@@ -778,7 +788,8 @@ async def test_webhook_start_release_fail(doof, event_loop, mocker):
                 },
                 "actions": [
                     {
-                        "value": version
+                        "value": version,
+                        "name": "minor_release",
                     }
                 ]
             },
@@ -788,6 +799,40 @@ async def test_webhook_start_release_fail(doof, event_loop, mocker):
     assert release_mock.call_count == 1
     assert release_mock.call_args[0][1].args == [version]
     assert doof.said("Error")
+
+
+async def test_webhook_dismiss_release(doof, event_loop):
+    """
+    Delete the buttons in the message for a new release
+    """
+    timestamp = "123.45"
+    version = "3.4.5"
+    await doof.handle_webhook(
+        loop=event_loop,
+        webhook_dict={
+            "token": "token",
+            "callback_id": NEW_RELEASE_ID,
+            "channel": {
+                "id": "doof"
+            },
+            "user": {
+                "id": "doofenshmirtz"
+            },
+            "message_ts": timestamp,
+            "original_message": {
+                "text": "Doof's original text",
+            },
+            "actions": [
+                {
+                    "value": version,
+                    "name": "cancel",
+                }
+            ]
+        },
+    )
+
+    assert doof.said(timestamp)
+    assert not doof.said("Starting release")
 
 
 async def test_uptime(doof, event_loop, mocker, test_repo):
@@ -933,7 +978,16 @@ async def test_wait_for_checkboxes(mocker, doof, test_repo, speak_initial):
             ),
             attachments=[
                 {
-                    'actions': [{'name': 'finish_release', 'text': 'Finish the release', 'type': 'button'}],
+                    'actions': [
+                        {
+                            'name': 'finish_release', 'text': 'Finish the release', 'type': 'button',
+                            "confirm": {
+                                "title": "Are you sure?",
+                                "ok_text": "Finish the release",
+                                "dismiss_text": "Cancel",
+                            }
+                        },
+                    ],
                     'callback_id': 'finish_release', 'fallback': 'Finish the release'
                 }
             ]
