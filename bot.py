@@ -298,6 +298,11 @@ class Bot:
         repo_url = repo_info.repo_url
         channel_id = repo_info.channel_id
 
+        await self.say(
+            channel_id=channel_id,
+            text=f"Merging evil scheme {version} for {repo_info.name}...",
+        )
+
         await release(
             github_access_token=self.github_access_token,
             repo_url=repo_url,
@@ -635,7 +640,12 @@ class Bot:
         """
         repo_info = command_args.repo_info
         version = command_args.args[0]
+        pypi_server = "pypitest" if testing else "pypi"
 
+        await self.say(
+            channel_id=command_args.channel_id,
+            text=f"Publishing evil scheme {version} to {pypi_server}...",
+        )
         await upload_to_pypi(
             repo_info=repo_info,
             testing=testing,
@@ -645,10 +655,7 @@ class Bot:
 
         await self.say(
             channel_id=command_args.channel_id,
-            text='Successfully uploaded {version} to {pypi_server}.'.format(
-                version=version,
-                pypi_server="pypitest" if testing else "pypi",
-            ),
+            text=f'Successfully uploaded {version} to {pypi_server}.',
             is_announcement=True,
         )
 
