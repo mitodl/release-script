@@ -474,7 +474,11 @@ async def test_get_version_tag(mocker):
     """
     a_hash = b'hash'
     mocker.async_patch('version.check_output', return_value=a_hash)
-    assert await get_version_tag('github', 'http://github.com/mitodl/doof.git', 'commit') == a_hash.decode()
+    assert await get_version_tag(
+        github_access_token='github',
+        repo_url='http://github.com/mitodl/doof.git',
+        commit_hash='commit',
+    ) == a_hash.decode()
 
 
 @pytest.mark.parametrize("hotfix_hash", ["", "abcdef"])

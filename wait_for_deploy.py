@@ -24,8 +24,8 @@ async def is_release_deployed(*, github_access_token, repo_url, hash_url, branch
     """
     Is server finished with the deploy?
     """
-    async with init_working_dir(github_access_token, repo_url):
-        output = await check_output(["git", "rev-parse", "origin/{}".format(branch)])
+    async with init_working_dir(github_access_token, repo_url) as working_dir:
+        output = await check_output(["git", "rev-parse", "origin/{}".format(branch)], cwd=working_dir)
         latest_hash = output.decode().strip()
     return await fetch_release_hash(hash_url) == latest_hash
 
@@ -44,8 +44,8 @@ async def wait_for_deploy(*, github_access_token, repo_url, hash_url, watch_bran
         bool:
             True if the hashes matched immediately on checking, False if hashes matched only after checking
     """
-    async with init_working_dir(github_access_token, repo_url):
-        output = await check_output(["git", "rev-parse", "origin/{}".format(watch_branch)])
+    async with init_working_dir(github_access_token, repo_url) as working_dir:
+        output = await check_output(["git", "rev-parse", "origin/{}".format(watch_branch)], cwd=working_dir)
         latest_hash = output.decode().strip()
     while await fetch_release_hash(hash_url) != latest_hash:
         await asyncio.sleep(30)

@@ -468,7 +468,11 @@ class Bot:
         """
         repo_url = repo_info.repo_url
         channel_id = repo_info.channel_id
-        version = await get_version_tag(self.github_access_token, repo_url, "release")
+        version = await get_version_tag(
+            github_access_token=self.github_access_token,
+            repo_url=repo_url,
+            commit_hash="release",
+        )
 
         await wait_for_deploy(
             github_access_token=self.github_access_token,
@@ -715,7 +719,11 @@ class Bot:
 
         commit_hash = await fetch_release_hash(repo_info.prod_hash_url)
 
-        version = await get_version_tag(self.github_access_token, repo_url, commit_hash)
+        version = await get_version_tag(
+            github_access_token=self.github_access_token,
+            repo_url=repo_url,
+            commit_hash=commit_hash,
+        )
         await self.say(
             channel_id=channel_id,
             text="Wait a minute! My evil scheme is at version {version}!".format(version=version[1:])

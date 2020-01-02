@@ -233,7 +233,11 @@ async def test_version(doof, test_repo, mocker):
     )
 
     fetch_release_hash_mock.assert_called_once_with(test_repo.prod_hash_url)
-    get_version_tag_mock.assert_called_once_with(GITHUB_ACCESS, test_repo.repo_url, a_hash)
+    get_version_tag_mock.assert_called_once_with(
+        github_access_token=GITHUB_ACCESS,
+        repo_url=test_repo.repo_url,
+        commit_hash=a_hash,
+    )
 
 
 async def test_typing(doof, test_repo, mocker):
@@ -795,14 +799,13 @@ async def test_webhook_start_release_fail(doof, mocker):
     assert doof.said("Error")
 
 
-async def test_webhook_dismiss_release(doof, event_loop):
+async def test_webhook_dismiss_release(doof):
     """
     Delete the buttons in the message for a new release
     """
     timestamp = "123.45"
     version = "3.4.5"
     await doof.handle_webhook(
-        loop=event_loop,
         webhook_dict={
             "token": "token",
             "callback_id": NEW_RELEASE_ID,
@@ -1109,7 +1112,11 @@ async def test_wait_for_deploy_prod(doof, test_repo, mocker):
 
     await doof._wait_for_deploy_prod(repo_info=test_repo)  # pylint: disable=protected-access
 
-    get_version_tag_mock.assert_called_once_with(GITHUB_ACCESS, test_repo.repo_url, "release")
+    get_version_tag_mock.assert_called_once_with(
+        github_access_token=GITHUB_ACCESS,
+        repo_url=test_repo.repo_url,
+        commit_hash="release",
+    )
     assert doof.said('has been released to production')
     wait_for_deploy_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
