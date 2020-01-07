@@ -73,20 +73,6 @@ Command = namedtuple('Command', ['command', 'parsers', 'command_func', 'descript
 Parser = namedtuple('Parser', ['func', 'description'])
 
 
-def unique_task(func):
-    """Decorator to prevent coroutine func from being run twice for same channel and task"""
-    async def decorated_func(bot, *args, repo_info, **kwargs):
-        key = Task(channel_id=repo_info.channel_id, task=func.__name__)
-        if key in bot.tasks:
-            return
-        bot.tasks.add(key)
-        result = await func(bot, *args, repo_info=repo_info, **kwargs)
-        bot.tasks.remove(key)
-        return result
-
-    return decorated_func
-
-
 def get_envs():
     """Get required environment variables"""
     required_keys = (
@@ -327,7 +313,6 @@ class Bot:
             version=version,
         )
 
-    @unique_task
     async def _wait_for_travis(self, *, repo_info, version):
         """Wait for travis then finish the library release"""
         repo_url = repo_info.repo_url
@@ -425,7 +410,6 @@ class Bot:
                 repo_info=repo_info,
             )
 
-    @unique_task
     async def _wait_for_deploy_rc(
             self, *, repo_info,
     ):
@@ -461,7 +445,6 @@ class Bot:
             is_announcement=True
         )
 
-    @unique_task
     async def _wait_for_deploy_prod(self, *, repo_info):
         """
         Check hash values to wait for deployment for production
@@ -549,7 +532,6 @@ class Bot:
         """
         await self.wait_for_checkboxes(repo_info=command_args.repo_info, manager=command_args.manager)
 
-    @unique_task
     async def wait_for_checkboxes(self, *, repo_info, manager, speak_initial=True):
         """
         Poll the Release PR and wait until all checkboxes are checked off
@@ -816,7 +798,6 @@ class Bot:
                 )
             )
 
-    @unique_task
     async def wait_for_checkboxes_reminder(self, *, repo_info):
         """
         sleep until 10am next day, then message
