@@ -16,19 +16,19 @@ from release import (
 )
 
 
-async def merge_release_candidate():
+async def merge_release_candidate(*, root):
     """Merge release-candidate into release"""
     print("Merge release-candidate into release")
-    await check_call(['git', 'checkout', 'release'])
-    await check_call(['git', 'merge', 'release-candidate', '--no-edit'])
-    await check_call(['git', 'push'])
+    await check_call(['git', 'checkout', 'release'], cwd=root)
+    await check_call(['git', 'merge', 'release-candidate', '--no-edit'], cwd=root)
+    await check_call(['git', 'push'], cwd=root)
 
 
-async def check_release_tag(version):
+async def check_release_tag(version, *, root):
     """Check release version number"""
     print("Check release version number...")
-    await check_call(['git', 'checkout', 'release-candidate'])
-    log_output = await check_output(['git', 'log', '-1', '--pretty=%B'])
+    await check_call(['git', 'checkout', 'release-candidate'], cwd=root)
+    log_output = await check_output(['git', 'log', '-1', '--pretty=%B'], cwd=root)
     commit_name = log_output.decode().strip()
     if commit_name != "Release {}".format(version):
         raise VersionMismatchException("Commit name {commit_name} does not match tag number {version}".format(
@@ -37,22 +37,21 @@ async def check_release_tag(version):
         ))
 
 
-async def tag_release(version):
+async def tag_release(version, *, root):
     """Add git tag for release"""
     print("Tag release...")
-    await check_call(['git', 'tag', '-a', '-m', "Release {}".format(version), "v{}".format(version)])
-    await check_call(['git', 'push', '--follow-tags'])
+    await check_call(['git', 'tag', '-a', '-m', "Release {}".format(version), "v{}".format(version)], cwd=root)
+    await check_call(['git', 'push', '--follow-tags'], cwd=root)
 
 
-async def set_release_date(version, timezone):
+async def set_release_date(version, timezone, *, root):
     """Sets the release date(s) in RELEASE.rst for any versions missing it"""
-    print("Setting release date...")
-    release_filename = "RELEASE.rst"
+    release_filename = os.path.join(root, "RELEASE.rst")
     if not os.path.isfile(release_filename):
         return
     date_format = "%B %d, %Y"
-    await check_call(["git", "fetch", "--tags"])
-    await check_call(['git', 'checkout', 'release-candidate'])
+    await check_call(["git", "fetch", "--tags"], cwd=root)
+    await check_call(['git', 'checkout', 'release-candidate'], cwd=root)
 
     with open(release_filename) as f:
         existing_note_lines = f.readlines()
@@ -67,7 +66,8 @@ async def set_release_date(version, timezone):
                         localtime = datetime.now().strftime(date_format)
                     else:
                         version_output = await check_output(
-                            ["git", "log", "-1", "--format=%ai", "v{}".format(version_line)]
+                            ["git", "log", "-1", "--format=%ai", "v{}".format(version_line)],
+                            cwd=root,
                         )
                         version_date = version_output.rstrip()
                         localtime = datetime.strptime(version_date.decode("utf-8"), "%Y-%m-%d %H:%M:%S %z").\
@@ -75,28 +75,28 @@ async def set_release_date(version, timezone):
                     line = "Version {} (Released {})\n".format(version_line, localtime)
             f.write(line)
 
-    await check_call(["git", "commit", "-q", release_filename, "-m", "Release date for {}".format(version)])
+    await check_call(["git", "commit", "-q", release_filename, "-m", "Release date for {}".format(version)], cwd=root)
 
 
-async def merge_release():
+async def merge_release(*, root):
     """Merge release to master"""
     print("Merge release to master")
-    await check_call(['git', 'checkout', '-q', 'master'])
-    await check_call(['git', 'pull'])
-    await check_call(['git', 'merge', 'release', '--no-edit'])
-    await check_call(['git', 'push'])
+    await check_call(['git', 'checkout', '-q', 'master'], cwd=root)
+    await check_call(['git', 'pull'], cwd=root)
+    await check_call(['git', 'merge', 'release', '--no-edit'], cwd=root)
+    await check_call(['git', 'push'], cwd=root)
 
 
 async def finish_release(*, github_access_token, repo_url, version, timezone):
     """Merge release to master and deploy to production"""
 
     await validate_dependencies()
-    async with init_working_dir(github_access_token, repo_url):
-        await check_release_tag(version)
-        await set_release_date(version, timezone)
-        await merge_release_candidate()
-        await tag_release(version)
-        await merge_release()
+    async with init_working_dir(github_access_token, repo_url) as working_dir:
+        await check_release_tag(version, root=working_dir)
+        await set_release_date(version, timezone, root=working_dir)
+        await merge_release_candidate(root=working_dir)
+        await tag_release(version, root=working_dir)
+        await merge_release(root=working_dir)
 
 
 def main():

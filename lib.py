@@ -266,25 +266,29 @@ async def virtualenv(python_interpreter, env):
     Create a virtualenv and work within its context
     """
     with TemporaryDirectory() as virtualenv_dir:
-        await check_call(["virtualenv", virtualenv_dir, "-p", python_interpreter], env=env)
+        await check_call(["virtualenv", virtualenv_dir, "-p", python_interpreter], env=env, cwd=virtualenv_dir)
 
         # Figure out what environment variables we need to set
         output_bytes = await check_output(
             ". {}; env".format(os.path.join(virtualenv_dir, "bin", "activate")),
             shell=True,
+            cwd=virtualenv_dir,
         )
         output = output_bytes.decode()
         yield virtualenv_dir, dict(line.split("=", 1) for line in output.splitlines())
 
 
-async def upload_to_pypi(*, repo_info, testing):  # pylint: disable=too-many-locals
+async def upload_to_pypi(*, repo_info, testing, version, github_access_token):  # pylint: disable=too-many-locals
     """
-    Upload the current dir
+    Upload a version of a project to PYPI
 
     Args:
         repo_info (RepoInfo): The repository info
         testing (bool): If true upload to the testing server, else upload to production
+        version (str): The version of the project to upload
+        github_access_token (str): The github access token
     """
+    branch = "v{}".format(version)
     # Set up environment variables for uploading to pypi or pypitest
     twine_env = {
         'TWINE_USERNAME': os.environ['PYPITEST_USERNAME'] if testing else os.environ['PYPI_USERNAME'],
@@ -295,37 +299,38 @@ async def upload_to_pypi(*, repo_info, testing):  # pylint: disable=too-many-loc
     # In particular if a wheel is specific to one version of python we need to use that interpreter to create it.
     python = "python3" if repo_info.python3 else "python2"
 
-    async with virtualenv("python3", None) as (_, outer_environ):
-        # Heroku has both Python 2 and 3 installed but the system libraries aren't configured for our use,
-        # so make a virtualenv.
-        async with virtualenv(python, outer_environ) as (virtualenv_dir, environ):
-            # Use the virtualenv binaries to act within that environment
-            python_path = os.path.join(virtualenv_dir, "bin", "python")
-            pip_path = os.path.join(virtualenv_dir, "bin", "pip")
-            twine_path = os.path.join(virtualenv_dir, "bin", "twine")
+    async with init_working_dir(github_access_token, repo_info.repo_url, branch=branch) as working_dir:
+        async with virtualenv("python3", None) as (_, outer_environ):
+            # Heroku has both Python 2 and 3 installed but the system libraries aren't configured for our use,
+            # so make a virtualenv.
+            async with virtualenv(python, outer_environ) as (virtualenv_dir, environ):
+                # Use the virtualenv binaries to act within that environment
+                python_path = os.path.join(virtualenv_dir, "bin", "python")
+                pip_path = os.path.join(virtualenv_dir, "bin", "pip")
+                twine_path = os.path.join(virtualenv_dir, "bin", "twine")
 
-            # Install dependencies. wheel is needed for Python 2. twine uploads the package.
-            await check_call([pip_path, "install", "wheel", "twine"], env=environ)
+                # Install dependencies. wheel is needed for Python 2. twine uploads the package.
+                await check_call([pip_path, "install", "wheel", "twine"], env=environ, cwd=working_dir)
 
-            # Create source distribution and wheel.
-            await call([python_path, "setup.py", "sdist"], env=environ)
-            universal = ["--universal"] if repo_info.python2 and repo_info.python3 else []
-            build_wheel_args = [python_path, "setup.py", "bdist_wheel", *universal]
-            await call(build_wheel_args, env=environ)
-            dist_files = os.listdir("dist")
-            if len(dist_files) != 2:
-                raise Exception("Expected to find one tarball and one wheel in directory")
-            dist_paths = [os.path.join("dist", name) for name in dist_files]
+                # Create source distribution and wheel.
+                await call([python_path, "setup.py", "sdist"], env=environ, cwd=working_dir)
+                universal = ["--universal"] if repo_info.python2 and repo_info.python3 else []
+                build_wheel_args = [python_path, "setup.py", "bdist_wheel", *universal]
+                await call(build_wheel_args, env=environ, cwd=working_dir)
+                dist_files = os.listdir(os.path.join(working_dir, "dist"))
+                if len(dist_files) != 2:
+                    raise Exception("Expected to find one tarball and one wheel in directory")
+                dist_paths = [os.path.join("dist", name) for name in dist_files]
 
-            # Upload to pypi
-            testing_args = ["--repository-url", "https://test.pypi.org/legacy/"] if testing else []
-            await check_call(
-                [twine_path, "upload", *testing_args, *dist_paths],
-                env={
-                    **environ,
-                    **twine_env,
-                }
-            )
+                # Upload to pypi
+                testing_args = ["--repository-url", "https://test.pypi.org/legacy/"] if testing else []
+                await check_call(
+                    [twine_path, "upload", *testing_args, *dist_paths],
+                    env={
+                        **environ,
+                        **twine_env,
+                    }, cwd=working_dir
+                )
 
 
 def load_repos_info(channel_lookup):
@@ -375,8 +380,18 @@ def next_versions(version):
     return new_minor, new_patch
 
 
-def async_wrapper(mocked):
-    """Wrap sync functions with a simple async wrapper"""
-    async def async_func(*args, **kwargs):
-        return mocked(*args, **kwargs)
-    return async_func
+@asynccontextmanager
+async def init_working_dir(github_access_token, repo_url, *, branch=None):
+    """Create a new directory with an empty git repo"""
+    if branch is None:
+        branch = 'master'
+
+    url = url_with_access_token(github_access_token, repo_url)
+    with TemporaryDirectory() as directory:
+        # from http://stackoverflow.com/questions/2411031/how-do-i-clone-into-a-non-empty-directory
+        await check_call(["git", "init", "-q"], cwd=directory)
+        await check_call(["git", "remote", "add", "origin", url], cwd=directory)
+        await check_call(["git", "fetch", "--tags", "-q"], cwd=directory)
+        await check_call(["git", "checkout", branch, "-q"], cwd=directory)
+
+        yield directory

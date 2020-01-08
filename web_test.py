@@ -20,9 +20,9 @@ class FinishReleaseTests(AsyncHTTPTestCase):
 
     def setUp(self):
         self.token = uuid.uuid4().hex
-        self.doof = DoofSpoof()
         self.loop = asyncio.get_event_loop()
-        self.app = make_app(self.token, self.doof, self.loop)
+        self.doof = DoofSpoof(loop=self.loop)
+        self.app = make_app(self.token, self.doof)
 
         super().setUp()
 
@@ -61,6 +61,5 @@ class FinishReleaseTests(AsyncHTTPTestCase):
 
         assert response.code == 200
         handle_webhook.assert_called_once_with(
-            loop=self.loop,
             webhook_dict=payload,
         )

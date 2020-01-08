@@ -2,9 +2,7 @@
 """Release script for ODL projects"""
 import argparse
 import asyncio
-from contextlib import asynccontextmanager
 import re
-from tempfile import TemporaryDirectory
 import os
 from subprocess import CalledProcessError
 
@@ -22,7 +20,7 @@ from constants import (
 from exception import ReleaseException
 from github import create_pr
 from lib import (
-    url_with_access_token,
+    init_working_dir,
     VERSION_RE,
 )
 
@@ -41,34 +39,11 @@ class VersionMismatchException(Exception):
 
 async def dependency_exists(command):
     """Returns true if a command exists on the system"""
-    return await call(["which", command]) == 0
-
-
-@asynccontextmanager
-async def init_working_dir(github_access_token, repo_url, *, branch=None):
-    """Create a new directory with an empty git repo"""
-    if branch is None:
-        branch = 'master'
-
-    pwd = os.getcwd()
-    url = url_with_access_token(github_access_token, repo_url)
-    try:
-        with TemporaryDirectory() as directory:
-            os.chdir(directory)
-            # from http://stackoverflow.com/questions/2411031/how-do-i-clone-into-a-non-empty-directory
-            await check_call(["git", "init", "-q"])
-            await check_call(["git", "remote", "add", "origin", url])
-            await check_call(["git", "fetch", "--tags", "-q"])
-            await check_call(["git", "checkout", branch, "-q"])
-            yield directory
-    finally:
-        os.chdir(pwd)
+    return await call(["which", command], cwd="/") == 0
 
 
 async def validate_dependencies():
     """Error if a dependency is missing or invalid"""
-    print("Validating dependencies...")
-
     if not await dependency_exists("git"):
         raise DependencyException('Please install git https://git-scm.com/downloads')
     if not await dependency_exists("node"):
@@ -76,7 +51,7 @@ async def validate_dependencies():
     if not await dependency_exists(GIT_RELEASE_NOTES_PATH):
         raise DependencyException("Please run 'npm install' first")
 
-    version_output = await check_output(["node", "--version"])
+    version_output = await check_output(["node", "--version"], cwd="/")
     version = version_output.decode()
     major_version = int(re.match(r'^v(\d+)\.', version).group(1))
     if major_version < 6:
@@ -136,7 +111,7 @@ def update_version_in_file(root, filename, new_version):
     return None
 
 
-def update_version(new_version):
+def update_version(new_version, *, working_dir):
     """Update the version from the project and return the old one, or raise an exception if none is found"""
     print("Updating version...")
     exclude_dirs = ('.cache', '.git', '.settings', )
@@ -144,7 +119,7 @@ def update_version(new_version):
     found_version_filename = None
     old_version = None
     for version_filename in version_files:
-        for root, dirs, filenames in os.walk(".", topdown=True):
+        for root, dirs, filenames in os.walk(working_dir, topdown=True):
             dirs[:] = [d for d in dirs if d not in exclude_dirs]
             if version_filename in filenames:
                 version = update_version_in_file(root, version_filename, new_version)
@@ -166,22 +141,23 @@ def update_version(new_version):
     return old_version
 
 
-async def any_new_commits(version, *, base_branch):
+async def any_new_commits(version, *, base_branch, root):
     """
     Return true if there are any new commits since a release
 
     Args:
         version (str): A version string
         base_branch (str): The branch to compare against
+        root (str): The project root directory
 
     Returns:
         bool: True if there are new commits
     """
-    output = await check_output(["git", "rev-list", "--count", f"v{version}..{base_branch}", "--"])
+    output = await check_output(["git", "rev-list", "--count", f"v{version}..{base_branch}", "--"], cwd=root)
     return int(output) != 0
 
 
-async def create_release_notes(old_version, with_checkboxes, *, base_branch):
+async def create_release_notes(old_version, with_checkboxes, *, base_branch, root):
     """
     Returns the release note text for the commits made for this version
 
@@ -189,6 +165,7 @@ async def create_release_notes(old_version, with_checkboxes, *, base_branch):
         old_version (str): The starting version of the range of commits
         with_checkboxes (bool): If true, create the release notes with spaces for checkboxes
         base_branch (str): The base branch to compare against
+        root (str): The project root directory
 
     Returns:
         str: The release notes
@@ -198,30 +175,28 @@ async def create_release_notes(old_version, with_checkboxes, *, base_branch):
     else:
         filename = "release_notes_rst.ejs"
 
-    if not await any_new_commits(old_version, base_branch=base_branch):
+    if not await any_new_commits(old_version, base_branch=base_branch, root=root):
         return "No new commits"
 
     output = await check_output([
         GIT_RELEASE_NOTES_PATH,
         f"v{old_version}..{base_branch}",
         os.path.join(SCRIPT_DIR, "util", filename),
-    ])
+    ], cwd=root)
     return "{}\n".format(output.decode().strip())
 
 
-async def verify_new_commits(old_version, *, base_branch):
+async def verify_new_commits(old_version, *, base_branch, root):
     """Check if there are new commits to release"""
-    if not await any_new_commits(old_version, base_branch=base_branch):
+    if not await any_new_commits(old_version, base_branch=base_branch, root=root):
         raise ReleaseException("No new commits to put in release")
 
 
-async def update_release_notes(old_version, new_version, *, base_branch):
+async def update_release_notes(old_version, new_version, *, base_branch, root):
     """Updates RELEASE.rst and commits it"""
-    print("Updating release notes...")
+    release_notes = await create_release_notes(old_version, with_checkboxes=False, base_branch=base_branch, root=root)
 
-    release_notes = await create_release_notes(old_version, with_checkboxes=False, base_branch=base_branch)
-
-    release_filename = "RELEASE.rst"
+    release_filename = os.path.join(root, "RELEASE.rst")
     try:
         with open(release_filename) as f:
             existing_note_lines = f.readlines()
@@ -243,17 +218,17 @@ async def update_release_notes(old_version, new_version, *, base_branch):
         for old_line in existing_note_lines[3:]:
             f.write(old_line)
 
-    await check_call(["git", "add", release_filename])
-    await check_call(["git", "commit", "-q", "--all", "--message", f"Release {new_version}"])
+    await check_call(["git", "add", release_filename], cwd=root)
+    await check_call(["git", "commit", "-q", "--all", "--message", f"Release {new_version}"], cwd=root)
 
 
-async def build_release():
+async def build_release(*, root):
     """Deploy the release candidate"""
     print("Building release...")
-    await check_call(["git", "push", "--force", "-q", "origin", "release-candidate:release-candidate"])
+    await check_call(["git", "push", "--force", "-q", "origin", "release-candidate:release-candidate"], cwd=root)
 
 
-async def generate_release_pr(*, github_access_token, repo_url, old_version, new_version, base_branch):
+async def generate_release_pr(*, github_access_token, repo_url, old_version, new_version, base_branch, root):
     """
     Make a release pull request for the deployed release-candidate branch
 
@@ -263,6 +238,7 @@ async def generate_release_pr(*, github_access_token, repo_url, old_version, new
         old_version (str): The previous release version
         new_version (str): The version of the new release
         base_branch (str): The base branch to compare against
+        root (str): The project root directory
     """
     print("Generating PR...")
 
@@ -270,7 +246,7 @@ async def generate_release_pr(*, github_access_token, repo_url, old_version, new
         github_access_token=github_access_token,
         repo_url=repo_url,
         title="Release {version}".format(version=new_version),
-        body=await create_release_notes(old_version, with_checkboxes=True, base_branch=base_branch),
+        body=await create_release_notes(old_version, with_checkboxes=True, base_branch=base_branch, root=root),
         head="release-candidate",
         base="release",
     )
@@ -289,29 +265,30 @@ async def release(github_access_token, repo_url, new_version, branch=None, commi
     """
 
     await validate_dependencies()
-    async with init_working_dir(github_access_token, repo_url, branch=branch):
-        await check_call(["git", "checkout", "-qb", "release-candidate"])
+    async with init_working_dir(github_access_token, repo_url, branch=branch) as working_dir:
+        await check_call(["git", "checkout", "-qb", "release-candidate"], cwd=working_dir)
         if commit_hash:
             try:
-                await check_call(["git", "cherry-pick", commit_hash])
+                await check_call(["git", "cherry-pick", commit_hash], cwd=working_dir)
             except CalledProcessError:
                 raise ReleaseException(f"Cherry pick failed for the given hash {commit_hash}")
-        old_version = update_version(new_version)
+        old_version = update_version(new_version, working_dir=working_dir)
         if parse_version(old_version) >= parse_version(new_version):
             raise ReleaseException("old version is {old} but the new version {new} is not newer".format(
                 old=old_version,
                 new=new_version,
             ))
         base_branch = "release-candidate" if commit_hash else "master"
-        await verify_new_commits(old_version, base_branch=base_branch)
-        await update_release_notes(old_version, new_version, base_branch=base_branch)
-        await build_release()
+        await verify_new_commits(old_version, base_branch=base_branch, root=working_dir)
+        await update_release_notes(old_version, new_version, base_branch=base_branch, root=working_dir)
+        await build_release(root=working_dir)
         await generate_release_pr(
             github_access_token=github_access_token,
             repo_url=repo_url,
             old_version=old_version,
             new_version=new_version,
             base_branch=base_branch,
+            root=working_dir,
         )
 
     print(f"version {old_version} has been updated to {new_version}")
