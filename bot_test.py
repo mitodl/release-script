@@ -864,7 +864,7 @@ async def test_reset(doof, test_repo):
 
 
 @pytest.mark.parametrize("testing", [True, False])
-async def test_upload_to_pypi(doof, library_test_repo, event_loop, testing, mocker):
+async def test_upload_to_pypi(doof, library_test_repo, testing, mocker):
     """the upload_to_pypi command should start the upload process"""
     upload_to_pypi_patched = mocker.async_patch('bot.upload_to_pypi')
 
@@ -881,10 +881,14 @@ async def test_upload_to_pypi(doof, library_test_repo, event_loop, testing, mock
         manager='me',
         channel_id=library_test_repo.channel_id,
         words=['upload', 'to', pypi_server, version],
-        loop=event_loop,
     )
 
-    upload_to_pypi_patched.assert_called_once_with(repo_info=library_test_repo, testing=testing)
+    upload_to_pypi_patched.assert_called_once_with(
+        repo_info=library_test_repo,
+        testing=testing,
+        github_access_token=GITHUB_ACCESS,
+        version=version,
+    )
     assert doof.said(f"Successfully uploaded {version} to {pypi_server}.")
 
 
