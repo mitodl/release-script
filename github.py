@@ -1,13 +1,22 @@
 """Functions interacting with github"""
 
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 import json
 import re
+import logging
 
 from dateutil.parser import parse
+from requests.exceptions import HTTPError
 
 from client_wrapper import ClientWrapper
 from constants import NO_PR_BUILD
+from markdown import parse_linked_issues
+
+log = logging.getLogger(__name__)
+
+
+PullRequest = namedtuple("PullRequest", ["number", "title", "body", "updatedAt", "org", "repo", "url"])
+Issue = namedtuple("Issue", ["number", "title", "status", "org", "repo", "updatedAt", "url"])
 
 
 KARMA_QUERY = """
@@ -75,6 +84,41 @@ query {
   }
 }
 """
+
+
+def make_pull_requests_query(*, org, repo, cursor):
+    """
+    Construct a GraphQL query getting the text of the last 100 most recently updated pull requests
+
+    Args:
+        org (str): The github org
+        repo (str): The github repo
+        cursor (str or None): If set, the cursor to start from for pagination
+    """
+    cursor_param = f", after: \"{cursor}\"" if cursor is not None else ""
+    return f"""
+query {{
+  organization(login: "{org}") {{
+    repository(name: "{repo}") {{
+      pullRequests(first: 100{cursor_param}, states: [MERGED], orderBy: {{
+        field: UPDATED_AT
+        direction: DESC,
+      }}) {{
+        edges {{
+          cursor
+          node {{
+            number
+            body
+            updatedAt
+            url
+            title
+          }}
+        }}
+      }}
+    }}
+  }}
+}}
+    """
 
 
 async def run_query(*, github_access_token, query):
@@ -146,6 +190,165 @@ async def create_pr(*, github_access_token, repo_url, title, body, head, base): 
         })
     )
     resp.raise_for_status()
+
+
+async def fetch_pull_requests_since_date(*, github_access_token, org, repo, since):
+    """
+    Look up PRs between now and a given datetime
+
+    Args:
+        github_access_token (str): The github access token
+        org (str): A github organization
+        repo (str): A github repo
+        since (date): The earliest date to request PRs
+
+    Yields:
+        PullRequest: Information about each pull request fetched
+    """
+    cursor = None
+    while True:
+        # This should hopefully not be an infinite loop because the cursor will be updated and the loop should
+        # terminate once a pull request is out of the date range given.
+        result = await run_query(
+            github_access_token=github_access_token,
+            query=make_pull_requests_query(
+                org=org,
+                repo=repo,
+                cursor=cursor,
+            )
+        )
+
+        edges = result['data']['organization']['repository']['pullRequests']['edges']
+        if not edges:
+            return
+        cursor = edges[-1]['cursor']
+        for edge in edges:
+            node = edge['node']
+            pr_number = node['number']
+            url = node['url']
+            pr_date = parse(node['updatedAt']).date()
+            if pr_date < since:
+                return
+            title = node['title']
+            if title.startswith("Release "):
+                continue
+            yield PullRequest(
+                number=pr_number,
+                title=title,
+                updatedAt=pr_date,
+                body=node['body'],
+                org=org,
+                repo=repo,
+                url=url,
+            )
+
+
+async def fetch_issues_for_pull_requests(*, github_access_token, pull_requests):
+    """
+    Look up issues linked with the given pull requests
+
+    Args:
+        github_access_token (str): A github access token
+        pull_requests (async_iterable of PullRequest):
+            A iterable of PullRequest which contains issue numbers to be parsed in the body
+
+    Yields:
+        (PullRequest, list of (Issue, ParsedIssue))
+    """
+    issue_lookup = {}
+    async for pull_request in pull_requests:
+        parsed_issues = parse_linked_issues(pull_request)
+        for parsed_issue in parsed_issues:
+            if parsed_issue.issue_number not in issue_lookup:
+                try:
+                    issue = await get_issue(
+                        github_access_token=github_access_token,
+                        org=parsed_issue.org,
+                        repo=parsed_issue.repo,
+                        issue_number=parsed_issue.issue_number,
+                    )
+                    if issue is None:
+                        continue
+                    issue_lookup[parsed_issue.issue_number] = issue
+                except HTTPError:
+                    log.warning(
+                        "Unable to find issue %d for %s/%s",
+                        parsed_issue.issue_number,
+                        parsed_issue.org,
+                        parsed_issue.repo,
+                    )
+        yield pull_request, [
+            (issue_lookup.get(parsed_issue.issue_number), parsed_issue) for parsed_issue in parsed_issues
+        ]
+
+
+def make_issue_release_notes(prs_and_issues):
+    """
+    Create release notes for PRs and linked issues
+
+    Args:
+        prs_and_issues (iterable of PullRequest, list of (Issue, ParsedIssue)):
+            The PRs and issues to use to make release notes
+
+    Returns:
+        str:
+            Release notes for the issues closed during the time
+    """
+    notes = ""
+
+    issue_to_prs = {}
+    for pr, issue_list in prs_and_issues:
+        for issue, parsed_issue in issue_list:
+            if not issue or issue.status != "closed":
+                continue
+            if issue.number not in issue_to_prs:
+                issue_to_prs[issue.number] = (issue, [])
+            issue_to_prs[issue.number][1].append(
+                (pr, parsed_issue)
+            )
+
+    for issue_number, (issue, pr_list) in sorted(issue_to_prs.items(), key=lambda tup: tup[0]):
+        notes += f"<{issue.url}|#{issue_number}> {issue.title}\n"
+        for pr, parsed_issue in pr_list:
+            notes += (
+                f" - {f'closed by' if parsed_issue.closes else 'related to'}"
+                f" PR <{pr.url}|#{pr.number}>\n"
+            )
+        notes += "\n"
+
+    return notes
+
+
+async def get_issue(*, github_access_token, org, repo, issue_number):
+    """
+    Look up information about an issue
+
+    Args:
+        github_access_token (str): The github access token
+        org (str): An organization
+        repo (str): A repository
+        issue_number (int): The github issue number
+
+    Returns:
+        Issue: Information about the issue
+    """
+    endpoint = f"https://api.github.com/repos/{org}/{repo}/issues/{issue_number}"
+    client = ClientWrapper()
+    response = await client.get(endpoint, headers=github_auth_headers(github_access_token))
+    response.raise_for_status()
+    response_json = response.json()
+    if 'pull_request' in response_json:
+        return
+
+    return Issue(
+        title=response_json['title'],
+        number=response_json['number'],
+        org=org,
+        repo=repo,
+        status=response_json['state'],
+        updatedAt=parse(response_json['updated_at']),
+        url=response_json['html_url'],
+    )
 
 
 async def get_pull_request(*, github_access_token, org, repo, branch):
@@ -285,7 +488,7 @@ def get_org_and_repo(repo_url):
 
 async def get_status_of_pr(*, github_access_token, org, repo, branch):
     """
-    Get the status of the PR
+    Get the status of the PR for a given branch
 
     Args:
         github_access_token (str): The github access token

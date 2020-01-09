@@ -69,9 +69,7 @@ def main():
     """Main function"""
     loop = asyncio.get_event_loop()
     loop.run_until_complete(
-        loop.create_task(
-            async_main()
-        )
+        async_main()
     )
 
 
