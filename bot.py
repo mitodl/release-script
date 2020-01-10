@@ -546,22 +546,38 @@ class Bot:
             manager (str or None): User id for the release manager
             speak_initial (bool): If True, say that the plan isn't evil enough until all checkboxes are checked
         """
+        repo_url = repo_info.repo_url
         channel_id = repo_info.channel_id
-        if speak_initial:
-            await self.say(
-                channel_id=channel_id,
-                text="Wait, wait. Time out. My evil plan for {project} isn't evil enough "
-                "until all the checkboxes are checked...".format(
-                    project=repo_info.name,
-                )
-            )
-        org, repo = get_org_and_repo(repo_info.repo_url)
-
-        unchecked = await get_unchecked_authors(
+        org, repo = get_org_and_repo(repo_url)
+        unchecked_authors = await get_unchecked_authors(
             github_access_token=self.github_access_token,
             org=org,
             repo=repo,
         )
+        unchecked = await self.translate_slack_usernames(unchecked_authors)
+        pr = await get_release_pr(
+            github_access_token=self.github_access_token,
+            org=org,
+            repo=repo,
+        )
+
+        if speak_initial:
+            await self.say(
+                channel_id=channel_id,
+                text=(
+                    f"PR is up at {pr.url}."
+                    f" These people have commits in this release: {', '.join(unchecked)}"
+                ),
+                is_announcement=True
+            )
+            await self.say(
+                channel_id=channel_id,
+                text=(
+                    f"Wait, wait. Time out. My evil plan for {repo_info.name} isn't evil enough "
+                    "until all the checkboxes are checked..."
+                )
+            )
+        org, repo = get_org_and_repo(repo_info.repo_url)
 
         while unchecked:
             await asyncio.sleep(60)
@@ -581,11 +597,6 @@ class Bot:
                 )
             unchecked = unchecked_authors
 
-        pr = await get_release_pr(
-            github_access_token=self.github_access_token,
-            org=org,
-            repo=repo,
-        )
         if speak_initial:
             await self.say(
                 channel_id=channel_id,

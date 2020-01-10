@@ -1020,6 +1020,7 @@ async def test_wait_for_checkboxes(mocker, doof, test_repo, speak_initial):
                 }
             ]
         )
+        assert doof.said(f"PR is up at {pr.url}. These people have commits in this release")
     assert doof.said(
         "Thanks for checking off your boxes author1, author3!"
     )
