@@ -553,7 +553,7 @@ class Bot:
             org=org,
             repo=repo,
         )
-        unchecked = set(await self.translate_slack_usernames(unchecked_authors))
+        unchecked = await self.translate_slack_usernames(unchecked_authors)
         pr = await get_release_pr(
             github_access_token=self.github_access_token,
             org=org,
