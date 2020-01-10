@@ -119,3 +119,15 @@ def mocker(mocker):  # pylint: disable=redefined-outer-name
 
     mocker.async_patch = async_patch
     return mocker
+
+
+def _raiser(message):
+    """Raise an exception"""
+    raise Exception(message)
+
+
+@pytest.fixture(autouse=True)
+def log_exception(mocker):
+    """Patch log.error and log.exception to raise an exception so tests do not silence it"""
+    mocker.patch('bot.log.exception', side_effect=_raiser)
+    mocker.patch('bot.log.error', side_effect=_raiser)

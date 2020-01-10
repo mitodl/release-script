@@ -60,7 +60,7 @@ class DoofSpoof(Bot):
         self.slack_users = []
         self.messages = {}
 
-    def lookup_users(self):
+    async def lookup_users(self):
         """Users in the channel"""
         return self.slack_users
 

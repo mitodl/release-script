@@ -142,16 +142,16 @@ class Bot:
             names (iterable of str): An iterable of full names
 
         Returns:
-            iterable of str:
+            set of str:
                 A iterable of either the slack name or a full name if a slack name was not found
         """
         try:
             slack_users = await self.lookup_users()
-            return [match_user(slack_users, author) for author in names]
+            return {match_user(slack_users, author) for author in names}
 
-        except Exception as exception:  # pylint: disable=broad-except
-            sys.stderr.write("Error: {}".format(exception))
-            return names
+        except:  # pylint: disable=bare-except
+            log.exception("Exception during translate_slack_usernames, continuing with untranslated names...")
+            return set(names)
 
     def get_repo_info(self, channel_id):
         """
@@ -554,7 +554,7 @@ class Bot:
             org=org,
             repo=repo,
         )
-        unchecked = await self.translate_slack_usernames(unchecked_authors)
+        unchecked = set(await self.translate_slack_usernames(unchecked_authors))
         pr = await get_release_pr(
             github_access_token=self.github_access_token,
             org=org,
@@ -1109,7 +1109,6 @@ class Bot:
                     try:
                         parsed_args.append(parser.func(arg))
                     except:  # pylint: disable=bare-except
-                        log.exception("Parser exception")
                         await self.say(
                             channel_id=channel_id,
                             text=(
