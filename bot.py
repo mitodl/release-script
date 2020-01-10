@@ -5,7 +5,6 @@ import asyncio
 from collections import namedtuple
 from datetime import datetime
 import os
-import sys
 import logging
 import json
 import re
