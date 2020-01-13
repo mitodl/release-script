@@ -980,6 +980,14 @@ async def test_wait_for_checkboxes(mocker, doof, test_repo, speak_initial):
         {'author2'},
         set(),
     ])
+    doof.slack_users = [
+        {"profile": {"real_name": name}, "id": username} for (name, username) in [
+            ("Author 1", "author1"),
+            ("Author 2", "author2"),
+            ("Author 3", "author3"),
+        ]
+    ]
+
     sleep_sync_mock = mocker.async_patch('asyncio.sleep')
 
     me = 'mitodl_user'
@@ -1021,11 +1029,14 @@ async def test_wait_for_checkboxes(mocker, doof, test_repo, speak_initial):
             ]
         )
         assert doof.said(f"PR is up at {pr.url}. These people have commits in this release")
-    assert doof.said(
-        "Thanks for checking off your boxes author1, author3!"
+    assert not doof.said(
+        "Thanks for checking off your boxes <@author1>, <@author2>, <@author3>!"
     )
     assert doof.said(
-        "Thanks for checking off your boxes author2!"
+        "Thanks for checking off your boxes <@author1>, <@author3>!"
+    )
+    assert doof.said(
+        "Thanks for checking off your boxes <@author2>!"
     )
 
 
