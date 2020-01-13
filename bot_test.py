@@ -1163,7 +1163,7 @@ async def test_wait_for_deploy_prod(doof, test_repo, mocker):
     get_version_tag_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
         repo_url=test_repo.repo_url,
-        commit_hash="release",
+        commit_hash="origin/release",
     )
     assert doof.said('has been released to production')
     wait_for_deploy_mock.assert_called_once_with(

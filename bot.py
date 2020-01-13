@@ -458,7 +458,7 @@ class Bot:
         version = await get_version_tag(
             github_access_token=self.github_access_token,
             repo_url=repo_url,
-            commit_hash="release",
+            commit_hash="origin/release",
         )
 
         await wait_for_deploy(
