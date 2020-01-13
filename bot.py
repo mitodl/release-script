@@ -458,7 +458,7 @@ class Bot:
         version = await get_version_tag(
             github_access_token=self.github_access_token,
             repo_url=repo_url,
-            commit_hash="release",
+            commit_hash="origin/release",
         )
 
         await wait_for_deploy(
@@ -548,12 +548,11 @@ class Bot:
         repo_url = repo_info.repo_url
         channel_id = repo_info.channel_id
         org, repo = get_org_and_repo(repo_url)
-        unchecked_authors = await get_unchecked_authors(
+        prev_unchecked_authors = await get_unchecked_authors(
             github_access_token=self.github_access_token,
             org=org,
             repo=repo,
         )
-        unchecked = await self.translate_slack_usernames(unchecked_authors)
         pr = await get_release_pr(
             github_access_token=self.github_access_token,
             org=org,
@@ -565,7 +564,8 @@ class Bot:
                 channel_id=channel_id,
                 text=(
                     f"PR is up at {pr.url}."
-                    f" These people have commits in this release: {', '.join(unchecked)}"
+                    f" These people have commits in this release: "
+                    f"{', '.join(await self.translate_slack_usernames(prev_unchecked_authors))}"
                 ),
                 is_announcement=True
             )
@@ -578,23 +578,23 @@ class Bot:
             )
         org, repo = get_org_and_repo(repo_info.repo_url)
 
-        while unchecked:
+        while prev_unchecked_authors:
             await asyncio.sleep(60)
 
-            unchecked_authors = await get_unchecked_authors(
+            new_unchecked_authors = await get_unchecked_authors(
                 github_access_token=self.github_access_token,
                 org=org,
                 repo=repo,
             )
 
-            newly_checked = unchecked - unchecked_authors
+            newly_checked = prev_unchecked_authors - new_unchecked_authors
             if newly_checked:
                 await self.say(
                     channel_id=channel_id,
                     text=f"Thanks for checking off your boxes "
                     f"{', '.join(sorted(await self.translate_slack_usernames(newly_checked)))}!",
                 )
-            unchecked = unchecked_authors
+            prev_unchecked_authors = new_unchecked_authors
 
         if speak_initial:
             await self.say(

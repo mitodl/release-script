@@ -980,6 +980,14 @@ async def test_wait_for_checkboxes(mocker, doof, test_repo, speak_initial):
         {'author2'},
         set(),
     ])
+    doof.slack_users = [
+        {"profile": {"real_name": name}, "id": username} for (name, username) in [
+            ("Author 1", "author1"),
+            ("Author 2", "author2"),
+            ("Author 3", "author3"),
+        ]
+    ]
+
     sleep_sync_mock = mocker.async_patch('asyncio.sleep')
 
     me = 'mitodl_user'
@@ -1021,11 +1029,14 @@ async def test_wait_for_checkboxes(mocker, doof, test_repo, speak_initial):
             ]
         )
         assert doof.said(f"PR is up at {pr.url}. These people have commits in this release")
-    assert doof.said(
-        "Thanks for checking off your boxes author1, author3!"
+    assert not doof.said(
+        "Thanks for checking off your boxes <@author1>, <@author2>, <@author3>!"
     )
     assert doof.said(
-        "Thanks for checking off your boxes author2!"
+        "Thanks for checking off your boxes <@author1>, <@author3>!"
+    )
+    assert doof.said(
+        "Thanks for checking off your boxes <@author2>!"
     )
 
 
@@ -1152,7 +1163,7 @@ async def test_wait_for_deploy_prod(doof, test_repo, mocker):
     get_version_tag_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
         repo_url=test_repo.repo_url,
-        commit_hash="release",
+        commit_hash="origin/release",
     )
     assert doof.said('has been released to production')
     wait_for_deploy_mock.assert_called_once_with(
