@@ -228,6 +228,7 @@ async def test_init_working_dir(mocker, branch):
     calls = check_call_mock.call_args_list
     assert [call[0][0] for call in calls] == [
         ['git', 'init', '-q'],
+        ['git', 'config', 'push.default', 'simple'],
         ['git', 'remote', 'add', 'origin', url_with_access_token(access_token, repo_url)],
         ['git', 'fetch', '--tags', '-q'],
         ['git', 'checkout', "master" if branch is None else branch, '-q'],

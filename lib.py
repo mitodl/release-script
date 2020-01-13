@@ -390,6 +390,7 @@ async def init_working_dir(github_access_token, repo_url, *, branch=None):
     with TemporaryDirectory() as directory:
         # from http://stackoverflow.com/questions/2411031/how-do-i-clone-into-a-non-empty-directory
         await check_call(["git", "init", "-q"], cwd=directory)
+        await check_call(["git", "config", "push.default", "simple"], cwd=directory)
         await check_call(["git", "remote", "add", "origin", url], cwd=directory)
         await check_call(["git", "fetch", "--tags", "-q"], cwd=directory)
         await check_call(["git", "checkout", branch, "-q"], cwd=directory)
