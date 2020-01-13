@@ -477,7 +477,7 @@ async def test_get_version_tag(mocker):
     assert await get_version_tag(
         github_access_token='github',
         repo_url='http://github.com/mitodl/doof.git',
-        commit_hash='commit',
+        commit_hash='origin/commit',
     ) == a_hash.decode()
 
 
