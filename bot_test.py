@@ -8,6 +8,7 @@ import pytest
 import pytz
 
 from bot import (
+    CommandArgs,
     Bot,
     FINISH_RELEASE_ID,
     NEW_RELEASE_ID,
@@ -31,9 +32,16 @@ from github import get_org_and_repo
 from lib import (
     format_user_id,
     next_versions,
+    now_in_utc,
     ReleasePR,
 )
-from test_util import async_context_manager_yielder
+from test_util import (
+    async_context_manager_yielder,
+    async_gen_wrapper,
+    make_pr,
+    make_issue,
+    make_parsed_issue,
+)
 
 
 pytestmark = pytest.mark.asyncio
@@ -1171,4 +1179,41 @@ async def test_wait_for_deploy_prod(doof, test_repo, mocker):
         repo_url=test_repo.repo_url,
         hash_url=test_repo.prod_hash_url,
         watch_branch='release'
+    )
+
+
+async def test_issue_release_notes(doof, test_repo, mocker):
+    """issue release notes should list closed issues over the last seven days"""
+    org, repo = get_org_and_repo(test_repo.repo_url)
+    channel_id = test_repo.channel_id
+    pr = make_pr(123, "A PR")
+    fetch_prs = mocker.patch('bot.fetch_pull_requests_since_date', return_value=[pr])
+    tups = [
+        (pr, [(make_issue(333), make_parsed_issue(333, False))])
+    ]
+    fetch_issues = mocker.patch('bot.fetch_issues_for_pull_requests', return_value=async_gen_wrapper(tups))
+    notes = "some release notes"
+    make_release_notes = mocker.patch('bot.make_issue_release_notes', return_value=notes)
+    await doof.issue_release_notes(CommandArgs(
+        repo_info=test_repo,
+        channel_id=test_repo.channel_id,
+        args=[],
+        manager="me"
+    ))
+
+    assert doof.said("Release notes for issues closed by PRs", channel_id=channel_id)
+    assert doof.said(notes, channel_id=channel_id)
+
+    fetch_prs.assert_called_once_with(
+        github_access_token=GITHUB_ACCESS,
+        org=org,
+        repo=repo,
+        since=(now_in_utc() - timedelta(days=7)).date()
+    )
+    fetch_issues.assert_called_once_with(
+        github_access_token=GITHUB_ACCESS,
+        pull_requests=[pr],
+    )
+    make_release_notes.assert_called_once_with(
+        tups,
     )

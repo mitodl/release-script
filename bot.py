@@ -3,7 +3,7 @@
 """Slack bot for managing releases"""
 import asyncio
 from collections import namedtuple
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import logging
 import json
@@ -29,7 +29,10 @@ from exception import (
 from finish_release import finish_release
 from github import (
     calculate_karma,
+    fetch_issues_for_pull_requests,
+    fetch_pull_requests_since_date,
     get_org_and_repo,
+    make_issue_release_notes,
     needs_review,
 )
 from release import (
@@ -255,7 +258,7 @@ class Bot:
         })
         resp.raise_for_status()
 
-    async def say_with_attachment(self, *, channel_id, title, text, is_announcement=False):
+    async def say_with_attachment(self, *, channel_id, title, text, is_announcement=False, message_type=None):
         """
         Post a message in the Slack channel, putting the text in an attachment with markdown enabled
 
@@ -264,6 +267,7 @@ class Bot:
             title (str): A line of text before the main message
             text (str): A message
             is_announcement (bool): If true, also send this message to the announcements channel
+            message_type (str): The type of message
         """
         await self.say(
             channel_id=channel_id,
@@ -274,6 +278,7 @@ class Bot:
                 "mrkdwn_in": ['text']
             }],
             is_announcement=is_announcement,
+            message_type=message_type,
         )
 
     async def typing(self, channel_id):
@@ -873,6 +878,40 @@ class Bot:
             )
         )
 
+    async def issue_release_notes(self, command_args):
+        """
+        Release notes for issues of PRs merged
+
+        Args:
+            command_args (CommandArgs): The arguments for this command
+        """
+        channel_id = command_args.channel_id
+        repo_info = command_args.repo_info
+        start_date = (now_in_utc() - timedelta(days=7)).date()
+        org, repo = get_org_and_repo(repo_info.repo_url)
+
+        prs = fetch_pull_requests_since_date(
+            github_access_token=self.github_access_token,
+            org=org,
+            repo=repo,
+            since=start_date,
+        )
+        prs_and_issues = fetch_issues_for_pull_requests(
+            github_access_token=self.github_access_token,
+            pull_requests=prs,
+        )
+
+        await self.say(
+            channel_id=channel_id,
+            text="Calculating..."
+        )
+        await self.say_with_attachment(
+            channel_id=channel_id,
+            title=f"Release notes for issues closed by PRs between {start_date} and today",
+            text=make_issue_release_notes([pr_and_issue async for pr_and_issue in prs_and_issues]),
+            message_type="mrkdwn",
+        )
+
     async def uptime(self, command_args):
         """
         Say how long the bot has been running
@@ -1047,6 +1086,13 @@ class Bot:
                 command_func=self.uptime,
                 description='Shows how long this bot has been running',
                 supported_project_types=None,
+            ),
+            Command(
+                command='issue release notes',
+                parsers=[],
+                command_func=self.issue_release_notes,
+                description='Show issues closed by PRs over the last seven days',
+                supported_project_types=[LIBRARY_TYPE, WEB_APPLICATION_TYPE],
             ),
             Command(
                 command='version',
