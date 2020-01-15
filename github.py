@@ -307,8 +307,8 @@ def make_issue_release_notes(prs_and_issues):
                 (pr, parsed_issue)
             )
 
-    for issue_number, (issue, pr_list) in sorted(issue_to_prs.items(), key=lambda tup: tup[0]):
-        notes += f"{issue.title} (<{issue.url}|#{issue_number}>)\n"
+    for issue_number, (issue, _) in sorted(issue_to_prs.items(), key=lambda tup: tup[0]):
+        notes += f"- {issue.title} (<{issue.url}|#{issue_number}>)\n"
 
     return notes
 
