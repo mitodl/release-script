@@ -336,12 +336,7 @@ async def test_make_issue_release_notes():
     ]
 
     assert make_issue_release_notes(prs_and_issues) == f"""{issue123.title} (<{issue123.url}|#{issue123.number}>)
- - related to PR <{pr1.url}|#{pr1.number}>
-
 {issue456.title} (<{issue456.url}|#{issue456.number}>)
- - closed by PR <{pr1.url}|#{pr1.number}>
- - related to PR <{pr2.url}|#{pr2.number}>
-
 """
 
 

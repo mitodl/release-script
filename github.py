@@ -309,12 +309,6 @@ def make_issue_release_notes(prs_and_issues):
 
     for issue_number, (issue, pr_list) in sorted(issue_to_prs.items(), key=lambda tup: tup[0]):
         notes += f"{issue.title} (<{issue.url}|#{issue_number}>)\n"
-        for pr, parsed_issue in pr_list:
-            notes += (
-                f" - {f'closed by' if parsed_issue.closes else 'related to'}"
-                f" PR <{pr.url}|#{pr.number}>\n"
-            )
-        notes += "\n"
 
     return notes
 
