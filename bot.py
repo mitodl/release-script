@@ -901,10 +901,6 @@ class Bot:
             pull_requests=prs,
         )
 
-        await self.say(
-            channel_id=channel_id,
-            text="Calculating..."
-        )
         await self.say_with_attachment(
             channel_id=channel_id,
             title=f"Release notes for issues closed by PRs between {start_date} and today",
