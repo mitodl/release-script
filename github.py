@@ -294,8 +294,6 @@ def make_issue_release_notes(prs_and_issues):
         str:
             Release notes for the issues closed during the time
     """
-    notes = ""
-
     issue_to_prs = {}
     for pr, issue_list in prs_and_issues:
         for issue, parsed_issue in issue_list:
@@ -307,10 +305,13 @@ def make_issue_release_notes(prs_and_issues):
                 (pr, parsed_issue)
             )
 
-    for issue_number, (issue, _) in sorted(issue_to_prs.items(), key=lambda tup: tup[0]):
-        notes += f"- {issue.title} (<{issue.url}|#{issue_number}>)\n"
+    if not issue_to_prs:
+        return "No new issues closed by PR"
 
-    return notes
+    return "\n".join(
+        f"- {issue.title} (<{issue.url}|#{issue_number}>)" for issue_number, (issue, _) in
+        sorted(issue_to_prs.items(), key=lambda tup: tup[0])
+    )
 
 
 async def get_issue(*, github_access_token, org, repo, issue_number):

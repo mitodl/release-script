@@ -336,8 +336,14 @@ async def test_make_issue_release_notes():
     ]
 
     assert make_issue_release_notes(prs_and_issues) == f"""- {issue123.title} (<{issue123.url}|#{issue123.number}>)
-- {issue456.title} (<{issue456.url}|#{issue456.number}>)
-"""
+- {issue456.title} (<{issue456.url}|#{issue456.number}>)"""
+
+
+async def test_make_issue_release_notes_empty():
+    """make_issue_release_notes should return a message indicating no release notes if there are none to show"""
+    prs_and_issues = []
+
+    assert make_issue_release_notes(prs_and_issues) == "No new issues closed by PR"
 
 
 async def test_get_issue(mocker):
