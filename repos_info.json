@@ -101,6 +101,15 @@
       "announcements": false
     },
     {
+      "name": "ocw-data-parser",
+      "repo_url": "https://github.com/mitodl/ocw-data-parser.git",
+      "channel_name": "ocw-data-parser",
+      "project_type": "library",
+      "python2": false,
+      "python3": true,
+      "announcements": false
+    },
+    {
       "name": "doof-announcements",
       "channel_name": "doof-announcements",
       "announcements": true
