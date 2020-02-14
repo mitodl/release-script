@@ -584,6 +584,9 @@ class Bot:
         org, repo = get_org_and_repo(repo_info.repo_url)
 
         while prev_unchecked_authors:
+            # There are still checkboxes, so we want to have doof say that all checkboxes are checked off
+            # even after doof restarts.
+            speak_initial = True
             await asyncio.sleep(60)
 
             new_unchecked_authors = await get_unchecked_authors(
