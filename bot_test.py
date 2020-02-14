@@ -976,8 +976,15 @@ async def test_help(doof):
     assert doof.said("*help*: Show available commands")
 
 
-@pytest.mark.parametrize("speak_initial", [True, False])
-async def test_wait_for_checkboxes(mocker, doof, test_repo, speak_initial):
+@pytest.mark.parametrize("speak_initial, has_checkboxes", [
+    [True, False],
+    [True, True],
+    [False, False],
+    [False, True],
+])
+async def test_wait_for_checkboxes(
+        mocker, doof, test_repo, speak_initial, has_checkboxes
+):
     """wait_for_checkboxes should poll github, parse checkboxes and see if all are checked"""
     org, repo = get_org_and_repo(test_repo.repo_url)
 
@@ -987,7 +994,7 @@ async def test_wait_for_checkboxes(mocker, doof, test_repo, speak_initial):
         {'author1', 'author2', 'author3'},
         {'author2'},
         set(),
-    ])
+    ] if has_checkboxes else [set()])
     doof.slack_users = [
         {"profile": {"real_name": name}, "id": username} for (name, username) in [
             ("Author 1", "author1"),
@@ -1011,12 +1018,12 @@ async def test_wait_for_checkboxes(mocker, doof, test_repo, speak_initial):
         org=org,
         repo=repo,
     )
-    assert get_unchecked_patch.call_count == 3
-    assert sleep_sync_mock.call_count == 2
+    assert get_unchecked_patch.call_count == (3 if has_checkboxes else 1)
+    assert sleep_sync_mock.call_count == (2 if has_checkboxes else 0)
     get_release_pr_mock.assert_called_once_with(github_access_token=GITHUB_ACCESS, org=org, repo=repo)
-    if speak_initial:
+    if speak_initial or has_checkboxes:
         assert doof.said(
-            "Release {version} is ready for the Merginator {name}".format(
+            "All checkboxes checked off. Release {version} is ready for the Merginator {name}".format(
                 version=pr.version,
                 name=format_user_id(me),
             ),
@@ -1036,16 +1043,18 @@ async def test_wait_for_checkboxes(mocker, doof, test_repo, speak_initial):
                 }
             ]
         )
+    if speak_initial:
         assert doof.said(f"PR is up at {pr.url}. These people have commits in this release")
-    assert not doof.said(
-        "Thanks for checking off your boxes <@author1>, <@author2>, <@author3>!"
-    )
-    assert doof.said(
-        "Thanks for checking off your boxes <@author1>, <@author3>!"
-    )
-    assert doof.said(
-        "Thanks for checking off your boxes <@author2>!"
-    )
+    if has_checkboxes:
+        assert not doof.said(
+            "Thanks for checking off your boxes <@author1>, <@author2>, <@author3>!"
+        )
+        assert doof.said(
+            "Thanks for checking off your boxes <@author1>, <@author3>!"
+        )
+        assert doof.said(
+            "Thanks for checking off your boxes <@author2>!"
+        )
 
 
 # pylint: disable=too-many-arguments
