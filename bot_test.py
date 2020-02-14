@@ -983,7 +983,7 @@ async def test_help(doof):
     [False, True],
 ])
 async def test_wait_for_checkboxes(
-    mocker, doof, test_repo, speak_initial, has_checkboxes
+        mocker, doof, test_repo, speak_initial, has_checkboxes
 ):
     """wait_for_checkboxes should poll github, parse checkboxes and see if all are checked"""
     org, repo = get_org_and_repo(test_repo.repo_url)
