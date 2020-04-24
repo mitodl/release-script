@@ -195,25 +195,25 @@ async def test_reformatted_full_name():
 FAKE_SLACK_USERS = [
     {
         'profile': {
-            'real_name': 'George Schneeloch',
+            'real_name_normalized': 'George Schneeloch',
         },
         'id': 'U12345',
     },
     {
         'profile': {
-            'real_name': 'Sar Haidar'
+            'real_name_normalized': 'Sar Haidar'
         },
         'id': 'U65432'
     },
     {
         'profile': {
-            'real_name': 'Sarah H'
+            'real_name_normalized': 'Sarah H'
         },
         'id': 'U13986'
     },
     {
         'profile': {
-            'real_name': 'Tasawer Nawaz'
+            'real_name_normalized': 'Tasawer Nawaz'
         },
         'id': 'U9876'
     }
@@ -223,10 +223,12 @@ FAKE_SLACK_USERS = [
 async def test_match_users():
     """match_users should use the Levensthein distance to compare usernames"""
     assert match_user(FAKE_SLACK_USERS, "George Schneeloch") == "<@U12345>"
-    assert match_user(FAKE_SLACK_USERS, "George Schneelock") == "<@U12345>"
-    assert match_user(FAKE_SLACK_USERS, "George") == "<@U12345>"
-    assert match_user(FAKE_SLACK_USERS, 'sar') == '<@U65432>'
-    assert match_user(FAKE_SLACK_USERS, 'tasawernawaz') == '<@U9876>'
+    assert match_user(FAKE_SLACK_USERS, "George Schneelock") == "George Schneelock"
+    assert match_user(FAKE_SLACK_USERS, "George") == "George"
+    assert match_user(FAKE_SLACK_USERS, 'sar') == 'sar'
+    assert match_user(FAKE_SLACK_USERS, 'Sar Haidar') == '<@U65432>'
+    assert match_user(FAKE_SLACK_USERS, 'tasawernawaz') == 'tasawernawaz'
+    assert match_user(FAKE_SLACK_USERS, 'Tasawer Nawaz') == '<@U9876>'
 
 
 async def test_url_with_access_token():

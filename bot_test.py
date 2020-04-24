@@ -996,11 +996,8 @@ async def test_wait_for_checkboxes(
         set(),
     ] if has_checkboxes else [set()])
     doof.slack_users = [
-        {"profile": {"real_name": name}, "id": username} for (name, username) in [
-            ("Author 1", "author1"),
-            ("Author 2", "author2"),
-            ("Author 3", "author3"),
-        ]
+        {"profile": {"real_name_normalized": name}, "id": name} for name in [
+            "author1", "author2", "author3"]
     ]
 
     sleep_sync_mock = mocker.async_patch('asyncio.sleep')

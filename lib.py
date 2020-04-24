@@ -2,7 +2,6 @@
 from collections import namedtuple
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
-from difflib import SequenceMatcher
 import json
 import os
 import re
@@ -180,15 +179,14 @@ def format_user_id(user_id):
     return "<@{id}>".format(id=user_id)
 
 
-def match_user(slack_users, author_name, threshold=0.8):
+def match_user(slack_users, author_name):
     """
-    Do a fuzzy match of author name to full name. If it matches, return a formatted Slack handle. Else return original
+    Do an exact match of author name to full name. If it matches, return a formatted Slack handle. Else return original
     full name.
 
     Args:
         slack_users (list of dict): A list of slack users from their API
         author_name (str): The commit author's full name
-        threshold (float): All matches must be at least this high to pass.
 
     Returns:
         str: The slack markup for the handle of that author.
@@ -197,31 +195,18 @@ def match_user(slack_users, author_name, threshold=0.8):
 
     lower_author_name = reformatted_full_name(author_name)
 
-    def match_for_user(slack_user):
-        """Get match ratio for slack user, or 0 if below threshold"""
-        real_name = slack_user['profile']['real_name']
+    def matches_user(slack_user):
+        """Return true if there's a slack match"""
+        real_name = slack_user['profile']['real_name_normalized']
         lower_name = reformatted_full_name(real_name)
 
-        ratio = SequenceMatcher(a=lower_author_name, b=lower_name).ratio()
-        if ratio >= threshold:
-            return ratio
+        return lower_name == lower_author_name
 
-        if " " not in lower_author_name:
-            lower_name = lower_name.split()[0]
-        ratio = SequenceMatcher(a=lower_author_name, b=lower_name).ratio()
-        if ratio >= threshold:
-            return ratio
+    for user in slack_users:
+        if matches_user(user):
+            return format_user_id(user['id'])
 
-        return 0
-
-    slack_matches = [(slack_user, match_for_user(slack_user)) for slack_user in slack_users]
-    slack_matches = [(slack_user, match) for (slack_user, match) in slack_matches if match >= threshold]
-
-    if slack_matches:
-        matched_user = max(slack_matches, key=lambda pair: pair[1])[0]
-        return format_user_id(matched_user['id'])
-    else:
-        return author_name
+    return author_name
 
 
 def now_in_utc():
