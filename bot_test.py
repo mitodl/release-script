@@ -221,7 +221,7 @@ async def test_release_notes_buttons(doof, test_repo, test_repo_directory, mocke
             ]
         }
     ])
-    assert not doof.said(f"And also! There is a release already in progress")
+    assert not doof.said("And also! There is a release already in progress")
 
 
 async def test_version(doof, test_repo, mocker):
