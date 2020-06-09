@@ -14,12 +14,21 @@ async def get_channels_info(slack_access_token):
     """
     client = ClientWrapper()
     # public channels
-    resp = await client.post("https://slack.com/api/conversations.list", data={
-        "token": slack_access_token,
-        "types": "public_channel,private_channel"
-    })
-    resp.raise_for_status()
-    channels = resp.json()['channels']
-    channels_map = {channel['name']: channel['id'] for channel in channels}
+    next_cursor = None
+    channels = []
 
-    return channels_map
+    while True:
+        resp = await client.post("https://slack.com/api/conversations.list", data={
+            "token": slack_access_token,
+            "types": "public_channel,private_channel",
+            **({"cursor": next_cursor} if next_cursor is not None else {})
+        })
+        resp.raise_for_status()
+        resp_json = resp.json()
+        channels.extend(resp_json['channels'])
+
+        next_cursor = resp_json.get("response_metadata", {}).get("next_cursor")
+        if not next_cursor:
+            break
+
+    return {channel['name']: channel['id'] for channel in channels}
