@@ -1246,3 +1246,82 @@ async def test_handle_event_message(doof):
     )
 
     assert doof.said("hello!")
+
+
+async def test_handle_event_no_callback(doof, mocker):
+    """
+    If it's not a callback event, ignore it
+    """
+    log_info = mocker.patch('bot.log.info')
+    handle_message = mocker.patch('bot.Bot.handle_message')
+    await doof.handle_event(
+        webhook_dict={
+            "token": "token",
+            "type": "different_kind",
+        }
+    )
+
+    assert "Received event other than event callback or challenge" in log_info.call_args[0][0]
+    assert handle_message.called is False
+
+
+async def test_handle_event_not_a_message(doof, mocker):
+    """
+    If the event is not a message type, ignore it
+    """
+    log_info = mocker.patch('bot.log.info')
+    handle_message = mocker.patch('bot.Bot.handle_message')
+    await doof.handle_event(
+        webhook_dict={
+            "token": "token",
+            "type": "event_callback",
+            "event": {
+                "type": "other_kind",
+            }
+        }
+    )
+
+    assert "Received event other than message" in log_info.call_args[0][0]
+    assert handle_message.called is False
+
+
+async def test_handle_event_no_message(doof, mocker):
+    """
+    If it's an empty message, ingore it
+    """
+    handle_message = mocker.patch('bot.Bot.handle_message')
+    await doof.handle_event(
+        webhook_dict={
+            "token": "token",
+            "type": "event_callback",
+            "event": {
+                "type": "message",
+                "text": "",
+                "user": "manager",
+            }
+        }
+    )
+
+    assert handle_message.called is False
+
+
+async def test_handle_event_message_changed(doof, mocker):
+    """
+    Edits to messages are currently ignored
+    """
+    handle_message = mocker.patch('bot.Bot.handle_message')
+    await doof.handle_event(
+        webhook_dict={
+            "token": "token",
+            "type": "event_callback",
+            "event": {
+                "type": "message",
+                "subtype": "message_changed",
+                "text": f"<@{doof.doof_id}> hi",
+                "channel": "Channel",
+                "user": "manager",
+            }
+        }
+    )
+
+    assert handle_message.called is False
