@@ -48,7 +48,7 @@ async def async_main():
     repos_info = load_repos_info(channels_info)
 
     bot = ConsoleBot(
-        websocket=None,
+        doof_id="console",
         slack_access_token=envs['SLACK_ACCESS_TOKEN'],
         github_access_token=envs['GITHUB_ACCESS_TOKEN'],
         timezone=envs['TIMEZONE'],

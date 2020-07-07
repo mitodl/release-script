@@ -2,7 +2,6 @@
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
-from unittest.mock import Mock
 
 import pytest
 import pytz
@@ -57,7 +56,7 @@ class DoofSpoof(Bot):
     def __init__(self, *, loop):
         """Since the testing bot isn't contacting slack or github we don't need these tokens here"""
         super().__init__(
-            websocket=Mock(),
+            doof_id="Doofenshmirtz",
             slack_access_token=SLACK_ACCESS,
             github_access_token=GITHUB_ACCESS,
             timezone=pytz.timezone("America/New_York"),
@@ -1226,3 +1225,24 @@ async def test_issue_release_notes(doof, test_repo, mocker):
     make_release_notes.assert_called_once_with(
         tups,
     )
+
+
+async def test_handle_event_message(doof):
+    """
+    Doof should handle messages appropriately
+    """
+    channel = "a channel"
+    await doof.handle_event(
+        webhook_dict={
+            "token": "token",
+            "type": "event_callback",
+            "event": {
+                "type": "message",
+                "channel": channel,
+                "text": f"<@{doof.doof_id}> hi",
+                "user": "manager",
+            }
+        }
+    )
+
+    assert doof.said("hello!")

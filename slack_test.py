@@ -2,7 +2,7 @@
 import pytest
 
 
-from slack import get_channels_info
+from slack import get_channels_info, get_doofs_id
 
 
 pytestmark = pytest.mark.asyncio
@@ -59,4 +59,21 @@ async def test_get_channels_info(mocker):
             "types": "public_channel,private_channel",
             "cursor": next_cursor,
         },
+    )
+
+
+async def test_get_doofs_id(mocker):
+    """get_doofs_id should contact the user API which gets slack info"""
+    post_patch = mocker.async_patch('client_wrapper.ClientWrapper.post')
+    doof_id = "It's doof"
+    token = "It's a token"
+    post_patch.return_value.json.return_value = {
+        "user": {
+            "id": doof_id
+        }
+    }
+    assert await get_doofs_id(token) == doof_id
+    post_patch.assert_called_once_with(
+        mocker.ANY,
+        "https://slack.com/api/users.identity", data={'token': token}
     )
