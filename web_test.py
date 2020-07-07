@@ -32,15 +32,16 @@ class FinishReleaseTests(AsyncHTTPTestCase):
 
     def test_bad_auth(self):
         """
-        Bad auth tokens should be rejected
+        Bad auth tokens should be rejected for buttons
         """
-        response = self.fetch('/api/v0/buttons/', method='POST', body=urllib.parse.urlencode({
-            "payload": json.dumps({
-                "token": "xyz"
-            }),
-        }))
+        for url in ["/api/v0/buttons/", "/api/v0/events/"]:
+            response = self.fetch(url, method='POST', body=urllib.parse.urlencode({
+                "payload": json.dumps({
+                    "token": "xyz"
+                }),
+            }))
 
-        assert response.code == 401
+            assert response.code == 401
 
     def test_good_auth(self):
         """
