@@ -8,10 +8,8 @@ import os
 import logging
 import json
 import re
-import requests
 
 import pytz
-import websockets
 
 from client_wrapper import ClientWrapper
 from constants import (
@@ -55,7 +53,7 @@ from lib import (
     VERSION_RE,
     upload_to_pypi,
     COMMIT_HASH_RE)
-from slack import get_channels_info
+from slack import get_channels_info, get_doofs_id
 from wait_for_deploy import (
     fetch_release_hash,
     is_release_deployed,
@@ -100,19 +98,19 @@ def get_envs():
 class Bot:
     """Slack bot used to manage the release"""
 
-    def __init__(self, *, websocket, slack_access_token, github_access_token, timezone, repos_info, loop):
+    def __init__(self, *, doof_id, slack_access_token, github_access_token, timezone, repos_info, loop):
         """
         Create the slack bot
 
         Args:
-            websocket (websockets.client.WebSocketClientProtocol): websocket for sending/receiving messages
+            doof_id (str): Doof's id
             slack_access_token (str): The OAuth access token used to interact with Slack
             github_access_token (str): The Github access token used to interact with Github
             timezone (tzinfo): The time zone of the team interacting with the bot
             repos_info (list of RepoInfo): Information about the repositories connected to channels
             loop (asyncio.events.AbstractEventLoop): The asyncio event loop
         """
-        self.websocket = websocket
+        self.doof_id = doof_id
         self.slack_access_token = slack_access_token
         self.github_access_token = github_access_token
         self.timezone = timezone
@@ -1308,6 +1306,44 @@ class Bot:
         else:
             log.warning("Unknown callback id: %s", callback_id)
 
+    async def handle_event(self, webhook_dict):
+        """
+        Process events from Slack's events API
+
+        Args:
+            webhook_dict (dict): Arguments for the event
+        """
+        if webhook_dict.get('type') != 'event_callback':
+            log.info("Received event other than event callback or challenge: %s", webhook_dict)
+            return
+
+        message = webhook_dict['event']
+        if message['type'] != "message":
+            log.info("Received event other than message: %s", webhook_dict)
+            return
+
+        if message.get('subtype') == 'message_changed':
+            # A user edits their message
+            # content = message.get('message', {}).get('text')
+            content = None
+        else:
+            content = message.get('text')
+
+        if content is None:
+            return
+
+        channel_id = message.get('channel')
+
+        all_words = content.strip().split()
+        if len(all_words) > 0:
+            message_handle, *words = all_words
+            if message_handle in ("<@{}>".format(self.doof_id), "@doof"):
+                await self.handle_message(
+                    manager=message['user'],
+                    channel_id=channel_id,
+                    words=words,
+                )
+
     async def startup(self):
         """
         Run various tasks when bot starts
@@ -1387,83 +1423,32 @@ async def async_main():
     envs = get_envs()
 
     channels_info = await get_channels_info(envs['SLACK_ACCESS_TOKEN'])
+    doof_id = await get_doofs_id(envs['SLACK_ACCESS_TOKEN'])
     repos_info = load_repos_info(channels_info)
     try:
         port = int(envs['PORT'])
     except ValueError:
         raise Exception("PORT is invalid")
 
-    resp = requests.post("https://slack.com/api/rtm.connect", data={
-        "token": envs['BOT_ACCESS_TOKEN'],
-    })
-    resp.raise_for_status()
-    doof_id = resp.json()['self']['id']
+    bot = Bot(
+        slack_access_token=envs['SLACK_ACCESS_TOKEN'],
+        github_access_token=envs['GITHUB_ACCESS_TOKEN'],
+        timezone=pytz.timezone(envs['TIMEZONE']),
+        repos_info=repos_info,
+        loop=asyncio.get_event_loop(),
+        doof_id=doof_id,
+    )
+    app = make_app(token=envs['SLACK_WEBHOOK_TOKEN'], bot=bot)
+    app.listen(port)
 
-    async def connect_to_message_server(loop):
-        """Setup connection with websocket server"""
-        async with websockets.connect(resp.json()['url']) as websocket:
-            bot = Bot(
-                websocket=websocket,
-                slack_access_token=envs['SLACK_ACCESS_TOKEN'],
-                github_access_token=envs['GITHUB_ACCESS_TOKEN'],
-                timezone=pytz.timezone(envs['TIMEZONE']),
-                repos_info=repos_info,
-                loop=loop,
-            )
-            app = make_app(token=envs['SLACK_WEBHOOK_TOKEN'], bot=bot)
-            app.listen(port)
-
-            async def ping():
-                """Ping every 30 seconds"""
-                while True:
-                    try:
-                        pong_waiter = await websocket.ping()
-                        await asyncio.wait_for(pong_waiter, timeout=10)
-                    except:  # pylint: disable=bare-except
-                        log.exception("Error during ping, restarting...")
-                        loop.stop()
-
-                    await asyncio.sleep(30)
-
-            asyncio.create_task(ping())
-
-            await bot.startup()
-
-            async for message in websocket:
-                message = json.loads(message)
-                if message.get('type') != 'message':
-                    continue
-
-                if message.get('subtype') == 'message_changed':
-                    # A user edits their message
-                    # content = message.get('message', {}).get('text')
-                    content = None
-                else:
-                    content = message.get('text')
-
-                if content is None:
-                    continue
-
-                channel_id = message.get('channel')
-
-                all_words = content.strip().split()
-                if len(all_words) > 0:
-                    message_handle, *words = all_words
-                    if message_handle in ("<@{}>".format(doof_id), "@doof"):
-                        loop.create_task(
-                            bot.handle_message(
-                                manager=message['user'],
-                                channel_id=channel_id,
-                                words=words,
-                            )
-                        )
-    await connect_to_message_server(asyncio.get_event_loop())
+    await bot.startup()
 
 
 def main():
     """main function for bot command"""
     loop = asyncio.get_event_loop()
     loop.run_until_complete(async_main())
+    loop.run_forever()
 
 
 if __name__ == "__main__":

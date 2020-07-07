@@ -2,7 +2,6 @@
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
-from unittest.mock import Mock
 
 import pytest
 import pytz
@@ -57,7 +56,7 @@ class DoofSpoof(Bot):
     def __init__(self, *, loop):
         """Since the testing bot isn't contacting slack or github we don't need these tokens here"""
         super().__init__(
-            websocket=Mock(),
+            doof_id="Doofenshmirtz",
             slack_access_token=SLACK_ACCESS,
             github_access_token=GITHUB_ACCESS,
             timezone=pytz.timezone("America/New_York"),
@@ -1226,3 +1225,103 @@ async def test_issue_release_notes(doof, test_repo, mocker):
     make_release_notes.assert_called_once_with(
         tups,
     )
+
+
+async def test_handle_event_message(doof):
+    """
+    Doof should handle messages appropriately
+    """
+    channel = "a channel"
+    await doof.handle_event(
+        webhook_dict={
+            "token": "token",
+            "type": "event_callback",
+            "event": {
+                "type": "message",
+                "channel": channel,
+                "text": f"<@{doof.doof_id}> hi",
+                "user": "manager",
+            }
+        }
+    )
+
+    assert doof.said("hello!")
+
+
+async def test_handle_event_no_callback(doof, mocker):
+    """
+    If it's not a callback event, ignore it
+    """
+    log_info = mocker.patch('bot.log.info')
+    handle_message = mocker.patch('bot.Bot.handle_message')
+    await doof.handle_event(
+        webhook_dict={
+            "token": "token",
+            "type": "different_kind",
+        }
+    )
+
+    assert "Received event other than event callback or challenge" in log_info.call_args[0][0]
+    assert handle_message.called is False
+
+
+async def test_handle_event_not_a_message(doof, mocker):
+    """
+    If the event is not a message type, ignore it
+    """
+    log_info = mocker.patch('bot.log.info')
+    handle_message = mocker.patch('bot.Bot.handle_message')
+    await doof.handle_event(
+        webhook_dict={
+            "token": "token",
+            "type": "event_callback",
+            "event": {
+                "type": "other_kind",
+            }
+        }
+    )
+
+    assert "Received event other than message" in log_info.call_args[0][0]
+    assert handle_message.called is False
+
+
+async def test_handle_event_no_message(doof, mocker):
+    """
+    If it's an empty message, ingore it
+    """
+    handle_message = mocker.patch('bot.Bot.handle_message')
+    await doof.handle_event(
+        webhook_dict={
+            "token": "token",
+            "type": "event_callback",
+            "event": {
+                "type": "message",
+                "text": "",
+                "user": "manager",
+            }
+        }
+    )
+
+    assert handle_message.called is False
+
+
+async def test_handle_event_message_changed(doof, mocker):
+    """
+    Edits to messages are currently ignored
+    """
+    handle_message = mocker.patch('bot.Bot.handle_message')
+    await doof.handle_event(
+        webhook_dict={
+            "token": "token",
+            "type": "event_callback",
+            "event": {
+                "type": "message",
+                "subtype": "message_changed",
+                "text": f"<@{doof.doof_id}> hi",
+                "channel": "Channel",
+                "user": "manager",
+            }
+        }
+    )
+
+    assert handle_message.called is False

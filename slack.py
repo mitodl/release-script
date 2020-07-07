@@ -32,3 +32,18 @@ async def get_channels_info(slack_access_token):
             break
 
     return {channel['name']: channel['id'] for channel in channels}
+
+
+async def get_doofs_id(slack_access_token):
+    """
+    Ask Slack for Doof's id
+
+    Args:
+        slack_access_token (str): The slack access token
+    """
+    client = ClientWrapper()
+    resp = await client.post("https://slack.com/api/users.identity", data={
+        "token": slack_access_token
+    })
+    resp.raise_for_status()
+    return resp.json()['user']['id']
