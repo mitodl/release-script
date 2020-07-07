@@ -75,3 +75,5 @@ async def get_doofs_id(slack_access_token):
     ):
         if member['name'] == 'doof':
             return member['id']
+
+    raise Exception("Unable to find Doof's user id")

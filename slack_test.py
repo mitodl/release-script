@@ -109,3 +109,53 @@ async def test_get_doofs_id(mocker):
             'token': token,
         }
     )
+
+
+async def test_get_doofs_id_missing(mocker):
+    """get_doofs_id should raise an exception if the user id can't be found"""
+    post_patch = mocker.async_patch('client_wrapper.ClientWrapper.post')
+    token = "It's a token"
+    next_cursor = 'some cursor'
+    post_patch.return_value.json.side_effect = [
+        {
+            'members': [
+                {
+                    'name': 'someone',
+                    'id': 'their id',
+                },
+                {
+                    'name': 'other person',
+                    'id': 'other id',
+                },
+            ],
+            'response_metadata': {
+                'next_cursor': next_cursor,
+            }
+        },
+        {
+            'members': [
+                {
+                    'name': 'other person',
+                    'id': "someone else"
+                }
+            ]
+        },
+    ]
+    with pytest.raises(Exception) as ex:
+        await get_doofs_id(token)
+    assert ex.value.args[0] == "Unable to find Doof's user id"
+    post_patch.assert_any_call(
+        mocker.ANY,
+        "https://slack.com/api/users.list",
+        data={
+            'token': token,
+            "cursor": next_cursor,
+        }
+    )
+    post_patch.assert_any_call(
+        mocker.ANY,
+        "https://slack.com/api/users.list",
+        data={
+            'token': token,
+        }
+    )
