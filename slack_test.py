@@ -67,13 +67,45 @@ async def test_get_doofs_id(mocker):
     post_patch = mocker.async_patch('client_wrapper.ClientWrapper.post')
     doof_id = "It's doof"
     token = "It's a token"
-    post_patch.return_value.json.return_value = {
-        "user": {
-            "id": doof_id
-        }
-    }
+    next_cursor = 'some cursor'
+    post_patch.return_value.json.side_effect = [
+        {
+            'members': [
+                {
+                    'name': 'someone',
+                    'id': 'their id',
+                },
+                {
+                    'name': 'other person',
+                    'id': 'other id',
+                },
+            ],
+            'response_metadata': {
+                'next_cursor': next_cursor,
+            }
+        },
+        {
+            'members': [
+                {
+                    'name': 'doof',
+                    'id': doof_id
+                }
+            ]
+        },
+    ]
     assert await get_doofs_id(token) == doof_id
-    post_patch.assert_called_once_with(
+    post_patch.assert_any_call(
         mocker.ANY,
-        "https://slack.com/api/users.identity", data={'token': token}
+        "https://slack.com/api/users.list",
+        data={
+            'token': token,
+            "cursor": next_cursor,
+        }
+    )
+    post_patch.assert_any_call(
+        mocker.ANY,
+        "https://slack.com/api/users.list",
+        data={
+            'token': token,
+        }
     )

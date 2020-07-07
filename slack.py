@@ -2,6 +2,32 @@
 from client_wrapper import ClientWrapper
 
 
+async def iterate_cursor(fetch, key, url, *, data):
+    """
+    Iterate over a slack response and yield items as they come in
+
+    Args:
+        fetch (function): A function to fetch with, like ClientWrapper().post for example
+        key (str): The key which contains the list within the request
+        url (str): The URL to interact with
+        data (dict): parameters for the request
+    """
+    next_cursor = None
+    while True:
+        resp = await fetch(url, data={
+            **({"cursor": next_cursor} if next_cursor is not None else {}),
+            **data,
+        })
+        resp.raise_for_status()
+        resp_json = resp.json()
+        for item in resp_json[key]:
+            yield item
+
+        next_cursor = resp_json.get("response_metadata", {}).get("next_cursor")
+        if not next_cursor:
+            return
+
+
 async def get_channels_info(slack_access_token):
     """
     Get channel information from slack
@@ -14,24 +40,20 @@ async def get_channels_info(slack_access_token):
     """
     client = ClientWrapper()
     # public channels
-    next_cursor = None
-    channels = []
+    channels = {}
 
-    while True:
-        resp = await client.post("https://slack.com/api/conversations.list", data={
-            "token": slack_access_token,
-            "types": "public_channel,private_channel",
-            **({"cursor": next_cursor} if next_cursor is not None else {})
-        })
-        resp.raise_for_status()
-        resp_json = resp.json()
-        channels.extend(resp_json['channels'])
+    async for channel in iterate_cursor(
+            client.post,
+            "channels",
+            "https://slack.com/api/conversations.list",
+            data={
+                "token": slack_access_token,
+                "types": "public_channel,private_channel",
+            }
+    ):
+        channels[channel['name']] = channel['id']
 
-        next_cursor = resp_json.get("response_metadata", {}).get("next_cursor")
-        if not next_cursor:
-            break
-
-    return {channel['name']: channel['id'] for channel in channels}
+    return channels
 
 
 async def get_doofs_id(slack_access_token):
@@ -42,8 +64,14 @@ async def get_doofs_id(slack_access_token):
         slack_access_token (str): The slack access token
     """
     client = ClientWrapper()
-    resp = await client.post("https://slack.com/api/users.identity", data={
-        "token": slack_access_token
-    })
-    resp.raise_for_status()
-    return resp.json()['user']['id']
+
+    async for member in iterate_cursor(
+            client.post,
+            "members",
+            "https://slack.com/api/users.list",
+            data={
+                "token": slack_access_token
+            }
+    ):
+        if member['name'] == 'doof':
+            return member['id']
