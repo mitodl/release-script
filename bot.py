@@ -118,7 +118,7 @@ class Bot:
         self.loop = loop
         # Keep track of long running or scheduled tasks
         self.tasks = set()
-        self.boot = now_in_utc()
+        self.doof_boot = now_in_utc()
 
     async def lookup_users(self):
         """
