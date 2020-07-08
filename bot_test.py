@@ -81,9 +81,6 @@ class DoofSpoof(Bot):
         """Quick and dirty message recording"""
         self._append(channel_id, {"text": text, "attachments": attachments, "message_type": message_type})
 
-    async def typing(self, channel_id):
-        """Ignore typing"""
-
     async def update_message(self, *, channel_id, timestamp, text=None, attachments=None):
         """
         Record message updates
@@ -246,26 +243,6 @@ async def test_version(doof, test_repo, mocker):
         repo_url=test_repo.repo_url,
         commit_hash=a_hash,
     )
-
-
-async def test_typing(doof, test_repo, mocker):
-    """
-    Doof should signal typing before any arbitrary command
-    """
-    typing_sync = mocker.Mock()
-
-    async def typing_async(*args, **kwargs):
-        """Wrap sync method to allow mocking"""
-        typing_sync(*args, **kwargs)
-
-    mocker.patch.object(doof, 'typing', typing_async)
-    await doof.run_command(
-        manager='mitodl_user',
-        channel_id=test_repo.channel_id,
-        words=['hi'],
-    )
-    assert doof.said("hello!")
-    typing_sync.assert_called_once_with(test_repo.channel_id)
 
 
 # pylint: disable=too-many-locals
