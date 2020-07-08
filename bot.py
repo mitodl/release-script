@@ -79,7 +79,7 @@ def get_envs():
         'SLACK_ACCESS_TOKEN',
         'BOT_ACCESS_TOKEN',
         'GITHUB_ACCESS_TOKEN',
-        'SLACK_WEBHOOK_TOKEN',
+        'SLACK_SECRET',
         'TIMEZONE',
         'PORT',
         'PYPI_USERNAME',
@@ -1420,7 +1420,7 @@ async def async_main():
         loop=asyncio.get_event_loop(),
         doof_id=doof_id,
     )
-    app = make_app(token=envs['SLACK_WEBHOOK_TOKEN'], bot=bot)
+    app = make_app(secret=envs['SLACK_SECRET'], bot=bot)
     app.listen(port)
 
     await bot.startup()

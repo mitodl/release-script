@@ -11,7 +11,7 @@ be all set.
   - `SLACK_ACCESS_TOKEN` - Used to communicate with Slack, for example to post a message or fetch the list of channels.
   - `BOT_ACCESS_TOKEN` - Used for Doof's communications as a Slack bot.
   - `GITHUB_ACCESS_TOKEN` - Used to access information about github repos and to create new pull requests.
-  - `SLACK_WEBHOOK_TOKEN` - Used to authenticate requests from Slack to Doof (ie the finish release button.)
+  - `SLACK_SECRET` - Used to authenticate requests from Slack to Doof (ie the finish release button, events API.)
   - `TIMEZONE` - The timezone of the team working with Doof
   - `PORT` - The port of the webserver, used for receiving webhooks from Slack
   - `PYPITEST_USERNAME` - The PyPI username to upload testing Python packages
