@@ -26,8 +26,8 @@
     "TIMEZONE": {
       "description": "The time zone of the team"
     },
-    "SLACK_WEBHOOK_TOKEN": {
-      "description": "The token used to authenticate requests to the webhook API"
+    "SLACK_SECRET": {
+      "description": "The secret to authenticate Slack requests to our APIs"
     }
   },
   "keywords": [
