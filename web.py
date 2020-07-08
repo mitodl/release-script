@@ -55,7 +55,7 @@ class EventHandler(RequestHandler):
 
     async def post(self, *args, **kwargs):  # pylint: disable=unused-argument
         """Handle webhook POST"""
-        arguments = json.loads(self.get_argument("payload"))  # pylint: disable=no-value-for-parameter
+        arguments = json.loads(self.request.body)
         token = arguments['token']
         if token != self.token:
             # this is deprecated. At some point we should update:

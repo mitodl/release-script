@@ -30,18 +30,27 @@ class FinishReleaseTests(AsyncHTTPTestCase):
         """Override for this app"""
         return self.app
 
-    def test_bad_auth(self):
+    def test_bad_auth_buttons(self):
         """
         Bad auth tokens should be rejected for buttons
         """
-        for url in ["/api/v0/buttons/", "/api/v0/events/"]:
-            response = self.fetch(url, method='POST', body=urllib.parse.urlencode({
-                "payload": json.dumps({
-                    "token": "xyz"
-                }),
-            }))
+        response = self.fetch("/api/v0/buttons/", method='POST', body=urllib.parse.urlencode({
+            "payload": json.dumps({
+                "token": "xyz"
+            }),
+        }))
 
-            assert response.code == 401
+        assert response.code == 401
+
+    def test_bad_auth_events(self):
+        """
+        Bad auth tokens should be rejected for buttons
+        """
+        response = self.fetch("/api/v0/events/", method='POST', body=json.dumps({
+            "token": "xyz"
+        }))
+
+        assert response.code == 401
 
     def test_good_auth(self):
         """
@@ -79,9 +88,7 @@ class FinishReleaseTests(AsyncHTTPTestCase):
                 pass
             handle_event.return_value = fake_event()  # pylint: disable=assignment-from-no-return
 
-            response = self.fetch('/api/v0/events/', method='POST', body=urllib.parse.urlencode({
-                "payload": json.dumps(payload),
-            }))
+            response = self.fetch('/api/v0/events/', method='POST', body=json.dumps(payload))
 
         assert response.code == 200
         assert response.body == challenge.encode()
@@ -98,9 +105,7 @@ class FinishReleaseTests(AsyncHTTPTestCase):
                 pass
             handle_event.return_value = fake_event()  # pylint: disable=assignment-from-no-return
 
-            response = self.fetch('/api/v0/events/', method='POST', body=urllib.parse.urlencode({
-                "payload": json.dumps(payload),
-            }))
+            response = self.fetch('/api/v0/events/', method='POST', body=json.dumps(payload))
 
         assert response.code == 200
         assert response.body == b""
