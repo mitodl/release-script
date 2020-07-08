@@ -360,9 +360,11 @@ async def test_hotfix_release(doof, test_repo, test_repo_directory, mocker):
     assert doof.said("Now deploying to RC...")
     for channel_id in [test_repo.channel_id, ANNOUNCEMENTS_CHANNEL.channel_id]:
         assert doof.said(
-            "These people have commits in this release: {}".format(', '.join(authors)),
+            "These people have commits in this release",
             channel_id=channel_id,
         )
+        for author in authors:
+            assert doof.said(author, channel_id=channel_id)
     assert wait_for_checkboxes_sync_mock.called is True
 
 
