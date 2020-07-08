@@ -1,6 +1,5 @@
 python-dateutil
 pytz
 requests
-websockets
 tornado
 virtualenv

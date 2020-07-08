@@ -118,10 +118,7 @@ class Bot:
         self.loop = loop
         # Keep track of long running or scheduled tasks
         self.tasks = set()
-
-        # Used for only websocket messages
-        self.message_count = 0
-        self.doof_boot = now_in_utc()
+        self.boot = now_in_utc()
 
     async def lookup_users(self):
         """
@@ -278,20 +275,6 @@ class Bot:
             is_announcement=is_announcement,
             message_type=message_type,
         )
-
-    async def typing(self, channel_id):
-        """
-        Post a message in the Slack channel that Doof is typing something
-
-        Args:
-            channel_id (str): A channel id
-        """
-        await self.websocket.send(json.dumps({
-            "id": self.message_count,
-            "type": "typing",
-            "channel": channel_id,
-        }))
-        self.message_count += 1
 
     async def _library_release(self, command_args):
         """Do a library release"""
@@ -1131,7 +1114,6 @@ class Bot:
             channel_id (str): The channel id
             words (list of str): the words making up a command
         """
-        await self.typing(channel_id)
         for command in self.make_commands():
             command_words = command.command.split()
             if has_command(command_words, words):

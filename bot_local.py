@@ -26,9 +26,6 @@ class ConsoleBot(Bot):
         )
         print("\033[92m{}\033[0m".format(line))
 
-    async def typing(self, channel_id):
-        """Ignore typing messages"""
-
 
 async def async_main():
     """Handle command line arguments and run a command"""
