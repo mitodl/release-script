@@ -829,9 +829,7 @@ async def test_webhook_dismiss_release(doof):
 
 async def test_uptime(doof, mocker, test_repo):
     """Uptime should show how much time the bot has been awake"""
-    now = datetime(2015, 1, 1, 3, 4, 5, tzinfo=pytz.utc)
-    doof.doof_boot = now
-    later = now + timedelta(seconds=140)
+    later = doof.doof_boot + timedelta(seconds=140)
     mocker.patch('bot.now_in_utc', autospec=True, return_value=later)
     await doof.run_command(
         manager='mitodl_user',
