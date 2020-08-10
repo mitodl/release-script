@@ -113,6 +113,15 @@
       "name": "doof-announcements",
       "channel_name": "doof-announcements",
       "announcements": true
+    },
+    {
+      "name": "django-server-status",
+      "repo_url": "https://github.com/mitodl/django-server-status.git",
+      "channel_name": "django-server-status",
+      "project_type": "library",
+      "python2": false,
+      "python3": true,
+      "announcements": false
     }
   ]
 }
