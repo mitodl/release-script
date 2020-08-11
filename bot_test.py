@@ -525,7 +525,7 @@ async def test_release_library_failure(doof, library_test_repo, mocker):
     )
 
 
-@pytest.mark.parametrize("project_type", [WEB_APPLICATION_TYPE, LIBRARY_TEST_REPO_INFO])
+@pytest.mark.parametrize("project_type", [WEB_APPLICATION_TYPE, LIBRARY_TYPE])
 async def test_finish_release(doof, mocker, project_type):
     """
     Doof should finish a release when asked
