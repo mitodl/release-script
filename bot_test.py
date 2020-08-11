@@ -526,7 +526,7 @@ async def test_release_library_failure(doof, library_test_repo, mocker):
 
 
 @pytest.mark.parametrize("project_type", [WEB_APPLICATION_TYPE, LIBRARY_TEST_REPO_INFO])
-async def test_finish_release_web(doof, mocker, project_type):
+async def test_finish_release(doof, mocker, project_type):
     """
     Doof should finish a release when asked
     """
@@ -561,6 +561,7 @@ async def test_finish_release_web(doof, mocker, project_type):
         version=version,
         timezone=doof.timezone
     )
+    assert doof.said(f"Merged evil scheme {version} for {test_repo.name}!")
     if project_type == WEB_APPLICATION_TYPE:
         assert doof.said('deploying to production...')
         wait_for_deploy_prod_mock.assert_called_once_with(
