@@ -317,8 +317,10 @@ class Bot:
         if status != TRAVIS_SUCCESS:
             await self.say(
                 channel_id=channel_id,
-                text="Uh-oh, it looks like, uh, coffee break's over. During the release Travis had a {}.".format(
-                    status,
+                text=(
+                    "Uh-oh, it looks like, uh, coffee break's over. "
+                    "During the release Travis had a hiccup. "
+                    "Check Travis manually, then run finish release if all looks good."
                 )
             )
             return
@@ -685,14 +687,23 @@ class Bot:
             timezone=self.timezone
         )
 
-        await self.say(
-            channel_id=channel_id,
-            text="Merged evil scheme {version} for {project}! Now deploying to production...".format(
-                version=version,
-                project=repo_info.name,
-            ),
-        )
-        await self._wait_for_deploy_prod(repo_info=repo_info)
+        if repo_info.project_type == WEB_APPLICATION_TYPE:
+            await self.say(
+                channel_id=channel_id,
+                text="Merged evil scheme {version} for {project}! Now deploying to production...".format(
+                    version=version,
+                    project=repo_info.name,
+                ),
+            )
+            await self._wait_for_deploy_prod(repo_info=repo_info)
+        elif repo_info.project_type == LIBRARY_TYPE:
+            await self.say(
+                channel_id=channel_id,
+                text="Merged evil scheme {version} for {project}!".format(
+                    version=version,
+                    project=repo_info.name,
+                ),
+            )
 
     async def report_version(self, command_args):
         """
@@ -1016,7 +1027,7 @@ class Bot:
                 parsers=[],
                 command_func=self.finish_release,
                 description='Finish a release',
-                supported_project_types=[WEB_APPLICATION_TYPE],
+                supported_project_types=[WEB_APPLICATION_TYPE, LIBRARY_TYPE],
             ),
             Command(
                 command='wait for checkboxes',
@@ -1079,7 +1090,7 @@ class Bot:
                 parsers=[],
                 command_func=self.report_version,
                 description='Show the version of the latest merged release',
-                supported_project_types=[WEB_APPLICATION_TYPE, LIBRARY_TYPE],
+                supported_project_types=[WEB_APPLICATION_TYPE],
             ),
             Command(
                 command='help',

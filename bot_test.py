@@ -521,11 +521,12 @@ async def test_release_library_failure(doof, library_test_repo, mocker):
         f"Merging evil scheme {pr.version} for {library_test_repo.name}..."
     )
     assert doof.said(
-        "Uh-oh, it looks like, uh, coffee break's over. During the release Travis had a failure."
+        "Uh-oh, it looks like, uh, coffee break's over. During the release Travis had a hiccup."
     )
 
 
-async def test_finish_release(doof, test_repo, mocker):
+@pytest.mark.parametrize("project_type", [WEB_APPLICATION_TYPE, LIBRARY_TYPE])
+async def test_finish_release(doof, mocker, project_type):
     """
     Doof should finish a release when asked
     """
@@ -539,6 +540,8 @@ async def test_finish_release(doof, test_repo, mocker):
     finish_release_mock = mocker.async_patch('bot.finish_release')
 
     wait_for_deploy_prod_mock = mocker.async_patch('bot.Bot._wait_for_deploy_prod')
+
+    test_repo = LIBRARY_TEST_REPO_INFO if project_type == LIBRARY_TYPE else WEB_TEST_REPO_INFO
 
     await doof.run_command(
         manager='mitodl_user',
@@ -558,11 +561,13 @@ async def test_finish_release(doof, test_repo, mocker):
         version=version,
         timezone=doof.timezone
     )
-    assert doof.said('deploying to production...')
-    wait_for_deploy_prod_mock.assert_called_once_with(
-        doof,
-        repo_info=test_repo
-    )
+    assert doof.said(f"Merged evil scheme {version} for {test_repo.name}!")
+    if project_type == WEB_APPLICATION_TYPE:
+        assert doof.said('deploying to production...')
+        wait_for_deploy_prod_mock.assert_called_once_with(
+            doof,
+            repo_info=test_repo
+        )
 
 
 async def test_finish_release_no_release(doof, test_repo, mocker):
@@ -879,7 +884,7 @@ async def test_upload_to_pypi(doof, library_test_repo, testing, mocker):
 
 
 @pytest.mark.parametrize("command,project_type", [
-    ['finish release', LIBRARY_TYPE],
+    ['version', LIBRARY_TYPE],
     ['wait for checkboxes', LIBRARY_TYPE],
     ['upload to pypi 1.2.3', WEB_APPLICATION_TYPE],
     ['upload to pypitest 1.2.3', WEB_APPLICATION_TYPE],
