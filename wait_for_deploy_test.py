@@ -10,28 +10,27 @@ pytestmark = pytest.mark.asyncio
 
 async def test_wait_for_deploy(mocker, test_repo_directory):
     """wait_for_deploy should poll deployed web applications"""
-    matched_hash = 'match'
-    mismatch_hash = 'mismatch'
-    fetch_release_patch = mocker.async_patch('wait_for_deploy.fetch_release_hash')
+    matched_hash = "match"
+    mismatch_hash = "mismatch"
+    fetch_release_patch = mocker.async_patch("wait_for_deploy.fetch_release_hash")
     fetch_release_patch.side_effect = [
         mismatch_hash,
         mismatch_hash,
         matched_hash,
     ]
-    check_output_patch = mocker.async_patch(
-        'wait_for_deploy.check_output',
-    )
+    check_output_patch = mocker.async_patch("wait_for_deploy.check_output",)
     check_output_patch.return_value = " {} ".format(matched_hash).encode()
 
     init_working_dir_mock = mocker.patch(
-        'wait_for_deploy.init_working_dir', side_effect=async_context_manager_yielder(test_repo_directory)
+        "wait_for_deploy.init_working_dir",
+        side_effect=async_context_manager_yielder(test_repo_directory),
     )
-    mocker.async_patch('asyncio.sleep')
+    mocker.async_patch("asyncio.sleep")
 
-    repo_url = 'repo_url'
-    token = 'token'
-    hash_url = 'hash'
-    watch_branch = 'watch'
+    repo_url = "repo_url"
+    token = "token"
+    hash_url = "hash"
+    watch_branch = "watch"
     await wait_for_deploy(
         github_access_token=token,
         repo_url=repo_url,

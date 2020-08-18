@@ -18,7 +18,10 @@ def is_authenticated(request, secret):
     # See https://api.slack.com/authentication/verifying-requests-from-slack for more info
     timestamp = request.headers["X-Slack-Request-Timestamp"]
     basestring = f"v0:{timestamp}:{request.body.decode()}".encode()
-    digest = ("v0=" + hmac.new(key=secret.encode(), msg=basestring, digestmod='sha256').hexdigest()).encode()
+    digest = (
+        "v0="
+        + hmac.new(key=secret.encode(), msg=basestring, digestmod="sha256").hexdigest()
+    ).encode()
     signature = request.headers["X-Slack-Signature"].encode()
     return hmac.compare_digest(digest, signature)
 
@@ -27,6 +30,7 @@ class ButtonHandler(RequestHandler):
     """
     Handle button requests
     """
+
     def initialize(self, secret, bot):  # pylint: disable=arguments-differ
         """
         Set variables
@@ -46,10 +50,10 @@ class ButtonHandler(RequestHandler):
             await self.finish("")
             return
 
-        arguments = json.loads(self.get_argument("payload"))  # pylint: disable=no-value-for-parameter
-        self.bot.loop.create_task(
-            self.bot.handle_webhook(webhook_dict=arguments)
-        )
+        arguments = json.loads(
+            self.get_argument("payload")
+        )  # pylint: disable=no-value-for-parameter
+        self.bot.loop.create_task(self.bot.handle_webhook(webhook_dict=arguments))
         await self.finish("")
 
 
@@ -82,9 +86,7 @@ class EventHandler(RequestHandler):
             await self.finish(challenge)
             return
 
-        self.bot.loop.create_task(
-            self.bot.handle_event(webhook_dict=arguments)
-        )
+        self.bot.loop.create_task(self.bot.handle_event(webhook_dict=arguments))
 
         await self.finish("")
 
@@ -100,13 +102,9 @@ def make_app(*, secret, bot):
     Returns:
         Application: A tornado application
     """
-    return Application([
-        (r'/api/v0/buttons/', ButtonHandler, {
-            'secret': secret,
-            'bot': bot,
-        }),
-        (r'/api/v0/events/', EventHandler, {
-            'secret': secret,
-            'bot': bot,
-        })
-    ])
+    return Application(
+        [
+            (r"/api/v0/buttons/", ButtonHandler, {"secret": secret, "bot": bot,}),
+            (r"/api/v0/events/", EventHandler, {"secret": secret, "bot": bot,}),
+        ]
+    )

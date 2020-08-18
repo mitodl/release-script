@@ -15,8 +15,8 @@ from github import Issue, PullRequest
 from markdown import ParsedIssue
 
 
-TEST_ORG = 'test-org'
-TEST_REPO = 'test-repo'
+TEST_ORG = "test-org"
+TEST_REPO = "test-repo"
 
 
 def sync_check_call(*args, cwd, **kwargs):
@@ -37,7 +37,9 @@ def make_test_repo():
     """
     with TemporaryDirectory() as directory:
         sync_check_call(["git", "init", "--quiet"], cwd=directory)
-        with gzip.open(os.path.join(SCRIPT_DIR, "test-repo.gz"), "rb") as test_repo_file:
+        with gzip.open(
+            os.path.join(SCRIPT_DIR, "test-repo.gz"), "rb"
+        ) as test_repo_file:
             # Passing this handle directly to check_call(...) below doesn't work, the data remains
             # compressed. Why read() decompresses the data but passing the file object doesn't:
             # https://bugs.python.org/issue24358
@@ -45,23 +47,29 @@ def make_test_repo():
                 copyfileobj(test_repo_file, temp_file)
                 temp_file.seek(0)
 
-                sync_check_call(["git", "fast-import", "--quiet"], stdin=temp_file, cwd=directory)
+                sync_check_call(
+                    ["git", "fast-import", "--quiet"], stdin=temp_file, cwd=directory
+                )
         sync_check_call(["git", "checkout", "--quiet", "master"], cwd=directory)
         yield directory
 
 
 def async_wrapper(mocked):
     """Wrap sync functions with a simple async wrapper"""
+
     async def async_func(*args, **kwargs):
         return mocked(*args, **kwargs)
+
     return async_func
 
 
 def async_context_manager_yielder(value):
     """Simple async context manager which yields a value"""
+
     @asynccontextmanager
     async def async_context_manager(*args, **kwargs):  # pylint: disable=unused-argument
         yield value
+
     return async_context_manager
 
 
@@ -80,17 +88,14 @@ def make_issue(number):
         org=TEST_ORG,
         repo=TEST_REPO,
         updatedAt=datetime(2019, 6, 5, tzinfo=timezone.utc),
-        url="http://b.net/example/uri"
+        url="http://b.net/example/uri",
     )
 
 
 def make_parsed_issue(number, closes):
     """Helper method to create a fake ParsedIssue given a number"""
     return ParsedIssue(
-        issue_number=number,
-        closes=closes,
-        org=TEST_ORG,
-        repo=TEST_REPO,
+        issue_number=number, closes=closes, org=TEST_ORG, repo=TEST_REPO,
     )
 
 
@@ -103,5 +108,5 @@ def make_pr(number, body):
         org=TEST_ORG,
         repo=TEST_REPO,
         url="http://a.net/example/url",
-        updatedAt=datetime(2020, 1, 1, tzinfo=timezone.utc).date()
+        updatedAt=datetime(2020, 1, 1, tzinfo=timezone.utc).date(),
     )

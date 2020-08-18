@@ -41,14 +41,16 @@ def parse_linked_issues(pull_request):
     parsed_issues = []
     for match in REGEX.finditer(pull_request.body):
         groups = match.groupdict()
-        parsed_issues.append(ParsedIssue(
-            issue_number=int(groups.get("issue_number")),
-            # org1 and org2 match different groups in the regex. There should only be one which matches since they
-            # are separated with an |.
-            # If org or repo are None, that means the issue number was provided without that context, which means
-            # it's part of the same org/repo as the pull request.
-            org=groups.get("org1") or groups.get("org2") or pull_request.org,
-            repo=groups.get("repo1") or groups.get("repo2") or pull_request.repo,
-            closes=groups.get("closes") is not None,
-        ))
+        parsed_issues.append(
+            ParsedIssue(
+                issue_number=int(groups.get("issue_number")),
+                # org1 and org2 match different groups in the regex. There should only be one which matches since they
+                # are separated with an |.
+                # If org or repo are None, that means the issue number was provided without that context, which means
+                # it's part of the same org/repo as the pull request.
+                org=groups.get("org1") or groups.get("org2") or pull_request.org,
+                repo=groups.get("repo1") or groups.get("repo2") or pull_request.repo,
+                closes=groups.get("closes") is not None,
+            )
+        )
     return parsed_issues

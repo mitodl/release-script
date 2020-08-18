@@ -39,11 +39,11 @@ setup(
 
 
 WEB_TEST_REPO_INFO = RepoInfo(
-    name='doof_repo',
-    repo_url='http://github.com/mitodl/doof.git',
-    prod_hash_url='http://doof.example.com/hash.txt',
-    rc_hash_url='http://doof-rc.example.com/hash.txt',
-    channel_id='doof',
+    name="doof_repo",
+    repo_url="http://github.com/mitodl/doof.git",
+    prod_hash_url="http://doof.example.com/hash.txt",
+    rc_hash_url="http://doof-rc.example.com/hash.txt",
+    channel_id="doof",
     project_type=WEB_APPLICATION_TYPE,
     python2=False,
     python3=True,
@@ -66,11 +66,11 @@ def test_repo(test_repo_directory):
 
 
 LIBRARY_TEST_REPO_INFO = RepoInfo(
-    name='lib_repo',
-    repo_url='http://github.com/mitodl/doof-lib.git',
+    name="lib_repo",
+    repo_url="http://github.com/mitodl/doof-lib.git",
     prod_hash_url=None,
     rc_hash_url=None,
-    channel_id='doof-lib',
+    channel_id="doof-lib",
     project_type=LIBRARY_TYPE,
     python2=True,
     python3=False,
@@ -79,11 +79,11 @@ LIBRARY_TEST_REPO_INFO = RepoInfo(
 
 
 ANNOUNCEMENTS_CHANNEL = RepoInfo(
-    name='doof_repo',
+    name="doof_repo",
     repo_url=None,
     prod_hash_url=None,
     rc_hash_url=None,
-    channel_id='announcement_id',
+    channel_id="announcement_id",
     project_type=None,
     python2=None,
     python3=None,
@@ -104,7 +104,7 @@ def library_test_repo(test_repo_directory):
 @pytest.fixture
 def timezone():
     """ Return a timezone object """
-    yield pytz.timezone('America/New_York')
+    yield pytz.timezone("America/New_York")
 
 
 @pytest.fixture
@@ -129,5 +129,5 @@ def _raiser(message):
 @pytest.fixture(autouse=True)
 def log_exception(mocker):
     """Patch log.error and log.exception to raise an exception so tests do not silence it"""
-    mocker.patch('bot.log.exception', side_effect=_raiser)
-    mocker.patch('bot.log.error', side_effect=_raiser)
+    mocker.patch("bot.log.exception", side_effect=_raiser)
+    mocker.patch("bot.log.error", side_effect=_raiser)

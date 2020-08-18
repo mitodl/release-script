@@ -66,7 +66,9 @@ async def test_check_output_shell(mocker, is_success):
     patched = mocker.async_patch("asyncio.create_subprocess_shell")
     patched.return_value.wait = async_wrapper(lambda: 0 if is_success else 1)
     expected_return = "some response text"
-    patched.return_value.communicate = async_wrapper(lambda input: (expected_return, None))
+    patched.return_value.communicate = async_wrapper(
+        lambda input: (expected_return, None)
+    )
 
     cmd = "git checkout shell"
     if is_success:
@@ -82,7 +84,9 @@ async def test_check_output_exec(mocker, is_success):
     patched = mocker.async_patch("asyncio.create_subprocess_exec")
     patched.return_value.wait = async_wrapper(lambda: 0 if is_success else 1)
     expected_return = "some response text"
-    patched.return_value.communicate = async_wrapper(lambda input: (expected_return, None))
+    patched.return_value.communicate = async_wrapper(
+        lambda input: (expected_return, None)
+    )
 
     args = ["git", "checkout", "shell"]
     if is_success:

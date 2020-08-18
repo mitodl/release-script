@@ -15,8 +15,12 @@ from markdown import parse_linked_issues
 log = logging.getLogger(__name__)
 
 
-PullRequest = namedtuple("PullRequest", ["number", "title", "body", "updatedAt", "org", "repo", "url"])
-Issue = namedtuple("Issue", ["number", "title", "status", "org", "repo", "updatedAt", "url"])
+PullRequest = namedtuple(
+    "PullRequest", ["number", "title", "body", "updatedAt", "org", "repo", "url"]
+)
+Issue = namedtuple(
+    "Issue", ["number", "title", "status", "org", "repo", "updatedAt", "url"]
+)
 
 
 KARMA_QUERY = """
@@ -95,7 +99,7 @@ def make_pull_requests_query(*, org, repo, cursor):
         repo (str): The github repo
         cursor (str or None): If set, the cursor to start from for pagination
     """
-    cursor_param = f", after: \"{cursor}\"" if cursor is not None else ""
+    cursor_param = f', after: "{cursor}"' if cursor is not None else ""
     return f"""
 query {{
   organization(login: "{org}") {{
@@ -135,9 +139,11 @@ async def run_query(*, github_access_token, query):
     endpoint = "https://api.github.com/graphql"
     query = json.dumps({"query": query})
     client = ClientWrapper()
-    resp = await client.post(endpoint, data=query, headers={
-        "Authorization": "Bearer {}".format(github_access_token)
-    })
+    resp = await client.post(
+        endpoint,
+        data=query,
+        headers={"Authorization": "Bearer {}".format(github_access_token)},
+    )
     resp.raise_for_status()
     return resp.json()
 
@@ -159,7 +165,9 @@ def github_auth_headers(github_access_token):
     }
 
 
-async def create_pr(*, github_access_token, repo_url, title, body, head, base):  # pylint: disable=too-many-arguments
+async def create_pr(
+    *, github_access_token, repo_url, title, body, head, base
+):  # pylint: disable=too-many-arguments
     """
     Create a pull request
 
@@ -174,20 +182,14 @@ async def create_pr(*, github_access_token, repo_url, title, body, head, base): 
 
     org, repo = get_org_and_repo(repo_url)
     endpoint = "https://api.github.com/repos/{org}/{repo}/pulls".format(
-        org=org,
-        repo=repo,
+        org=org, repo=repo,
     )
 
     client = ClientWrapper()
     resp = await client.post(
         endpoint,
         headers=github_auth_headers(github_access_token),
-        data=json.dumps({
-            'title': title,
-            'body': body,
-            'head': head,
-            'base': base,
-        })
+        data=json.dumps({"title": title, "body": body, "head": head, "base": base,}),
     )
     resp.raise_for_status()
 
@@ -211,32 +213,28 @@ async def fetch_pull_requests_since_date(*, github_access_token, org, repo, sinc
         # terminate once a pull request is out of the date range given.
         result = await run_query(
             github_access_token=github_access_token,
-            query=make_pull_requests_query(
-                org=org,
-                repo=repo,
-                cursor=cursor,
-            )
+            query=make_pull_requests_query(org=org, repo=repo, cursor=cursor,),
         )
 
-        edges = result['data']['organization']['repository']['pullRequests']['edges']
+        edges = result["data"]["organization"]["repository"]["pullRequests"]["edges"]
         if not edges:
             return
-        cursor = edges[-1]['cursor']
+        cursor = edges[-1]["cursor"]
         for edge in edges:
-            node = edge['node']
-            pr_number = node['number']
-            url = node['url']
-            pr_date = parse(node['updatedAt']).date()
+            node = edge["node"]
+            pr_number = node["number"]
+            url = node["url"]
+            pr_date = parse(node["updatedAt"]).date()
             if pr_date < since:
                 return
-            title = node['title']
+            title = node["title"]
             if title.startswith("Release "):
                 continue
             yield PullRequest(
                 number=pr_number,
                 title=title,
                 updatedAt=pr_date,
-                body=node['body'],
+                body=node["body"],
                 org=org,
                 repo=repo,
                 url=url,
@@ -278,7 +276,8 @@ async def fetch_issues_for_pull_requests(*, github_access_token, pull_requests):
                         parsed_issue.repo,
                     )
         yield pull_request, [
-            (issue_lookup.get(parsed_issue.issue_number), parsed_issue) for parsed_issue in parsed_issues
+            (issue_lookup.get(parsed_issue.issue_number), parsed_issue)
+            for parsed_issue in parsed_issues
         ]
 
 
@@ -301,16 +300,16 @@ def make_issue_release_notes(prs_and_issues):
                 continue
             if issue.number not in issue_to_prs:
                 issue_to_prs[issue.number] = (issue, [])
-            issue_to_prs[issue.number][1].append(
-                (pr, parsed_issue)
-            )
+            issue_to_prs[issue.number][1].append((pr, parsed_issue))
 
     if not issue_to_prs:
         return "No new issues closed by PR"
 
     return "\n".join(
-        f"- {issue.title} (<{issue.url}|#{issue_number}>)" for issue_number, (issue, _) in
-        sorted(issue_to_prs.items(), key=lambda tup: tup[0])
+        f"- {issue.title} (<{issue.url}|#{issue_number}>)"
+        for issue_number, (issue, _) in sorted(
+            issue_to_prs.items(), key=lambda tup: tup[0]
+        )
     )
 
 
@@ -329,20 +328,22 @@ async def get_issue(*, github_access_token, org, repo, issue_number):
     """
     endpoint = f"https://api.github.com/repos/{org}/{repo}/issues/{issue_number}"
     client = ClientWrapper()
-    response = await client.get(endpoint, headers=github_auth_headers(github_access_token))
+    response = await client.get(
+        endpoint, headers=github_auth_headers(github_access_token)
+    )
     response.raise_for_status()
     response_json = response.json()
-    if 'pull_request' in response_json:
+    if "pull_request" in response_json:
         return
 
     return Issue(
-        title=response_json['title'],
-        number=response_json['number'],
+        title=response_json["title"],
+        number=response_json["number"],
         org=org,
         repo=repo,
-        status=response_json['state'],
-        updatedAt=parse(response_json['updated_at']),
-        url=response_json['html_url'],
+        status=response_json["state"],
+        updatedAt=parse(response_json["updated_at"]),
+        url=response_json["html_url"],
     )
 
 
@@ -360,18 +361,16 @@ async def get_pull_request(*, github_access_token, org, repo, branch):
         dict: The information about the pull request
     """
     endpoint = "https://api.github.com/repos/{org}/{repo}/pulls".format(
-        org=org,
-        repo=repo,
+        org=org, repo=repo,
     )
 
     client = ClientWrapper()
     response = await client.get(
-        endpoint,
-        headers=github_auth_headers(github_access_token),
+        endpoint, headers=github_auth_headers(github_access_token),
     )
     response.raise_for_status()
     pulls = response.json()
-    pulls = [pull for pull in pulls if pull['head']['ref'] == branch]
+    pulls = [pull for pull in pulls if pull["head"]["ref"] == branch]
     if not pulls:
         return None
     elif len(pulls) > 1:
@@ -396,32 +395,33 @@ async def calculate_karma(*, github_access_token, begin_date, end_date):
     data = await run_query(github_access_token=github_access_token, query=KARMA_QUERY)
 
     karma = defaultdict(lambda: 0)
-    for repository in data['data']['organization']['repositories']['nodes']:
+    for repository in data["data"]["organization"]["repositories"]["nodes"]:
         # Keep track if any dates fall outside the range. If none do and we're at the max limit for number of PRs,
         # we need to paginate (but instead we'll just raise an exception for now).
         some_dates_out_of_range = False
-        for pull_request in repository['pullRequests']['nodes']:
-            updated_at = parse(pull_request['updatedAt']).date()
-            merged_at = parse(pull_request['mergedAt']).date()
+        for pull_request in repository["pullRequests"]["nodes"]:
+            updated_at = parse(pull_request["updatedAt"]).date()
+            merged_at = parse(pull_request["mergedAt"]).date()
 
             if begin_date <= updated_at <= end_date:
                 if begin_date <= merged_at <= end_date:
                     # A pull request could get updated after it was merged. We don't have a good way
                     # to filter this out via API so just ignore them here
-                    for assignee in pull_request['assignees']['nodes']:
-                        karma[assignee['name']] += 1
+                    for assignee in pull_request["assignees"]["nodes"]:
+                        karma[assignee["name"]] += 1
             elif updated_at < begin_date:
                 some_dates_out_of_range = True
-        if len(repository['pullRequests']['nodes']) == 100 and not some_dates_out_of_range:
+        if (
+            len(repository["pullRequests"]["nodes"]) == 100
+            and not some_dates_out_of_range
+        ):
             # This means there are at least 100 pull requests within that time range for that value.
             # We will probably not get more than 100 merged pull requests in a single sprint, but raise
             # an exception if we do.
             raise Exception(
                 "Response contains more PRs than can be handled at once"
                 " for {repo}, {begin_date} to {end_date}.".format(
-                    repo=repository['name'],
-                    begin_date=begin_date,
-                    end_date=end_date,
+                    repo=repository["name"], begin_date=begin_date, end_date=end_date,
                 )
             )
 
@@ -440,18 +440,17 @@ async def needs_review(github_access_token):
         list of tuple: A list of (repo name, pr title, pr url) for PRs that need review and are unassigned
     """
     data = await run_query(
-        github_access_token=github_access_token,
-        query=NEEDS_REVIEW_QUERY,
+        github_access_token=github_access_token, query=NEEDS_REVIEW_QUERY,
     )
     prs_needing_review = []
     # Query will show all open PRs, we need to filter on assignee and label
-    for repository in data['data']['organization']['repositories']['nodes']:
-        for pull_request in repository['pullRequests']['nodes']:
+    for repository in data["data"]["organization"]["repositories"]["nodes"]:
+        for pull_request in repository["pullRequests"]["nodes"]:
             has_needs_review = False
 
             # Check for needs review label
-            for label in pull_request['labels']['nodes']:
-                if label['name'].lower() == 'needs review':
+            for label in pull_request["labels"]["nodes"]:
+                if label["name"].lower() == "needs review":
                     has_needs_review = True
                     break
 
@@ -459,9 +458,9 @@ async def needs_review(github_access_token):
                 continue
 
             # Check for no assignee
-            if not pull_request['assignees']['nodes']:
+            if not pull_request["assignees"]["nodes"]:
                 prs_needing_review.append(
-                    (repository['name'], pull_request['title'], pull_request['url'])
+                    (repository["name"], pull_request["title"], pull_request["url"])
                 )
 
     return prs_needing_review
@@ -477,7 +476,7 @@ def get_org_and_repo(repo_url):
     Returns:
         tuple: (org, repo)
     """
-    org, repo = re.match(r'^.*github\.com[:|/](.+)/(.+)\.git', repo_url).groups()
+    org, repo = re.match(r"^.*github\.com[:|/](.+)/(.+)\.git", repo_url).groups()
     return org, repo
 
 
@@ -496,15 +495,10 @@ async def get_status_of_pr(*, github_access_token, org, repo, branch):
             if any is pending this is pending. Else it's good.
     """
     endpoint = "https://api.github.com/repos/{org}/{repo}/commits/{ref}/statuses".format(
-        org=org,
-        repo=repo,
-        ref=branch,
+        org=org, repo=repo, ref=branch,
     )
     client = ClientWrapper()
-    resp = await client.get(
-        endpoint,
-        headers=github_auth_headers(github_access_token),
-    )
+    resp = await client.get(endpoint, headers=github_auth_headers(github_access_token),)
     if resp.status_code == 404:
         statuses = []
     else:
@@ -512,10 +506,14 @@ async def get_status_of_pr(*, github_access_token, org, repo, branch):
         statuses = resp.json()
 
     # Only look at PR builds
-    statuses = [status for status in statuses if status['context'] == 'continuous-integration/travis-ci/pr']
+    statuses = [
+        status
+        for status in statuses
+        if status["context"] == "continuous-integration/travis-ci/pr"
+    ]
 
     if len(statuses) == 0:
         # This may be due to the PR not being available yet
         return NO_PR_BUILD
 
-    return statuses[0]['state']
+    return statuses[0]["state"]

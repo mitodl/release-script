@@ -20,12 +20,12 @@ from github import (
 from repo_info import RepoInfo
 
 
-ReleasePR = namedtuple("ReleasePR", ['version', 'url', 'body'])
+ReleasePR = namedtuple("ReleasePR", ["version", "url", "body"])
 
 
-VERSION_RE = r'\d+\.\d+\.\d+'
+VERSION_RE = r"\d+\.\d+\.\d+"
 
-COMMIT_HASH_RE = r'^[a-z0-9]+$'
+COMMIT_HASH_RE = r"^[a-z0-9]+$"
 
 
 def parse_checkmarks(body):
@@ -57,13 +57,11 @@ def parse_checkmarks(body):
             start = line.find("]")
             end = line.rfind("([")
             if start != -1 and end != -1:
-                title = line[start + 1:end].strip()
+                title = line[start + 1 : end].strip()
 
-                commits.append({
-                    "checked": checked,
-                    "title": title,
-                    "author_name": current_name,
-                })
+                commits.append(
+                    {"checked": checked, "title": title, "author_name": current_name,}
+                )
     return commits
 
 
@@ -83,22 +81,18 @@ async def get_release_pr(*, github_access_token, org, repo):
         github_access_token=github_access_token,
         org=org,
         repo=repo,
-        branch='release-candidate',
+        branch="release-candidate",
     )
     if pr is None:
         return None
 
-    title = pr['title']
-    match = re.match(r'^Release (?P<version>\d+\.\d+\.\d+)$', title)
+    title = pr["title"]
+    match = re.match(r"^Release (?P<version>\d+\.\d+\.\d+)$", title)
     if not match:
         raise ReleaseException("Release PR title has an unexpected format")
-    version = match.group('version')
+    version = match.group("version")
 
-    return ReleasePR(
-        version=version,
-        body=pr['body'],
-        url=pr['html_url'],
-    )
+    return ReleasePR(version=version, body=pr["body"], url=pr["html_url"],)
 
 
 async def get_unchecked_authors(*, github_access_token, org, repo):
@@ -114,15 +108,13 @@ async def get_unchecked_authors(*, github_access_token, org, repo):
         set[str]: A set of github usernames
     """
     release_pr = await get_release_pr(
-        github_access_token=github_access_token,
-        org=org,
-        repo=repo,
+        github_access_token=github_access_token, org=org, repo=repo,
     )
     if not release_pr:
         raise ReleaseException("No release PR found")
     body = release_pr.body
     commits = parse_checkmarks(body)
-    return {commit['author_name'] for commit in commits if not commit['checked']}
+    return {commit["author_name"] for commit in commits if not commit["checked"]}
 
 
 def next_workday_at_10(now):
@@ -164,7 +156,7 @@ def reformatted_full_name(full_name):
         return "{} {}".format(pieces[0], pieces[-1])
     elif len(pieces) == 1:
         return pieces[0]
-    return ''
+    return ""
 
 
 def format_user_id(user_id):
@@ -199,7 +191,7 @@ def match_user(slack_users, author_name, threshold=0.8):
 
     def match_for_user(slack_user):
         """Get match ratio for slack user, or 0 if below threshold"""
-        real_name = slack_user['profile']['real_name']
+        real_name = slack_user["profile"]["real_name"]
         lower_name = reformatted_full_name(real_name)
 
         ratio = SequenceMatcher(a=lower_author_name, b=lower_name).ratio()
@@ -214,12 +206,18 @@ def match_user(slack_users, author_name, threshold=0.8):
 
         return 0
 
-    slack_matches = [(slack_user, match_for_user(slack_user)) for slack_user in slack_users]
-    slack_matches = [(slack_user, match) for (slack_user, match) in slack_matches if match >= threshold]
+    slack_matches = [
+        (slack_user, match_for_user(slack_user)) for slack_user in slack_users
+    ]
+    slack_matches = [
+        (slack_user, match)
+        for (slack_user, match) in slack_matches
+        if match >= threshold
+    ]
 
     if slack_matches:
         matched_user = max(slack_matches, key=lambda pair: pair[1])[0]
-        return format_user_id(matched_user['id'])
+        return format_user_id(matched_user["id"])
     else:
         return author_name
 
@@ -241,9 +239,7 @@ def url_with_access_token(github_access_token, repo_url):
     """
     org, repo = get_org_and_repo(repo_url)
     return "https://{token}@github.com/{org}/{repo}.git".format(
-        token=github_access_token,
-        org=org,
-        repo=repo,
+        token=github_access_token, org=org, repo=repo,
     )
 
 
@@ -266,7 +262,11 @@ async def virtualenv(python_interpreter, env):
     Create a virtualenv and work within its context
     """
     with TemporaryDirectory() as virtualenv_dir:
-        await check_call(["virtualenv", virtualenv_dir, "-p", python_interpreter], env=env, cwd=virtualenv_dir)
+        await check_call(
+            ["virtualenv", virtualenv_dir, "-p", python_interpreter],
+            env=env,
+            cwd=virtualenv_dir,
+        )
 
         # Figure out what environment variables we need to set
         output_bytes = await check_output(
@@ -278,7 +278,9 @@ async def virtualenv(python_interpreter, env):
         yield virtualenv_dir, dict(line.split("=", 1) for line in output.splitlines())
 
 
-async def upload_to_pypi(*, repo_info, testing, version, github_access_token):  # pylint: disable=too-many-locals
+async def upload_to_pypi(
+    *, repo_info, testing, version, github_access_token
+):  # pylint: disable=too-many-locals
     """
     Upload a version of a project to PYPI
 
@@ -291,15 +293,21 @@ async def upload_to_pypi(*, repo_info, testing, version, github_access_token):  
     branch = "v{}".format(version)
     # Set up environment variables for uploading to pypi or pypitest
     twine_env = {
-        'TWINE_USERNAME': os.environ['PYPITEST_USERNAME'] if testing else os.environ['PYPI_USERNAME'],
-        'TWINE_PASSWORD': os.environ['PYPITEST_PASSWORD'] if testing else os.environ['PYPI_PASSWORD'],
+        "TWINE_USERNAME": os.environ["PYPITEST_USERNAME"]
+        if testing
+        else os.environ["PYPI_USERNAME"],
+        "TWINE_PASSWORD": os.environ["PYPITEST_PASSWORD"]
+        if testing
+        else os.environ["PYPI_PASSWORD"],
     }
 
     # This is the python interpreter to use for creating the source distribution or wheel
     # In particular if a wheel is specific to one version of python we need to use that interpreter to create it.
     python = "python3" if repo_info.python3 else "python2"
 
-    async with init_working_dir(github_access_token, repo_info.repo_url, branch=branch) as working_dir:
+    async with init_working_dir(
+        github_access_token, repo_info.repo_url, branch=branch
+    ) as working_dir:
         async with virtualenv("python3", None) as (_, outer_environ):
             # Heroku has both Python 2 and 3 installed but the system libraries aren't configured for our use,
             # so make a virtualenv.
@@ -310,26 +318,38 @@ async def upload_to_pypi(*, repo_info, testing, version, github_access_token):  
                 twine_path = os.path.join(virtualenv_dir, "bin", "twine")
 
                 # Install dependencies. wheel is needed for Python 2. twine uploads the package.
-                await check_call([pip_path, "install", "wheel", "twine"], env=environ, cwd=working_dir)
+                await check_call(
+                    [pip_path, "install", "wheel", "twine"],
+                    env=environ,
+                    cwd=working_dir,
+                )
 
                 # Create source distribution and wheel.
-                await call([python_path, "setup.py", "sdist"], env=environ, cwd=working_dir)
-                universal = ["--universal"] if repo_info.python2 and repo_info.python3 else []
+                await call(
+                    [python_path, "setup.py", "sdist"], env=environ, cwd=working_dir
+                )
+                universal = (
+                    ["--universal"] if repo_info.python2 and repo_info.python3 else []
+                )
                 build_wheel_args = [python_path, "setup.py", "bdist_wheel", *universal]
                 await call(build_wheel_args, env=environ, cwd=working_dir)
                 dist_files = os.listdir(os.path.join(working_dir, "dist"))
                 if len(dist_files) != 2:
-                    raise Exception("Expected to find one tarball and one wheel in directory")
+                    raise Exception(
+                        "Expected to find one tarball and one wheel in directory"
+                    )
                 dist_paths = [os.path.join("dist", name) for name in dist_files]
 
                 # Upload to pypi
-                testing_args = ["--repository-url", "https://test.pypi.org/legacy/"] if testing else []
+                testing_args = (
+                    ["--repository-url", "https://test.pypi.org/legacy/"]
+                    if testing
+                    else []
+                )
                 await check_call(
                     [twine_path, "upload", *testing_args, *dist_paths],
-                    env={
-                        **environ,
-                        **twine_env,
-                    }, cwd=working_dir
+                    env={**environ, **twine_env,},
+                    cwd=working_dir,
                 )
 
 
@@ -347,20 +367,25 @@ def load_repos_info(channel_lookup):
         repos_info = json.load(f)
         return [
             RepoInfo(
-                name=repo_info['name'],
-                repo_url=repo_info.get('repo_url'),
+                name=repo_info["name"],
+                repo_url=repo_info.get("repo_url"),
                 rc_hash_url=(
-                    repo_info['rc_hash_url'] if repo_info.get('project_type') == WEB_APPLICATION_TYPE else None
+                    repo_info["rc_hash_url"]
+                    if repo_info.get("project_type") == WEB_APPLICATION_TYPE
+                    else None
                 ),
                 prod_hash_url=(
-                    repo_info['prod_hash_url'] if repo_info.get('project_type') == WEB_APPLICATION_TYPE else None
+                    repo_info["prod_hash_url"]
+                    if repo_info.get("project_type") == WEB_APPLICATION_TYPE
+                    else None
                 ),
-                channel_id=channel_lookup[repo_info['channel_name']],
-                project_type=repo_info.get('project_type'),
-                python2=repo_info.get('python2'),
-                python3=repo_info.get('python3'),
-                announcements=repo_info.get('announcements'),
-            ) for repo_info in repos_info['repos']
+                channel_id=channel_lookup[repo_info["channel_name"]],
+                project_type=repo_info.get("project_type"),
+                python2=repo_info.get("python2"),
+                python3=repo_info.get("python3"),
+                announcements=repo_info.get("announcements"),
+            )
+            for repo_info in repos_info["repos"]
         ]
 
 
@@ -384,7 +409,7 @@ def next_versions(version):
 async def init_working_dir(github_access_token, repo_url, *, branch=None):
     """Create a new directory with an empty git repo"""
     if branch is None:
-        branch = 'master'
+        branch = "master"
 
     url = url_with_access_token(github_access_token, repo_url)
     with TemporaryDirectory() as directory:
