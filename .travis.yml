@@ -6,7 +6,11 @@ python:
 node_js:
   - "6.2"
 install:
- - pip install -r test_requirements.txt
+ - pip install -r requirements.txt -r test_requirements.txt
  - npm install
 
-script: tox && coverage xml && codecov
+script:
+  - black . --check
+  - pytest
+  - coverage xml
+  - codecov
