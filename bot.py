@@ -1420,8 +1420,8 @@ async def async_main():
     repos_info = load_repos_info(channels_info)
     try:
         port = int(envs['PORT'])
-    except ValueError:
-        raise Exception("PORT is invalid")
+    except ValueError as ex:
+        raise Exception("PORT is invalid") from ex
 
     bot = Bot(
         slack_access_token=envs['SLACK_ACCESS_TOKEN'],

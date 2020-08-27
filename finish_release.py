@@ -105,8 +105,8 @@ def main():
     """
     try:
         github_access_token = os.environ['GITHUB_ACCESS_TOKEN']
-    except KeyError:
-        raise Exception("Missing GITHUB_ACCESS_TOKEN")
+    except KeyError as ex:
+        raise Exception("Missing GITHUB_ACCESS_TOKEN") from ex
 
     parser = argparse.ArgumentParser()
     parser.add_argument("repo_url")
