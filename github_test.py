@@ -6,13 +6,7 @@ import os
 from dateutil.parser import parse
 import pytest
 
-from constants import (
-    NO_PR_BUILD,
-    SCRIPT_DIR,
-    TRAVIS_PENDING,
-    TRAVIS_FAILURE,
-    TRAVIS_SUCCESS,
-)
+from constants import SCRIPT_DIR
 from github import (
     create_pr,
     calculate_karma,
@@ -20,7 +14,6 @@ from github import (
     fetch_pull_requests_since_date,
     get_issue,
     get_org_and_repo,
-    get_status_of_pr,
     github_auth_headers,
     make_issue_release_notes,
     make_pull_requests_query,
@@ -166,55 +159,7 @@ async def test_get_org_and_repo():
         assert get_org_and_repo(git_url) == ("mitodl", "release-script")
 
 
-def _load_status(status):
-    """Load statuses from test data"""
-    with open(os.path.join(BASE_DIR, "test_data", "statuses_{}.json".format(status))) as f:
-        return json.load(f)
-
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SUCCESS_DATA = _load_status("success")
-FAILED_DATA = _load_status("failure")
-PENDING_DATA = _load_status("pending")
-NO_PR_BUILD_DATA = _load_status("no_pr_builds")
-
-
-@pytest.mark.parametrize("status_code,status_data, expected_status", [
-    [200, SUCCESS_DATA, TRAVIS_SUCCESS],
-    [404, [], NO_PR_BUILD],
-    [200, [], NO_PR_BUILD],
-    [200, FAILED_DATA, TRAVIS_FAILURE],
-    [200, PENDING_DATA, TRAVIS_PENDING],
-    [200, NO_PR_BUILD_DATA, NO_PR_BUILD],
-])
-async def test_get_status_of_pr(mocker, status_code, status_data, expected_status):
-    """get_status_of_pr should get the status of a PR"""
-
-    org = 'org'
-    repo = 'repo'
-    token = 'token'
-    branch = 'branch'
-
-    patched = mocker.async_patch('client_wrapper.ClientWrapper.get')
-    resp = patched.return_value
-    resp.status_code = status_code
-    resp.json.return_value = status_data
-    assert await get_status_of_pr(
-        github_access_token=token,
-        org=org,
-        repo=repo,
-        branch=branch,
-    ) == expected_status
-
-    if status_code != 404:
-        resp.raise_for_status.assert_called_once_with()
-
-    endpoint = "https://api.github.com/repos/{org}/{repo}/commits/{ref}/statuses".format(
-        org=org,
-        repo=repo,
-        ref=branch,
-    )
-    patched.assert_called_once_with(mocker.ANY, endpoint, headers=github_auth_headers(token))
 
 
 async def test_fetch_pull_requests_since_date(mocker):  # pylint: disable=too-many-locals

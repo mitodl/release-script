@@ -2,12 +2,6 @@
 import os
 
 
-TRAVIS_SUCCESS = 'success'
-TRAVIS_FAILURE = 'failure'
-TRAVIS_PENDING = 'pending'
-NO_PR_BUILD = 'none'
-
-
 FINISH_RELEASE_ID = 'finish_release'
 NEW_RELEASE_ID = 'new_release'
 
