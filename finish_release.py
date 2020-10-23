@@ -1,6 +1,4 @@
 """Release script to finish the release"""
-import argparse
-import asyncio
 import os
 import re
 from datetime import datetime
@@ -9,16 +7,15 @@ from async_subprocess import (
     check_call,
     check_output,
 )
+from exception import VersionMismatchException
 from release import (
     init_working_dir,
     validate_dependencies,
-    VersionMismatchException,
 )
 
 
 async def merge_release_candidate(*, root):
     """Merge release-candidate into release"""
-    print("Merge release-candidate into release")
     await check_call(['git', 'checkout', 'release'], cwd=root)
     await check_call(['git', 'merge', 'release-candidate', '--no-edit'], cwd=root)
     await check_call(['git', 'push'], cwd=root)
@@ -26,7 +23,6 @@ async def merge_release_candidate(*, root):
 
 async def check_release_tag(version, *, root):
     """Check release version number"""
-    print("Check release version number...")
     await check_call(['git', 'checkout', 'release-candidate'], cwd=root)
     log_output = await check_output(['git', 'log', '-1', '--pretty=%B'], cwd=root)
     commit_name = log_output.decode().strip()
@@ -39,7 +35,6 @@ async def check_release_tag(version, *, root):
 
 async def tag_release(version, *, root):
     """Add git tag for release"""
-    print("Tag release...")
     await check_call(['git', 'tag', '-a', '-m', "Release {}".format(version), "v{}".format(version)], cwd=root)
     await check_call(['git', 'push', '--follow-tags'], cwd=root)
 
@@ -80,7 +75,6 @@ async def set_release_date(version, timezone, *, root):
 
 async def merge_release(*, root):
     """Merge release to master"""
-    print("Merge release to master")
     await check_call(['git', 'checkout', '-q', 'master'], cwd=root)
     await check_call(['git', 'pull'], cwd=root)
     await check_call(['git', 'merge', 'release', '--no-edit'], cwd=root)
@@ -97,29 +91,3 @@ async def finish_release(*, github_access_token, repo_url, version, timezone):
         await merge_release_candidate(root=working_dir)
         await tag_release(version, root=working_dir)
         await merge_release(root=working_dir)
-
-
-def main():
-    """
-    Deploy a release to production
-    """
-    try:
-        github_access_token = os.environ['GITHUB_ACCESS_TOKEN']
-    except KeyError as ex:
-        raise Exception("Missing GITHUB_ACCESS_TOKEN") from ex
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("repo_url")
-    parser.add_argument("version")
-    args = parser.parse_args()
-
-    asyncio.run(finish_release(
-        github_access_token=github_access_token,
-        repo_url=args.repo_url,
-        version=args.version,
-        timezone=args.timezone
-    ))
-
-
-if __name__ == "__main__":
-    main()

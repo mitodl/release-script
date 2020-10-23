@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime, timezone
 import gzip
 import os
+from pathlib import Path
 from shutil import copyfileobj
 from tempfile import (
     TemporaryFile,
@@ -47,7 +48,7 @@ def make_test_repo():
 
                 sync_check_call(["git", "fast-import", "--quiet"], stdin=temp_file, cwd=directory)
         sync_check_call(["git", "checkout", "--quiet", "master"], cwd=directory)
-        yield directory
+        yield Path(directory)
 
 
 def async_wrapper(mocked):

@@ -10,8 +10,14 @@ from tempfile import TemporaryDirectory
 
 from dateutil.parser import parse
 
-from async_subprocess import call, check_call, check_output
-from constants import SCRIPT_DIR, WEB_APPLICATION_TYPE
+from async_subprocess import check_call, check_output
+from constants import (
+    SCRIPT_DIR,
+    LIBRARY_TYPE,
+    WEB_APPLICATION_TYPE,
+    VALID_PACKAGING_TOOL_TYPES,
+    VALID_WEB_APPLICATION_TYPES,
+)
 from exception import ReleaseException
 from github import (
     get_pull_request,
@@ -278,61 +284,6 @@ async def virtualenv(python_interpreter, env):
         yield virtualenv_dir, dict(line.split("=", 1) for line in output.splitlines())
 
 
-async def upload_to_pypi(*, repo_info, testing, version, github_access_token):  # pylint: disable=too-many-locals
-    """
-    Upload a version of a project to PYPI
-
-    Args:
-        repo_info (RepoInfo): The repository info
-        testing (bool): If true upload to the testing server, else upload to production
-        version (str): The version of the project to upload
-        github_access_token (str): The github access token
-    """
-    branch = "v{}".format(version)
-    # Set up environment variables for uploading to pypi or pypitest
-    twine_env = {
-        'TWINE_USERNAME': os.environ['PYPITEST_USERNAME'] if testing else os.environ['PYPI_USERNAME'],
-        'TWINE_PASSWORD': os.environ['PYPITEST_PASSWORD'] if testing else os.environ['PYPI_PASSWORD'],
-    }
-
-    # This is the python interpreter to use for creating the source distribution or wheel
-    # In particular if a wheel is specific to one version of python we need to use that interpreter to create it.
-    python = "python3" if repo_info.python3 else "python2"
-
-    async with init_working_dir(github_access_token, repo_info.repo_url, branch=branch) as working_dir:
-        async with virtualenv("python3", None) as (_, outer_environ):
-            # Heroku has both Python 2 and 3 installed but the system libraries aren't configured for our use,
-            # so make a virtualenv.
-            async with virtualenv(python, outer_environ) as (virtualenv_dir, environ):
-                # Use the virtualenv binaries to act within that environment
-                python_path = os.path.join(virtualenv_dir, "bin", "python")
-                pip_path = os.path.join(virtualenv_dir, "bin", "pip")
-                twine_path = os.path.join(virtualenv_dir, "bin", "twine")
-
-                # Install dependencies. wheel is needed for Python 2. twine uploads the package.
-                await check_call([pip_path, "install", "wheel", "twine"], env=environ, cwd=working_dir)
-
-                # Create source distribution and wheel.
-                await call([python_path, "setup.py", "sdist"], env=environ, cwd=working_dir)
-                universal = ["--universal"] if repo_info.python2 and repo_info.python3 else []
-                build_wheel_args = [python_path, "setup.py", "bdist_wheel", *universal]
-                await call(build_wheel_args, env=environ, cwd=working_dir)
-                dist_files = os.listdir(os.path.join(working_dir, "dist"))
-                if len(dist_files) != 2:
-                    raise Exception("Expected to find one tarball and one wheel in directory")
-                dist_paths = [os.path.join("dist", name) for name in dist_files]
-
-                # Upload to pypi
-                testing_args = ["--repository-url", "https://test.pypi.org/legacy/"] if testing else []
-                await check_call(
-                    [twine_path, "upload", *testing_args, *dist_paths],
-                    env={
-                        **environ,
-                        **twine_env,
-                    }, cwd=working_dir
-                )
-
-
 def load_repos_info(channel_lookup):
     """
     Load repo information from JSON and looks up channel ids for each repo
@@ -345,23 +296,35 @@ def load_repos_info(channel_lookup):
     """
     with open(os.path.join(SCRIPT_DIR, "repos_info.json")) as f:
         repos_info = json.load(f)
-        return [
-            RepoInfo(
-                name=repo_info['name'],
-                repo_url=repo_info.get('repo_url'),
-                rc_hash_url=(
-                    repo_info['rc_hash_url'] if repo_info.get('project_type') == WEB_APPLICATION_TYPE else None
-                ),
-                prod_hash_url=(
-                    repo_info['prod_hash_url'] if repo_info.get('project_type') == WEB_APPLICATION_TYPE else None
-                ),
-                channel_id=channel_lookup[repo_info['channel_name']],
-                project_type=repo_info.get('project_type'),
-                python2=repo_info.get('python2'),
-                python3=repo_info.get('python3'),
-                announcements=repo_info.get('announcements'),
-            ) for repo_info in repos_info['repos']
-        ]
+
+    infos = [
+        RepoInfo(
+            name=repo_info['name'],
+            repo_url=repo_info.get('repo_url'),
+            rc_hash_url=(
+                repo_info['rc_hash_url'] if repo_info.get('project_type') == WEB_APPLICATION_TYPE else None
+            ),
+            prod_hash_url=(
+                repo_info['prod_hash_url'] if repo_info.get('project_type') == WEB_APPLICATION_TYPE else None
+            ),
+            channel_id=channel_lookup[repo_info['channel_name']],
+            project_type=repo_info.get('project_type'),
+            web_application_type=repo_info.get('web_application_type'),
+            packaging_tool=repo_info.get('packaging_tool'),
+            announcements=repo_info.get('announcements'),
+        ) for repo_info in repos_info['repos']
+    ]
+
+    # some basic validation for sanity checking
+    for info in infos:
+        if info.project_type == WEB_APPLICATION_TYPE:
+            if info.web_application_type not in VALID_WEB_APPLICATION_TYPES:
+                raise Exception(f"Unexpected web application type {info.web_application_type} for {info.name}")
+        elif info.project_type == LIBRARY_TYPE:
+            if info.packaging_tool not in VALID_PACKAGING_TOOL_TYPES:
+                raise Exception(f"Unexpected packaging tool {info.packaging_tool} for {info.name}")
+
+    return infos
 
 
 def next_versions(version):

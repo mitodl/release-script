@@ -7,8 +7,7 @@
       "prod_hash_url": "https://micromasters.mit.edu/static/hash.txt",
       "channel_name": "micromasters-eng",
       "project_type": "web_application",
-      "python2": false,
-      "python3": true,
+      "web_application_type": "django",
       "announcements": false
     },
     {
@@ -18,8 +17,7 @@
       "prod_hash_url": "https://bootcamp-ecommerce.herokuapp.com/static/hash.txt",
       "channel_name": "bootcamp-eng",
       "project_type": "web_application",
-      "python2": false,
-      "python3": true,
+      "web_application_type": "django",
       "announcements": false
     },
     {
@@ -29,8 +27,7 @@
       "prod_hash_url": "https://odl-open-discussions.herokuapp.com/static/hash.txt",
       "channel_name": "mit-open-eng",
       "project_type": "web_application",
-      "python2": false,
-      "python3": true,
+      "web_application_type": "django",
       "announcements": false
     },
     {
@@ -40,8 +37,7 @@
       "prod_hash_url": "https://xpro.mit.edu/static/hash.txt",
       "channel_name": "mitxpro-eng",
       "project_type": "web_application",
-      "python2": false,
-      "python3": true,
+      "web_application_type": "django",
       "announcements": false
     },
     {
@@ -51,8 +47,7 @@
       "prod_hash_url": "https://video.odl.mit.edu/static/hash.txt",
       "channel_name": "odl-video-service-eng",
       "project_type": "web_application",
-      "python2": false,
-      "python3": true,
+      "web_application_type": "django",
       "announcements": false
     },
     {
@@ -60,8 +55,7 @@
       "repo_url": "https://github.com/mitodl/edx-sga.git",
       "channel_name": "edx-sga-doof",
       "project_type": "library",
-      "python2": true,
-      "python3": false,
+      "packaging_tool": "setuptools",
       "announcements": false
     },
     {
@@ -69,8 +63,7 @@
       "repo_url": "https://github.com/mitodl/rapid-response-xblock.git",
       "channel_name": "rapid-response-doof",
       "project_type": "library",
-      "python2": true,
-      "python3": false,
+      "packaging_tool": "setuptools",
       "announcements": false
     },
     {
@@ -78,8 +71,7 @@
       "repo_url": "https://github.com/mitodl/open-discussions-client.git",
       "channel_name": "discussions-client",
       "project_type": "library",
-      "python2": false,
-      "python3": true,
+      "packaging_tool": "setuptools",
       "announcements": false
     },
     {
@@ -87,8 +79,7 @@
       "repo_url": "https://github.com/mitodl/edx-api-client.git",
       "channel_name": "edx-api-client-doof",
       "project_type": "library",
-      "python2": true,
-      "python3": true,
+      "packaging_tool": "setuptools",
       "announcements": false
     },
     {
@@ -96,8 +87,7 @@
       "repo_url": "https://github.com/mitodl/mit-moira.git",
       "channel_name": "mit-moira",
       "project_type": "library",
-      "python2": false,
-      "python3": true,
+      "packaging_tool": "setuptools",
       "announcements": false
     },
     {
@@ -105,8 +95,7 @@
       "repo_url": "https://github.com/mitodl/ocw-data-parser.git",
       "channel_name": "ocw-data-parser",
       "project_type": "library",
-      "python2": false,
-      "python3": true,
+      "packaging_tool": "setuptools",
       "announcements": false
     },
     {
@@ -119,8 +108,25 @@
       "repo_url": "https://github.com/mitodl/django-server-status.git",
       "channel_name": "django-server-status",
       "project_type": "library",
-      "python2": false,
-      "python3": true,
+      "packaging_tool": "setuptools",
+      "announcements": false
+    },
+    {
+      "name": "ocw-to-hugo",
+      "repo_url": "https://github.com/mitodl/ocw-to-hugo.git",
+      "channel_name": "ocw-to-hugo",
+      "project_type": "library",
+      "packaging_tool": "npm",
+      "announcements": false
+    },
+    {
+      "name": "hugo-course-publisher",
+      "repo_url": "https://github.com/mitodl/hugo-course-publisher.git",
+      "channel_name": "hugo-course-publisher",
+      "project_type": "web_application",
+      "web_application_type": "hugo",
+      "rc_hash_url": "https://ocwnext-rc.odl.mit.edu/static/hash.txt",
+      "prod_hash_url": "https://ocwnext.odl.mit.edu/static/hash.txt",
       "announcements": false
     }
   ]

@@ -1,7 +1,6 @@
 """Tests for release script"""
 import os
 from subprocess import CalledProcessError
-from tempfile import TemporaryDirectory
 
 import pytest
 
@@ -17,134 +16,16 @@ from release import (
     init_working_dir,
     release,
     update_release_notes,
-    UpdateVersionException,
-    update_version,
-    update_version_in_file,
     validate_dependencies,
     verify_new_commits,
 )
 from test_util import async_context_manager_yielder, sync_check_call as check_call
-from version import get_version_tag
 from wait_for_deploy import fetch_release_hash
 
 
 pytestmark = pytest.mark.asyncio
 
 
-# pylint: disable=redefined-outer-name, unused-argument
-async def test_update_version_settings(test_repo_directory):
-    """update_version should return the old version and replace the appropriate file's text with the new version"""
-    new_version = "9.9.99"
-    path = os.path.join(test_repo_directory, "ccxcon/settings.py")
-
-    old_lines = open(path).readlines()
-
-    old_version = update_version(new_version, working_dir=test_repo_directory)
-    assert old_version == "0.2.0"
-    new_lines = open(path).readlines()
-
-    assert len(old_lines) == len(new_lines)
-
-    diff_count = 0
-    for old_line, new_line in zip(old_lines, new_lines):
-        if old_line != new_line:
-            diff_count += 1
-
-    assert diff_count == 1
-
-    found_new_version = False
-    with open(path) as f:
-        for line in f.readlines():
-            if line == "VERSION = \"{}\"\n".format(new_version):
-                found_new_version = True
-                break
-    assert found_new_version, "Unable to find updated version"
-
-
-async def test_update_version_init(test_repo_directory):
-    """If we detect a version in a __init__.py file we should update it properly"""
-    old_version = '1.2.3'
-    os.unlink(os.path.join(test_repo_directory, "ccxcon/settings.py"))
-    with open(os.path.join(test_repo_directory, "ccxcon/__init__.py"), "w") as f:
-        f.write("__version__ = '{}'".format(old_version))
-    new_version = "4.5.6"
-    assert update_version(new_version, working_dir=test_repo_directory) == old_version
-
-    found_new_version = False
-    with open(os.path.join(test_repo_directory, "ccxcon/__init__.py")) as f:
-        for line in f.readlines():
-            if line.strip() == "__version__ = '{}'".format(new_version):
-                found_new_version = True
-                break
-    assert found_new_version, "Unable to find updated version"
-
-
-async def test_update_version_setup(test_repo_directory):
-    """If we detect a version in setup.py we should update it properly"""
-    old_version = '0.2.0'
-    os.unlink(os.path.join(test_repo_directory, "ccxcon/settings.py"))
-    with open(os.path.join(test_repo_directory, "setup.py"), "w") as f:
-        f.write("""
-setup(
-    name='pylmod',
-    version='0.2.0',
-    license='BSD',
-    author='MIT ODL Engineering',
-    zip_safe=True,
-)        """)
-    new_version = '4.5.6'
-    assert update_version(new_version, working_dir=test_repo_directory) == old_version
-
-    found_new_version = False
-    with open(os.path.join(test_repo_directory, "setup.py")) as f:
-        for line in f.readlines():
-            if line.strip() == "version='{}',".format(new_version):
-                found_new_version = True
-                break
-    assert found_new_version, "Unable to find updated version"
-
-
-async def test_update_version_missing(test_repo_directory):
-    """If there is no version we should return None"""
-    os.unlink(os.path.join(test_repo_directory, "ccxcon/settings.py"))
-    contents = """
-setup(
-    name='pylmod',
-)        """
-    with open(os.path.join(test_repo_directory, "setup.py"), "w") as f:
-        f.write(contents)
-    with pytest.raises(UpdateVersionException) as ex:
-        update_version("4.5.6", working_dir=test_repo_directory)
-    assert ex.value.args[0] == "Unable to find previous version number"
-
-
-async def test_update_version_duplicate(test_repo_directory):
-    """If there are two detected versions in different files we should raise an exception"""
-    contents = """
-setup(
-    name='pylmod',
-    version='1.2.3',
-)        """
-    with open(os.path.join(test_repo_directory, "setup.py"), "w") as f:
-        f.write(contents)
-    with pytest.raises(UpdateVersionException) as ex:
-        update_version("4.5.6", working_dir=test_repo_directory)
-    assert ex.value.args[0] == "Found at least two files with updatable versions: settings.py and setup.py"
-
-
-async def test_update_version_duplicate_same_file(test_repo_directory):
-    """If there are two detected versions in the same file we should raise an exception"""
-    contents = """
-setup(
-    name='pylmod',
-    version='1.2.3',
-    version='4.5.6',
-)        """
-    with open(os.path.join(test_repo_directory, "setup.py"), "w") as f:
-        f.write(contents)
-    with pytest.raises(UpdateVersionException) as ex:
-        update_version("4.5.6", working_dir=test_repo_directory)
-    assert ex.value.args[0] == "Expected only one version for setup.py but found 2"
 
 
 async def test_dependency_exists():
@@ -176,25 +57,6 @@ async def test_validate_dependencies_failure(mocker, dependency):
         await validate_dependencies()
 
     dependency_exists_stub.assert_any_call(dependency)
-
-
-@pytest.mark.parametrize("filename,line", [
-    ('settings.py', 'VERSION = \"0.34.56\"'),
-    ('__init__.py', '__version__ = \'0.34.56\''),
-])
-async def test_update_version_in_file(filename, line):
-    """update_version_in_file should update the version in the file and return the old version, if found"""
-    with TemporaryDirectory() as base:
-        with open(os.path.join(base, filename), "w") as f:
-            f.write("text")
-        retrieved_version = update_version_in_file(base, filename, "0.123.456")
-        assert retrieved_version is None
-
-        with open(os.path.join(base, filename), "w") as f:
-            f.write(line)
-
-        retrieved_version = update_version_in_file(base, filename, "0.123.456")
-        assert retrieved_version == "0.34.56"
 
 
 @pytest.mark.parametrize("major", [3, 4, 5, 6, 7, 8])
@@ -469,24 +331,10 @@ async def test_fetch_release_hash(mocker):
     get_mock.return_value.raise_for_status.assert_called_once_with()
 
 
-async def test_get_version_tag(mocker):
-    """
-    get_version_tag should return the git hash of the directory
-    """
-    a_hash = b'hash'
-    mocker.async_patch('version.check_output', return_value=a_hash)
-    assert await get_version_tag(
-        github_access_token='github',
-        repo_url='http://github.com/mitodl/doof.git',
-        commit_hash='commit',
-    ) == a_hash.decode()
-
-
 @pytest.mark.parametrize("hotfix_hash", ["", "abcdef"])
-async def test_release(mocker, hotfix_hash, test_repo_directory):
+async def test_release(mocker, hotfix_hash, test_repo_directory, test_repo):
     """release should perform a release"""
     token = "token"
-    repo_url = 'http://github.com/fake/repo.git'
     old_version = "6.5.4"
     new_version = '9.8.7'
     branch = 'branch'
@@ -496,13 +344,13 @@ async def test_release(mocker, hotfix_hash, test_repo_directory):
     check_call_mock = mocker.async_patch('release.check_call')
     verify_mock = mocker.async_patch('release.verify_new_commits')
     update_release_mock = mocker.async_patch('release.update_release_notes')
-    update_version_mock = mocker.patch('release.update_version', return_value=old_version)
+    update_version_mock = mocker.async_patch('release.update_version', return_value=old_version)
     generate_mock = mocker.async_patch('release.generate_release_pr')
     mocker.patch('release.init_working_dir', side_effect=async_context_manager_yielder(test_repo_directory))
 
     await release(
         github_access_token=token,
-        repo_url=repo_url,
+        repo_info=test_repo,
         new_version=new_version,
         branch=branch,
         commit_hash=hotfix_hash
@@ -511,7 +359,7 @@ async def test_release(mocker, hotfix_hash, test_repo_directory):
     validate_mock.assert_called_once_with()
     generate_mock.assert_called_once_with(
         github_access_token=token,
-        repo_url=repo_url,
+        repo_url=test_repo.repo_url,
         old_version=old_version,
         new_version=new_version,
         base_branch=base_branch,
@@ -521,7 +369,9 @@ async def test_release(mocker, hotfix_hash, test_repo_directory):
     update_release_mock.assert_called_once_with(
         old_version, new_version, base_branch=base_branch, root=test_repo_directory
     )
-    update_version_mock.assert_called_once_with(new_version, working_dir=test_repo_directory)
+    update_version_mock.assert_called_once_with(
+        repo_info=test_repo, new_version=new_version, working_dir=test_repo_directory,
+    )
     check_call_mock.assert_any_call(["git", "checkout", "-qb", "release-candidate"], cwd=test_repo_directory)
     if hotfix_hash:
         check_call_mock.assert_any_call(["git", "cherry-pick", hotfix_hash], cwd=test_repo_directory)
@@ -530,7 +380,7 @@ async def test_release(mocker, hotfix_hash, test_repo_directory):
     )
 
 
-async def test_release_failed_cherry_pick(test_repo_directory, mocker):
+async def test_release_failed_cherry_pick(test_repo_directory, test_repo, mocker):
     """release should raise an exception if the cherry pick fails"""
     commit_hash = "does_not_exist"
 
@@ -544,7 +394,7 @@ async def test_release_failed_cherry_pick(test_repo_directory, mocker):
     with pytest.raises(ReleaseException) as ex:
         await release(
             github_access_token="token",
-            repo_url="http://github.com/repo/url.git",
+            repo_info=test_repo,
             new_version="9.8.7",
             branch="branch",
             commit_hash=commit_hash,
