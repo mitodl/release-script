@@ -19,8 +19,6 @@ from conftest import (
 )
 from constants import (
     LIBRARY_TYPE,
-    TRAVIS_FAILURE,
-    TRAVIS_SUCCESS,
     WEB_APPLICATION_TYPE,
 )
 from exception import (
@@ -433,9 +431,6 @@ async def test_release_library(doof, library_test_repo, mocker):
     )
     get_release_pr_mock = mocker.async_patch('bot.get_release_pr', side_effect=[None, pr, pr])
     release_mock = mocker.async_patch('bot.release')
-    finish_release_mock = mocker.async_patch('bot.finish_release')
-
-    wait_for_travis_sync_mock = mocker.async_patch('bot.wait_for_travis', return_value=TRAVIS_SUCCESS)
 
     command_words = ['release', version]
     me = 'mitodl_user'
@@ -450,78 +445,18 @@ async def test_release_library(doof, library_test_repo, mocker):
         github_access_token=GITHUB_ACCESS,
         repo_url=library_test_repo.repo_url,
         new_version=pr.version,
-    )
-    wait_for_travis_sync_mock.assert_called_once_with(
-        github_access_token=GITHUB_ACCESS,
-        org=org,
-        repo=repo,
-        branch='release-candidate',
     )
     get_release_pr_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
         org=org,
         repo=repo,
     )
-    finish_release_mock.assert_called_once_with(
-        github_access_token=GITHUB_ACCESS,
-        repo_url=library_test_repo.repo_url,
-        version=version,
-        timezone=doof.timezone
-    )
     assert doof.said(
         f"Merging evil scheme {pr.version} for {library_test_repo.name}..."
     )
     assert doof.said(
-        f"My evil scheme {pr.version} for {library_test_repo.name} has been released! Waiting for Travis..."
-    )
-    assert doof.said(
-        "My evil scheme {version} for {project} has been merged!".format(
-            version=pr.version,
-            project=library_test_repo.name,
-        )
-    )
-
-
-async def test_release_library_failure(doof, library_test_repo, mocker):
-    """If a library release fails we shouldn't merge it"""
-    version = '1.2.3'
-    pr = ReleasePR(
-        version=version,
-        url='http://new.url',
-        body='Release PR body',
-    )
-    mocker.async_patch('bot.get_release_pr', side_effect=[None, pr, pr])
-    release_mock = mocker.async_patch('bot.release')
-    finish_release_mock = mocker.async_patch('bot.finish_release')
-
-    wait_for_travis_sync_mock = mocker.async_patch('bot.wait_for_travis', return_value=TRAVIS_FAILURE)
-
-    command_words = ['release', version]
-    me = 'mitodl_user'
-    await doof.run_command(
-        manager=me,
-        channel_id=library_test_repo.channel_id,
-        words=command_words,
-    )
-
-    org, repo = get_org_and_repo(library_test_repo.repo_url)
-    release_mock.assert_called_once_with(
-        github_access_token=GITHUB_ACCESS,
-        repo_url=library_test_repo.repo_url,
-        new_version=pr.version,
-    )
-    wait_for_travis_sync_mock.assert_called_once_with(
-        github_access_token=GITHUB_ACCESS,
-        org=org,
-        repo=repo,
-        branch='release-candidate',
-    )
-    assert finish_release_mock.call_count == 0
-    assert doof.said(
-        f"Merging evil scheme {pr.version} for {library_test_repo.name}..."
-    )
-    assert doof.said(
-        "Uh-oh, it looks like, uh, coffee break's over. During the release Travis had a hiccup."
+        f"My evil scheme {pr.version} for {library_test_repo.name} has been released! "
+        f"Once Travis succeeds, finish the release."
     )
 
 

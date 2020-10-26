@@ -39,8 +39,8 @@ async def async_main():
     channels_info = await get_channels_info(envs['SLACK_ACCESS_TOKEN'])
     try:
         channel_id = channels_info[channel_name]
-    except KeyError:
-        raise Exception("Unable to find channel by name {}".format(channel_name))
+    except KeyError as ex:
+        raise Exception("Unable to find channel by name {}".format(channel_name)) from ex
 
     repos_info = load_repos_info(channels_info)
 

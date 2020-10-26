@@ -9,7 +9,6 @@ from dateutil.parser import parse
 from requests.exceptions import HTTPError
 
 from client_wrapper import ClientWrapper
-from constants import NO_PR_BUILD
 from markdown import parse_linked_issues
 
 log = logging.getLogger(__name__)
@@ -479,43 +478,3 @@ def get_org_and_repo(repo_url):
     """
     org, repo = re.match(r'^.*github\.com[:|/](.+)/(.+)\.git', repo_url).groups()
     return org, repo
-
-
-async def get_status_of_pr(*, github_access_token, org, repo, branch):
-    """
-    Get the status of the PR for a given branch
-
-    Args:
-        github_access_token (str): The github access token
-        org (str): The github organization (eg mitodl)
-        repo (str): The github repository (eg micromasters)
-        branch (str): The name of the associated branch
-
-    Returns:
-        str: The status of the PR. If any status is failed this is failed,
-            if any is pending this is pending. Else it's good.
-    """
-    endpoint = "https://api.github.com/repos/{org}/{repo}/commits/{ref}/statuses".format(
-        org=org,
-        repo=repo,
-        ref=branch,
-    )
-    client = ClientWrapper()
-    resp = await client.get(
-        endpoint,
-        headers=github_auth_headers(github_access_token),
-    )
-    if resp.status_code == 404:
-        statuses = []
-    else:
-        resp.raise_for_status()
-        statuses = resp.json()
-
-    # Only look at PR builds
-    statuses = [status for status in statuses if status['context'] == 'continuous-integration/travis-ci/pr']
-
-    if len(statuses) == 0:
-        # This may be due to the PR not being available yet
-        return NO_PR_BUILD
-
-    return statuses[0]['state']

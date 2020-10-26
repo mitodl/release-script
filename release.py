@@ -270,8 +270,8 @@ async def release(github_access_token, repo_url, new_version, branch=None, commi
         if commit_hash:
             try:
                 await check_call(["git", "cherry-pick", commit_hash], cwd=working_dir)
-            except CalledProcessError:
-                raise ReleaseException(f"Cherry pick failed for the given hash {commit_hash}")
+            except CalledProcessError as ex:
+                raise ReleaseException(f"Cherry pick failed for the given hash {commit_hash}") from ex
         old_version = update_version(new_version, working_dir=working_dir)
         if parse_version(old_version) >= parse_version(new_version):
             raise ReleaseException("old version is {old} but the new version {new} is not newer".format(
@@ -302,8 +302,8 @@ def main():
     """
     try:
         github_access_token = os.environ['GITHUB_ACCESS_TOKEN']
-    except KeyError:
-        raise Exception("Missing GITHUB_ACCESS_TOKEN")
+    except KeyError as ex:
+        raise Exception("Missing GITHUB_ACCESS_TOKEN") from ex
     parser = argparse.ArgumentParser()
     parser.add_argument("repo_url")
     parser.add_argument("version")

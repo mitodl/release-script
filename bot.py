@@ -16,7 +16,6 @@ from constants import (
     FINISH_RELEASE_ID,
     NEW_RELEASE_ID,
     LIBRARY_TYPE,
-    TRAVIS_SUCCESS,
     WEB_APPLICATION_TYPE,
 )
 from exception import (
@@ -60,7 +59,6 @@ from wait_for_deploy import (
     wait_for_deploy,
 )
 from version import get_version_tag
-from wait_for_travis import wait_for_travis
 from web import make_app
 
 
@@ -296,48 +294,10 @@ class Bot:
 
         await self.say(
             channel_id=channel_id,
-            text=f"My evil scheme {version} for {repo_info.name} has been released! Waiting for Travis..."
-        )
-        await self._wait_for_travis(
-            repo_info=repo_info,
-            version=version,
-        )
-
-    async def _wait_for_travis(self, *, repo_info, version):
-        """Wait for travis then finish the library release"""
-        repo_url = repo_info.repo_url
-        channel_id = repo_info.channel_id
-        org, repo = get_org_and_repo(repo_url)
-        status = await wait_for_travis(
-            github_access_token=self.github_access_token,
-            org=org,
-            repo=repo,
-            branch="release-candidate",
-        )
-        if status != TRAVIS_SUCCESS:
-            await self.say(
-                channel_id=channel_id,
-                text=(
-                    "Uh-oh, it looks like, uh, coffee break's over. "
-                    "During the release Travis had a hiccup. "
-                    "Check Travis manually, then run finish release if all looks good."
-                )
+            text=(
+                f"My evil scheme {version} for {repo_info.name} has been released! "
+                f"Once Travis succeeds, finish the release."
             )
-            return
-
-        await finish_release(
-            github_access_token=self.github_access_token,
-            repo_url=repo_url,
-            version=version,
-            timezone=self.timezone
-        )
-        await self.say(
-            channel_id=channel_id,
-            text="My evil scheme {version} for {project} has been merged!".format(
-                version=version,
-                project=repo_info.name,
-            ),
-            is_announcement=True,
         )
 
     async def _web_application_release(self, command_args, hotfix_version=None):
@@ -1420,8 +1380,8 @@ async def async_main():
     repos_info = load_repos_info(channels_info)
     try:
         port = int(envs['PORT'])
-    except ValueError:
-        raise Exception("PORT is invalid")
+    except ValueError as ex:
+        raise Exception("PORT is invalid") from ex
 
     bot = Bot(
         slack_access_token=envs['SLACK_ACCESS_TOKEN'],
