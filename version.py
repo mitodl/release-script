@@ -125,7 +125,7 @@ async def update_npm_version(*, new_version, working_dir):
     """
     with open(Path(working_dir) / "package.json", "r") as f:
         old_version = json.load(f)["version"]
-    await check_output(["npm", "--no-git-tag-version", new_version], cwd=working_dir)
+    await check_output(["npm", "--no-git-tag-version", "version", new_version], cwd=working_dir)
     return old_version
 
 
