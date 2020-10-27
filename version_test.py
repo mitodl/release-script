@@ -1,9 +1,12 @@
 """Test version functions"""
+import json
 import os
+from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import pytest
 
+from async_subprocess import check_call
 from constants import (
     DJANGO,
     HUGO,
@@ -18,6 +21,7 @@ from version import (
     UpdateVersionException,
     update_version,
     update_python_version_in_file,
+    update_npm_version,
 )
 
 
@@ -173,8 +177,19 @@ async def test_update_python_version_in_file(filename, line):
         assert retrieved_version == "0.34.56"
 
 
-async def test_update_version_for_npm():
+async def test_update_npm_version():
     """update version for an npm package"""
+    old_version = '0.76.54'
+    new_version = '0.99.99'
+
+    with TemporaryDirectory() as working_dir:
+        package_json_path = Path(working_dir) / "package.json"
+        with open(package_json_path, "w") as f:
+            json.dump({"version": old_version}, f)
+
+        await update_npm_version(new_version=new_version, working_dir=working_dir)
+        with open(package_json_path) as f:
+            assert json.load(f) == {"version": new_version}
 
 
 # pylint: disable=too-many-arguments
