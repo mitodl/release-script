@@ -97,7 +97,7 @@ async def get_release_pr(*, github_access_token, org, repo):
     title = pr['title']
     match = re.match(r'^Release (?P<version>\d+\.\d+\.\d+)$', title)
     if not match:
-        raise ReleaseException("Release PR title has an unexpected format")
+        return None
     version = match.group('version')
 
     return ReleasePR(
