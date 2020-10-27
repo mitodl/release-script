@@ -6,7 +6,6 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from async_subprocess import check_call
 from constants import (
     DJANGO,
     HUGO,
