@@ -1,6 +1,5 @@
 """Tests for Doof"""
 import asyncio
-from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 
 import pytest
@@ -9,8 +8,6 @@ import pytz
 from bot import (
     CommandArgs,
     Bot,
-    FINISH_RELEASE_ID,
-    NEW_RELEASE_ID,
 )
 from conftest import (
     ANNOUNCEMENTS_CHANNEL,
@@ -20,6 +17,10 @@ from conftest import (
 from constants import (
     LIBRARY_TYPE,
     WEB_APPLICATION_TYPE,
+    FINISH_RELEASE_ID,
+    NEW_RELEASE_ID,
+    SETUPTOOLS,
+    VALID_PACKAGING_TOOL_TYPES,
 )
 from exception import (
     ReleaseException,
@@ -32,6 +33,7 @@ from lib import (
     now_in_utc,
     ReleasePR,
 )
+from repo_info import RepoInfo
 from test_util import (
     async_context_manager_yielder,
     async_gen_wrapper,
@@ -46,7 +48,7 @@ pytestmark = pytest.mark.asyncio
 
 GITHUB_ACCESS = 'github'
 SLACK_ACCESS = 'slack'
-
+NPM_TOKEN = "npm-token"
 
 # pylint: disable=redefined-outer-name, too-many-lines
 class DoofSpoof(Bot):
@@ -57,6 +59,7 @@ class DoofSpoof(Bot):
             doof_id="Doofenshmirtz",
             slack_access_token=SLACK_ACCESS,
             github_access_token=GITHUB_ACCESS,
+            npm_token=NPM_TOKEN,
             timezone=pytz.timezone("America/New_York"),
             repos_info=[WEB_TEST_REPO_INFO, LIBRARY_TEST_REPO_INFO, ANNOUNCEMENTS_CHANNEL],
             loop=loop,
@@ -116,7 +119,7 @@ def doof(event_loop):
 async def test_release_notes(doof, test_repo, test_repo_directory, mocker):
     """Doof should show release notes"""
     old_version = "0.1.2"
-    update_version_mock = mocker.patch('bot.update_version', autospec=True, return_value=old_version)
+    update_version_mock = mocker.async_patch('bot.update_version', autospec=True, return_value=old_version)
     mocker.patch(
         'bot.init_working_dir', side_effect=async_context_manager_yielder(test_repo_directory)
     )
@@ -133,7 +136,9 @@ async def test_release_notes(doof, test_repo, test_repo_directory, mocker):
         words=['release', 'notes'],
     )
 
-    update_version_mock.assert_called_once_with("9.9.9", working_dir=test_repo_directory)
+    update_version_mock.assert_called_once_with(
+        repo_info=test_repo, new_version="9.9.9", working_dir=test_repo_directory
+    )
     create_release_notes_mock.assert_called_once_with(
         old_version, with_checkboxes=False, base_branch="master", root=test_repo_directory
     )
@@ -151,7 +156,7 @@ async def test_release_notes_no_new_notes(doof, test_repo, test_repo_directory, 
         'bot.init_working_dir', side_effect=async_context_manager_yielder(test_repo_directory)
     )
     old_version = "0.1.2"
-    update_version_mock = mocker.patch('bot.update_version', autospec=True, return_value=old_version)
+    update_version_mock = mocker.async_patch('bot.update_version', autospec=True, return_value=old_version)
     notes = "no new commits"
     create_release_notes_mock = mocker.async_patch('bot.create_release_notes', return_value=notes)
     org, repo = get_org_and_repo(test_repo.repo_url)
@@ -165,7 +170,9 @@ async def test_release_notes_no_new_notes(doof, test_repo, test_repo_directory, 
     )
 
     any_new_commits_mock.assert_called_once_with(old_version, base_branch="master", root=test_repo_directory)
-    update_version_mock.assert_called_once_with("9.9.9", working_dir=test_repo_directory)
+    update_version_mock.assert_called_once_with(
+        repo_info=test_repo, new_version="9.9.9", working_dir=test_repo_directory
+    )
     create_release_notes_mock.assert_called_once_with(
         old_version, with_checkboxes=False, base_branch="master", root=test_repo_directory
     )
@@ -181,7 +188,7 @@ async def test_release_notes_buttons(doof, test_repo, test_repo_directory, mocke
         'bot.init_working_dir', side_effect=async_context_manager_yielder(test_repo_directory)
     )
     old_version = "0.1.2"
-    update_version_mock = mocker.patch('bot.update_version', autospec=True, return_value=old_version)
+    update_version_mock = mocker.async_patch('bot.update_version', autospec=True, return_value=old_version)
     notes = "some notes"
     create_release_notes_mock = mocker.async_patch('bot.create_release_notes', return_value=notes)
     org, repo = get_org_and_repo(test_repo.repo_url)
@@ -195,7 +202,9 @@ async def test_release_notes_buttons(doof, test_repo, test_repo_directory, mocke
     )
 
     any_new_commits_mock.assert_called_once_with(old_version, base_branch="master", root=test_repo_directory)
-    update_version_mock.assert_called_once_with("9.9.9", working_dir=test_repo_directory)
+    update_version_mock.assert_called_once_with(
+        repo_info=test_repo, new_version="9.9.9", working_dir=test_repo_directory
+    )
     create_release_notes_mock.assert_called_once_with(
         old_version, with_checkboxes=False, base_branch="master", root=test_repo_directory
     )
@@ -280,7 +289,7 @@ async def test_release(doof, test_repo, mocker, command):
     )
     release_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
-        repo_url=test_repo.repo_url,
+        repo_info=test_repo,
         new_version=pr.version,
     )
     wait_for_deploy_sync_mock.assert_called_once_with(
@@ -325,7 +334,7 @@ async def test_hotfix_release(doof, test_repo, test_repo_directory, mocker):
     wait_for_checkboxes_sync_mock = mocker.async_patch('bot.Bot.wait_for_checkboxes')
 
     old_version = "0.1.1"
-    update_version_mock = mocker.patch('bot.update_version', autospec=True, return_value=old_version)
+    update_version_mock = mocker.async_patch('bot.update_version', autospec=True, return_value=old_version)
 
     command_words = ['hotfix', commit_hash]
     me = 'mitodl_user'
@@ -341,10 +350,12 @@ async def test_hotfix_release(doof, test_repo, test_repo_directory, mocker):
         org=org,
         repo=repo,
     )
-    update_version_mock.assert_called_once_with("9.9.9", working_dir=test_repo_directory)
+    update_version_mock.assert_called_once_with(
+        repo_info=test_repo, new_version="9.9.9", working_dir=test_repo_directory
+    )
     release_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
-        repo_url=test_repo.repo_url,
+        repo_info=test_repo,
         new_version=pr.version,
         branch='release',
         commit_hash=commit_hash,
@@ -443,7 +454,7 @@ async def test_release_library(doof, library_test_repo, mocker):
     org, repo = get_org_and_repo(library_test_repo.repo_url)
     release_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
-        repo_url=library_test_repo.repo_url,
+        repo_info=library_test_repo,
         new_version=pr.version,
     )
     get_release_pr_mock.assert_called_once_with(
@@ -789,40 +800,40 @@ async def test_reset(doof, test_repo):
         )
 
 
-@pytest.mark.parametrize("testing", [True, False])
-async def test_upload_to_pypi(doof, library_test_repo, testing, mocker):
-    """the upload_to_pypi command should start the upload process"""
-    upload_to_pypi_patched = mocker.async_patch('bot.upload_to_pypi')
+@pytest.mark.parametrize("command", [["publish"], ["upload", "to", "pypi"]])
+@pytest.mark.parametrize("packaging_tool", VALID_PACKAGING_TOOL_TYPES)
+async def test_publish(doof, library_test_repo, mocker, command, packaging_tool):
+    """the publish command should start the upload process"""
+    publish_patched = mocker.async_patch('bot.publish')
 
-    @asynccontextmanager
-    async def fake_init(*args, **kwargs):  # pylint: disable=unused-argument
-        """Fake empty contextmanager"""
-        yield
-
-    mocker.patch('bot.init_working_dir', side_effect=fake_init)
-    pypi_server = "pypitest" if testing else "pypi"
+    library_test_repo = RepoInfo(**{
+        **library_test_repo._asdict(),
+        "packaging_tool": packaging_tool
+    })
+    doof.repos_info = [library_test_repo]
     version = "3.4.5"
 
     await doof.run_command(
         manager='me',
         channel_id=library_test_repo.channel_id,
-        words=['upload', 'to', pypi_server, version],
+        words=[*command, version],
     )
 
-    upload_to_pypi_patched.assert_called_once_with(
+    publish_patched.assert_called_once_with(
         repo_info=library_test_repo,
-        testing=testing,
         github_access_token=GITHUB_ACCESS,
         version=version,
+        npm_token=NPM_TOKEN,
     )
-    assert doof.said(f"Successfully uploaded {version} to {pypi_server}.")
+    server = "PyPI" if packaging_tool == SETUPTOOLS else "the npm registry"
+    assert doof.said(f"Successfully uploaded {version} to {server}.")
 
 
 @pytest.mark.parametrize("command,project_type", [
     ['version', LIBRARY_TYPE],
     ['wait for checkboxes', LIBRARY_TYPE],
     ['upload to pypi 1.2.3', WEB_APPLICATION_TYPE],
-    ['upload to pypitest 1.2.3', WEB_APPLICATION_TYPE],
+    ['publish 1.2.3', WEB_APPLICATION_TYPE],
 ])  # pylint: disable=too-many-arguments
 async def test_invalid_project_type(doof, test_repo, library_test_repo, command, project_type):
     """
@@ -846,7 +857,7 @@ async def test_invalid_project_type(doof, test_repo, library_test_repo, command,
     'finish release',
     'wait for checkboxes',
     'upload to pypi 1.2.3',
-    'upload to pypitest 1.2.3',
+    'publish 1.2.3',
     'release notes',
 ])
 async def test_command_without_repo(doof, command):

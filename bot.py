@@ -16,6 +16,8 @@ from constants import (
     FINISH_RELEASE_ID,
     NEW_RELEASE_ID,
     LIBRARY_TYPE,
+    NPM,
+    SETUPTOOLS,
     WEB_APPLICATION_TYPE,
 )
 from exception import (
@@ -37,7 +39,6 @@ from release import (
     create_release_notes,
     init_working_dir,
     release,
-    update_version,
 )
 from lib import (
     get_release_pr,
@@ -50,15 +51,19 @@ from lib import (
     next_workday_at_10,
     parse_date,
     VERSION_RE,
-    upload_to_pypi,
-    COMMIT_HASH_RE)
+    COMMIT_HASH_RE
+)
+from publish import publish
 from slack import get_channels_info, get_doofs_id
+from version import (
+    get_version_tag,
+    update_version,
+)
 from wait_for_deploy import (
     fetch_release_hash,
     is_release_deployed,
     wait_for_deploy,
 )
-from version import get_version_tag
 from web import make_app
 
 
@@ -77,6 +82,7 @@ def get_envs():
         'SLACK_ACCESS_TOKEN',
         'BOT_ACCESS_TOKEN',
         'GITHUB_ACCESS_TOKEN',
+        'NPM_TOKEN',
         'SLACK_SECRET',
         'TIMEZONE',
         'PORT',
@@ -96,7 +102,7 @@ def get_envs():
 class Bot:
     """Slack bot used to manage the release"""
 
-    def __init__(self, *, doof_id, slack_access_token, github_access_token, timezone, repos_info, loop):
+    def __init__(self, *, doof_id, slack_access_token, github_access_token, npm_token, timezone, repos_info, loop):
         """
         Create the slack bot
 
@@ -104,6 +110,7 @@ class Bot:
             doof_id (str): Doof's id
             slack_access_token (str): The OAuth access token used to interact with Slack
             github_access_token (str): The Github access token used to interact with Github
+            npm_token (str): The NPM token to publish npm packages
             timezone (tzinfo): The time zone of the team interacting with the bot
             repos_info (list of RepoInfo): Information about the repositories connected to channels
             loop (asyncio.events.AbstractEventLoop): The asyncio event loop
@@ -111,6 +118,7 @@ class Bot:
         self.doof_id = doof_id
         self.slack_access_token = slack_access_token
         self.github_access_token = github_access_token
+        self.npm_token = npm_token
         self.timezone = timezone
         self.repos_info = repos_info
         self.loop = loop
@@ -278,20 +286,17 @@ class Bot:
         """Do a library release"""
         repo_info = command_args.repo_info
         version = command_args.args[0]
-        repo_url = repo_info.repo_url
         channel_id = repo_info.channel_id
 
         await self.say(
             channel_id=channel_id,
             text=f"Merging evil scheme {version} for {repo_info.name}...",
         )
-
         await release(
             github_access_token=self.github_access_token,
-            repo_url=repo_url,
+            repo_info=repo_info,
             new_version=version,
         )
-
         await self.say(
             channel_id=channel_id,
             text=(
@@ -304,12 +309,11 @@ class Bot:
         """Do a web application release"""
         repo_info = command_args.repo_info
         passed_arg = command_args.args[0]
-        repo_url = repo_info.repo_url
         channel_id = repo_info.channel_id
         if hotfix_version:
             await release(
                 github_access_token=self.github_access_token,
-                repo_url=repo_url,
+                repo_info=repo_info,
                 new_version=hotfix_version,
                 branch='release',
                 commit_hash=passed_arg,
@@ -322,7 +326,7 @@ class Bot:
         else:
             await release(
                 github_access_token=self.github_access_token,
-                repo_url=repo_url,
+                repo_info=repo_info,
                 new_version=passed_arg,
             )
             await self.say(
@@ -469,7 +473,7 @@ class Bot:
             raise ReleaseException(f"There is a release already in progress: {release_pr.url}. Close that first!")
 
         async with init_working_dir(self.github_access_token, repo_info.repo_url) as working_dir:
-            last_version = update_version("9.9.9", working_dir=working_dir)
+            last_version = await update_version(repo_info=repo_info, new_version="9.9.9", working_dir=working_dir)
 
         _, new_patch = next_versions(last_version)
 
@@ -574,51 +578,40 @@ class Bot:
                 ]
             )
 
-    async def upload_to_pypitest(self, command_args):
+    async def publish(self, command_args):
         """
-        Upload package for version to pypitest server
-
-        Args:
-            command_args (CommandArgs): The arguments for this command
-        """
-        await self._upload_to_pypi(command_args=command_args, testing=True)
-
-    async def upload_to_pypi(self, command_args):
-        """
-        Upload package for version to pypi server
-
-        Args:
-            command_args (CommandArgs): The arguments for this command
-        """
-        await self._upload_to_pypi(command_args=command_args, testing=False)
-
-    async def _upload_to_pypi(self, *, command_args, testing):
-        """
-        Upload package for version to pypi server
+        Publish a package to PyPI or NPM
 
         Args:
             command_args (CommandArgs): The arguments for this command
         """
         repo_info = command_args.repo_info
         version = command_args.args[0]
-        pypi_server = "pypitest" if testing else "pypi"
+
+        if repo_info.packaging_tool == NPM:
+            server = "the npm registry"
+        elif repo_info.packaging_tool == SETUPTOOLS:
+            server = "PyPI"
+        else:
+            raise Exception(f"Unexpected packaging tool {repo_info.packaging_tool} for {repo_info.name}")
 
         await self.say(
             channel_id=command_args.channel_id,
-            text=f"Publishing evil scheme {version} to {pypi_server}...",
+            text=f"Publishing evil scheme {version} to {server}...",
         )
-        await upload_to_pypi(
+        await publish(
             repo_info=repo_info,
-            testing=testing,
             version=version,
             github_access_token=self.github_access_token,
+            npm_token=self.npm_token
         )
 
         await self.say(
             channel_id=command_args.channel_id,
-            text=f'Successfully uploaded {version} to {pypi_server}.',
+            text=f'Successfully uploaded {version} to {server}.',
             is_announcement=True,
         )
+
 
     async def finish_release(self, command_args):
         """
@@ -697,7 +690,7 @@ class Bot:
         """
         repo_info = command_args.repo_info
         async with init_working_dir(self.github_access_token, repo_info.repo_url) as working_dir:
-            last_version = update_version("9.9.9", working_dir=working_dir)
+            last_version = await update_version(repo_info=repo_info, new_version="9.9.9", working_dir=working_dir)
 
             release_notes = await create_release_notes(
                 last_version, with_checkboxes=False, base_branch="master", root=working_dir
@@ -999,15 +992,15 @@ class Bot:
             Command(
                 command='upload to pypi',
                 parsers=[Parser(func=get_version_number, description='new version number')],
-                command_func=self.upload_to_pypi,
-                description='Upload package to pypi',
+                command_func=self.publish,
+                description='Upload package to pypi (deprecated in favor of "publish")',
                 supported_project_types=[LIBRARY_TYPE],
             ),
             Command(
-                command='upload to pypitest',
-                parsers=[Parser(func=get_version_number, description='new version number')],
-                command_func=self.upload_to_pypitest,
-                description='Upload package to pypitest',
+                command='publish',
+                parsers=[Parser(func=get_version_number, description='version number of package to publish')],
+                command_func=self.publish,
+                description='Publish a package to PyPI or NPM',
                 supported_project_types=[LIBRARY_TYPE],
             ),
             Command(
@@ -1386,6 +1379,7 @@ async def async_main():
     bot = Bot(
         slack_access_token=envs['SLACK_ACCESS_TOKEN'],
         github_access_token=envs['GITHUB_ACCESS_TOKEN'],
+        npm_token=envs['NPM_TOKEN'],
         timezone=pytz.timezone(envs['TIMEZONE']),
         repos_info=repos_info,
         loop=asyncio.get_event_loop(),

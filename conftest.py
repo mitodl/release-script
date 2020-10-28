@@ -4,8 +4,11 @@ import os
 import pytest
 import pytz
 
-from bot import (
+from constants import (
+    DJANGO,
     LIBRARY_TYPE,
+    NPM,
+    SETUPTOOLS,
     WEB_APPLICATION_TYPE,
 )
 from repo_info import RepoInfo
@@ -45,8 +48,8 @@ WEB_TEST_REPO_INFO = RepoInfo(
     rc_hash_url='http://doof-rc.example.com/hash.txt',
     channel_id='doof',
     project_type=WEB_APPLICATION_TYPE,
-    python2=False,
-    python3=True,
+    web_application_type=DJANGO,
+    packaging_tool=None,
     announcements=False,
 )
 
@@ -72,12 +75,21 @@ LIBRARY_TEST_REPO_INFO = RepoInfo(
     rc_hash_url=None,
     channel_id='doof-lib',
     project_type=LIBRARY_TYPE,
-    python2=True,
-    python3=False,
+    packaging_tool=SETUPTOOLS,
+    web_application_type=None,
     announcements=False,
 )
-
-
+NPM_TEST_REPO_INFO = RepoInfo(
+    name='node_doof',
+    repo_url='http://github.com/mitodl/doof-node.git',
+    prod_hash_url=None,
+    rc_hash_url=None,
+    channel_id='doof-node',
+    project_type=LIBRARY_TYPE,
+    packaging_tool=NPM,
+    web_application_type=None,
+    announcements=False,
+)
 ANNOUNCEMENTS_CHANNEL = RepoInfo(
     name='doof_repo',
     repo_url=None,
@@ -85,8 +97,8 @@ ANNOUNCEMENTS_CHANNEL = RepoInfo(
     rc_hash_url=None,
     channel_id='announcement_id',
     project_type=None,
-    python2=None,
-    python3=None,
+    web_application_type=None,
+    packaging_tool=None,
     announcements=True,
 )
 

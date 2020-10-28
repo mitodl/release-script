@@ -5,8 +5,9 @@ import os
 
 import pytest
 
+from exception import VersionMismatchException
 from lib import check_call
-from release import VersionMismatchException, create_release_notes
+from release import create_release_notes
 from release_test import make_empty_commit
 from finish_release import (
     check_release_tag,

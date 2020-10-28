@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 """Release script for ODL projects"""
-import argparse
-import asyncio
 import re
 import os
 from subprocess import CalledProcessError
@@ -17,24 +15,13 @@ from constants import (
     GIT_RELEASE_NOTES_PATH,
     SCRIPT_DIR,
 )
-from exception import ReleaseException
-from github import create_pr
-from lib import (
-    init_working_dir,
-    VERSION_RE,
+from exception import (
+    DependencyException,
+    ReleaseException,
 )
-
-
-class DependencyException(Exception):
-    """Error if dependency is missing"""
-
-
-class UpdateVersionException(Exception):
-    """Error if the old version is invalid or cannot be found, or if there's a duplicate version"""
-
-
-class VersionMismatchException(Exception):
-    """Error if the version is unexpected"""
+from github import create_pr
+from lib import init_working_dir
+from version import update_version
 
 
 async def dependency_exists(command):
@@ -56,89 +43,6 @@ async def validate_dependencies():
     major_version = int(re.match(r'^v(\d+)\.', version).group(1))
     if major_version < 6:
         raise DependencyException("node.js must be version 6.x or higher")
-
-
-def update_version_in_file(root, filename, new_version):
-    """
-    Update the version from the file and return the old version if it's found
-    """
-    version_filepath = os.path.join(root, filename)
-    file_lines = []
-    update_count = 0
-    old_version = None
-    with open(version_filepath) as f:
-        for line in f.readlines():
-            line = line.strip("\n")
-            updated_line = line
-
-            if filename == "settings.py":
-                regex = r"^VERSION = .*(?P<version>{}).*$".format(VERSION_RE)
-                match = re.match(regex, line)
-                if match:
-                    update_count += 1
-                    old_version = match.group('version').strip()
-                    updated_line = re.sub(regex, "VERSION = \"{}\"".format(new_version), line)
-            elif filename == "__init__.py":
-                regex = r"^__version__ ?=.*(?P<version>{}).*".format(VERSION_RE)
-                match = re.match(regex, line)
-                if match:
-                    update_count += 1
-                    old_version = match.group('version').strip()
-                    updated_line = re.sub(regex, "__version__ = '{}'".format(new_version), line)
-            elif filename == "setup.py":
-                regex = r"\s*version=.*(?P<version>{}).*".format(VERSION_RE)
-                match = re.match(regex, line)
-                if match:
-                    update_count += 1
-                    old_version = match.group('version').strip()
-                    updated_line = re.sub(regex, "version='{}',".format(new_version), line)
-
-            file_lines.append("{}\n".format(updated_line))
-
-    if update_count == 1:
-        # Replace contents of file with updated version
-        with open(version_filepath, "w") as f:
-            for line in file_lines:
-                f.write(line)
-        return old_version
-    elif update_count > 1:
-        raise UpdateVersionException("Expected only one version for {file} but found {count}".format(
-            file=filename,
-            count=update_count,
-        ))
-
-    # Unable to find old version for this file, but maybe there's another one
-    return None
-
-
-def update_version(new_version, *, working_dir):
-    """Update the version from the project and return the old one, or raise an exception if none is found"""
-    print("Updating version...")
-    exclude_dirs = ('.cache', '.git', '.settings', )
-    version_files = ('settings.py', '__init__.py', 'setup.py')
-    found_version_filename = None
-    old_version = None
-    for version_filename in version_files:
-        for root, dirs, filenames in os.walk(working_dir, topdown=True):
-            dirs[:] = [d for d in dirs if d not in exclude_dirs]
-            if version_filename in filenames:
-                version = update_version_in_file(root, version_filename, new_version)
-                if version:
-                    if not found_version_filename:
-                        found_version_filename = version_filename
-                        old_version = version
-                    else:
-                        raise UpdateVersionException(
-                            "Found at least two files with updatable versions: {} and {}".format(
-                                found_version_filename,
-                                version_filename,
-                            )
-                        )
-
-    if not found_version_filename:
-        raise UpdateVersionException("Unable to find previous version number")
-
-    return old_version
 
 
 async def any_new_commits(version, *, base_branch, root):
@@ -224,7 +128,6 @@ async def update_release_notes(old_version, new_version, *, base_branch, root):
 
 async def build_release(*, root):
     """Deploy the release candidate"""
-    print("Building release...")
     await check_call(["git", "push", "--force", "-q", "origin", "release-candidate:release-candidate"], cwd=root)
 
 
@@ -240,8 +143,6 @@ async def generate_release_pr(*, github_access_token, repo_url, old_version, new
         base_branch (str): The base branch to compare against
         root (str): The project root directory
     """
-    print("Generating PR...")
-
     await create_pr(
         github_access_token=github_access_token,
         repo_url=repo_url,
@@ -252,27 +153,27 @@ async def generate_release_pr(*, github_access_token, repo_url, old_version, new
     )
 
 
-async def release(github_access_token, repo_url, new_version, branch=None, commit_hash=None):
+async def release(*, github_access_token, repo_info, new_version, branch=None, commit_hash=None):
     """
     Run a release
 
     Args:
         github_access_token (str): The github access token
-        repo_url (str): URL for a repo
+        repo_info (RepoInfo): RepoInfo for a repo
         new_version (str): The version of the new release
         branch (str): The branch to initialize the release from
         commit_hash (str): Commit hash to cherry pick in case of a hot fix
     """
 
     await validate_dependencies()
-    async with init_working_dir(github_access_token, repo_url, branch=branch) as working_dir:
+    async with init_working_dir(github_access_token, repo_info.repo_url, branch=branch) as working_dir:
         await check_call(["git", "checkout", "-qb", "release-candidate"], cwd=working_dir)
         if commit_hash:
             try:
                 await check_call(["git", "cherry-pick", commit_hash], cwd=working_dir)
             except CalledProcessError as ex:
                 raise ReleaseException(f"Cherry pick failed for the given hash {commit_hash}") from ex
-        old_version = update_version(new_version, working_dir=working_dir)
+        old_version = await update_version(repo_info=repo_info, new_version=new_version, working_dir=working_dir)
         if parse_version(old_version) >= parse_version(new_version):
             raise ReleaseException("old version is {old} but the new version {new} is not newer".format(
                 old=old_version,
@@ -284,37 +185,9 @@ async def release(github_access_token, repo_url, new_version, branch=None, commi
         await build_release(root=working_dir)
         await generate_release_pr(
             github_access_token=github_access_token,
-            repo_url=repo_url,
+            repo_url=repo_info.repo_url,
             old_version=old_version,
             new_version=new_version,
             base_branch=base_branch,
             root=working_dir,
         )
-
-    print(f"version {old_version} has been updated to {new_version}")
-    print("Go tell engineers to check their work. PR is on the repo.")
-    print("After they are done, run the finish_release.py script.")
-
-
-def main():
-    """
-    Create a new release
-    """
-    try:
-        github_access_token = os.environ['GITHUB_ACCESS_TOKEN']
-    except KeyError as ex:
-        raise Exception("Missing GITHUB_ACCESS_TOKEN") from ex
-    parser = argparse.ArgumentParser()
-    parser.add_argument("repo_url")
-    parser.add_argument("version")
-    args = parser.parse_args()
-
-    asyncio.run(release(
-        github_access_token=github_access_token,
-        repo_url=args.repo_url,
-        new_version=args.version,
-    ))
-
-
-if __name__ == "__main__":
-    main()
