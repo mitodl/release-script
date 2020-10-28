@@ -457,13 +457,13 @@ async def test_release_library(doof, library_test_repo, mocker):
         repo_info=library_test_repo,
         new_version=pr.version,
     )
-    get_release_pr_mock.assert_called_once_with(
+    get_release_pr_mock.assert_any_call(
         github_access_token=GITHUB_ACCESS,
         org=org,
         repo=repo,
     )
     assert doof.said(
-        f"Behold, my new evil scheme - release {pr.version} for {library_test_repo.name}! Tests are running on Travis. "
+        f"Behold, my new evil scheme - release {pr.version} for {library_test_repo.name}! PR is up at {pr.url}. Tests are running on Travis. "
         f"Once the tests succeed, finish the release.",
         attachments=[
             {

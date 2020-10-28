@@ -287,16 +287,22 @@ class Bot:
         repo_info = command_args.repo_info
         version = command_args.args[0]
         channel_id = repo_info.channel_id
+        org, repo = get_org_and_repo(repo_info.repo_url)
 
         await release(
             github_access_token=self.github_access_token,
             repo_info=repo_info,
             new_version=version,
         )
+        pr = await get_release_pr(
+            github_access_token=self.github_access_token,
+            org=org,
+            repo=repo,
+        )
         await self.say(
             channel_id=channel_id,
             text=(
-                f"Behold, my new evil scheme - release {version} for {repo_info.name}! Tests are running on Travis. "
+                f"Behold, my new evil scheme - release {version} for {repo_info.name}! PR is up at {pr.url}. Tests are running on Travis. "
                 f"Once the tests succeed, finish the release."
             ),
             attachments=[
