@@ -82,7 +82,7 @@ async def upload_to_npm(*, project_dir, npm_token):
         npm_token (str): A token to access the npm registry
     """
     with open(Path(project_dir) / ".npmrc", "w") as f:
-        f.write(f"//registry.npmjs.org/:_authToken=${npm_token}")
+        f.write(f"//registry.npmjs.org/:_authToken={npm_token}")
 
     await check_call(["npm", "publish"], cwd=project_dir)
 
