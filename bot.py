@@ -288,10 +288,6 @@ class Bot:
         version = command_args.args[0]
         channel_id = repo_info.channel_id
 
-        await self.say(
-            channel_id=channel_id,
-            text=f"Merging evil scheme {version} for {repo_info.name}...",
-        )
         await release(
             github_access_token=self.github_access_token,
             repo_info=repo_info,
@@ -300,8 +296,8 @@ class Bot:
         await self.say(
             channel_id=channel_id,
             text=(
-                f"My evil scheme {version} for {repo_info.name} has been released! "
-                f"Once Travis succeeds, finish the release."
+                f"Behold, my new evil scheme - release {version} for {repo_info.name}! Tests are running on Travis. "
+                f"Once the tests succeed, finish the release."
             )
         )
 
