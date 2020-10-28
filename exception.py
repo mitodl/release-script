@@ -1,4 +1,5 @@
 """Exceptions for release script"""
+from subprocess import CalledProcessError
 
 
 class InputException(Exception):
@@ -23,3 +24,11 @@ class UpdateVersionException(Exception):
 
 class VersionMismatchException(Exception):
     """Error if the version is unexpected"""
+
+
+class AsyncCalledProcessError(CalledProcessError):
+    """Extend CalledProcessError to print the stdout as well"""
+
+    def __str__(self):
+        super_str = super().__str__()
+        return f"{super_str}. stdout={self.stdout}, stderr={self.stderr}"

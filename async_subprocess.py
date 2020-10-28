@@ -2,6 +2,8 @@
 import asyncio
 import subprocess
 
+from exception import AsyncCalledProcessError
+
 
 async def check_call(args, *, cwd, env=None, shell=False):
     """
@@ -11,7 +13,7 @@ async def check_call(args, *, cwd, env=None, shell=False):
     """
     returncode = await call(args, cwd=cwd, env=env, shell=shell)
     if returncode != 0:
-        raise subprocess.CalledProcessError(returncode, args[0])
+        raise AsyncCalledProcessError(returncode, args if shell else args[0])
 
 
 async def check_output(args, *, cwd, env=None, shell=False):
@@ -33,7 +35,7 @@ async def check_output(args, *, cwd, env=None, shell=False):
     stdout_data, _ = await proc.communicate(input=None)
     returncode = await proc.wait()
     if returncode != 0:
-        raise subprocess.CalledProcessError(returncode, args[0])
+        raise AsyncCalledProcessError(returncode, popenargs[0], output=stdout_data)
     return stdout_data
 
 
