@@ -298,7 +298,25 @@ class Bot:
             text=(
                 f"Behold, my new evil scheme - release {version} for {repo_info.name}! Tests are running on Travis. "
                 f"Once the tests succeed, finish the release."
-            )
+            ),
+            attachments=[
+                {
+                    "fallback": "Finish the release",
+                    "callback_id": FINISH_RELEASE_ID,
+                    "actions": [
+                        {
+                            "name": "finish_release",
+                            "text": "Finish the release",
+                            "type": "button",
+                            "confirm": {
+                                "title": "Are you sure?",
+                                "ok_text": "Finish the release",
+                                "dismiss_text": "Cancel",
+                            }
+                        }
+                    ]
+                }
+            ]
         )
 
     async def _web_application_release(self, command_args, hotfix_version=None):

@@ -464,7 +464,22 @@ async def test_release_library(doof, library_test_repo, mocker):
     )
     assert doof.said(
         f"Behold, my new evil scheme - release {pr.version} for {library_test_repo.name}! Tests are running on Travis. "
-        f"Once the tests succeed, finish the release."
+        f"Once the tests succeed, finish the release.",
+        attachments=[
+            {
+                'actions': [
+                    {
+                        'name': 'finish_release', 'text': 'Finish the release', 'type': 'button',
+                        "confirm": {
+                            "title": "Are you sure?",
+                            "ok_text": "Finish the release",
+                            "dismiss_text": "Cancel",
+                        }
+                    },
+                ],
+                'callback_id': 'finish_release', 'fallback': 'Finish the release'
+            }
+        ]
     )
 
 
