@@ -78,11 +78,7 @@ class FinishReleaseTests(AsyncHTTPTestCase):
             "challenge": challenge
         }
 
-        with patch('bot.Bot.handle_event') as handle_event, patch("web.is_authenticated", return_value=True):
-            async def fake_event(*args, **kwargs):  # pylint: disable=unused-argument
-                pass
-            handle_event.return_value = fake_event()  # pylint: disable=assignment-from-no-return
-
+        with patch("web.is_authenticated", return_value=True):
             response = self.fetch('/api/v0/events/', method='POST', body=json.dumps(payload))
 
         assert response.code == 200
