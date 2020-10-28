@@ -9,6 +9,7 @@ import re
 from async_subprocess import check_output
 from constants import (
     DJANGO,
+    HUGO,
     LIBRARY_TYPE,
     NPM,
     SETUPTOOLS,
@@ -146,7 +147,8 @@ async def update_version(*, repo_info, new_version, working_dir):
     if repo_info.project_type == WEB_APPLICATION_TYPE:
         if repo_info.web_application_type == DJANGO:
             return update_python_version(new_version=new_version, working_dir=working_dir)
-        # do nothing for Hugo
+        elif repo_info.web_application_type == HUGO:
+            return await update_npm_version(new_version=new_version, working_dir=working_dir)
     elif repo_info.project_type == LIBRARY_TYPE:
         if repo_info.packaging_tool == SETUPTOOLS:
             return update_python_version(new_version=new_version, working_dir=working_dir)

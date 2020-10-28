@@ -194,7 +194,7 @@ async def test_update_npm_version():
 # pylint: disable=too-many-arguments
 @pytest.mark.parametrize("project_type, packaging_tool, web_application_type, expected_python, expected_js", [
     [WEB_APPLICATION_TYPE, None, DJANGO, True, False],
-    [WEB_APPLICATION_TYPE, None, HUGO, False, False],
+    [WEB_APPLICATION_TYPE, None, HUGO, False, True],
     [LIBRARY_TYPE, SETUPTOOLS, None, True, False],
     [LIBRARY_TYPE, NPM, None, False, True],
 ])
