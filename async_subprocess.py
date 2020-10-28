@@ -32,10 +32,10 @@ async def check_output(args, *, cwd, env=None, shell=False):
         env=env,
         cwd=cwd,
     )
-    stdout_data, _ = await proc.communicate(input=None)
+    stdout_data, stderr_data = await proc.communicate(input=None)
     returncode = await proc.wait()
     if returncode != 0:
-        raise AsyncCalledProcessError(returncode, popenargs[0], output=stdout_data)
+        raise AsyncCalledProcessError(returncode, popenargs[0], output=stdout_data, stderr=stderr_data)
     return stdout_data
 
 
