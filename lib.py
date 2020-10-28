@@ -7,6 +7,7 @@ import json
 import os
 import re
 from tempfile import TemporaryDirectory
+from urllib.parse import urlparse, urlunparse
 
 from dateutil.parser import parse
 
@@ -359,3 +360,22 @@ async def init_working_dir(github_access_token, repo_url, *, branch=None):
         await check_call(["git", "checkout", branch, "-q"], cwd=directory)
 
         yield directory
+
+
+def remove_path_from_url(url):
+    """
+    Remove everything after the path from the URL.
+
+    Args:
+        url (str): The URL
+
+    Returns:
+        str:
+            The URL without a path.
+            For example https://example:1234/a/path/?query=param#fragment would become
+            https://example:1234/
+    """
+    parsed = urlparse(url)
+    # The docs recommend _replace: https://docs.python.org/3/library/urllib.parse.html#urllib.parse.urlparse
+    updated = parsed._replace(path="", query="", fragment="")
+    return urlunparse(updated)

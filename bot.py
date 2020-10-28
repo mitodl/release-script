@@ -51,7 +51,8 @@ from lib import (
     next_workday_at_10,
     parse_date,
     VERSION_RE,
-    COMMIT_HASH_RE
+    COMMIT_HASH_RE,
+    remove_path_from_url,
 )
 from publish import publish
 from slack import get_channels_info, get_doofs_id
@@ -412,10 +413,11 @@ class Bot:
             org=org,
             repo=repo,
         )
+        rc_server = remove_path_from_url(repo_info.rc_hash_url)
         await self.say(
             channel_id=channel_id,
             text=(
-                f"Release {pr.version} for {repo_info.name} was deployed! PR is up at {pr.url}."
+                f"Release {pr.version} for {repo_info.name} was deployed at {rc_server}! PR is up at {pr.url}."
                 f" These people have commits in this release: {', '.join(slack_usernames)}"
             ),
             is_announcement=True
@@ -439,10 +441,11 @@ class Bot:
             hash_url=repo_info.prod_hash_url,
             watch_branch="release",
         )
+        prod_server = remove_path_from_url(repo_info.prod_hash_url)
         await self.say(
             channel_id=channel_id,
             text=(
-                f"My evil scheme {version} for {repo_info.name} has been released to production. "
+                f"My evil scheme {version} for {repo_info.name} has been released to production at {prod_server}. "
                 "And by 'released', I mean completely...um...leased."
             ),
             is_announcement=True,

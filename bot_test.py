@@ -32,6 +32,7 @@ from lib import (
     next_versions,
     now_in_utc,
     ReleasePR,
+    remove_path_from_url,
 )
 from repo_info import RepoInfo
 from test_util import (
@@ -42,17 +43,17 @@ from test_util import (
     make_parsed_issue,
 )
 
-
 pytestmark = pytest.mark.asyncio
-
 
 GITHUB_ACCESS = 'github'
 SLACK_ACCESS = 'slack'
 NPM_TOKEN = "npm-token"
 
+
 # pylint: disable=redefined-outer-name, too-many-lines
 class DoofSpoof(Bot):
     """Testing bot"""
+
     def __init__(self, *, loop):
         """Since the testing bot isn't contacting slack or github we don't need these tokens here"""
         super().__init__(
@@ -301,7 +302,8 @@ async def test_release(doof, test_repo, mocker, command):
     assert doof.said("Now deploying to RC...")
     for channel_id in [test_repo.channel_id, ANNOUNCEMENTS_CHANNEL.channel_id]:
         assert doof.said(
-            "These people have commits in this release",
+            f"Release {pr.version} for {test_repo.name} was deployed at {remove_path_from_url(test_repo.rc_hash_url)}!"
+            f" PR is up at {pr.url}. These people have commits in this release",
             channel_id=channel_id,
         )
         for author in authors:
@@ -1123,7 +1125,11 @@ async def test_wait_for_deploy_prod(doof, test_repo, mocker):
         repo_url=test_repo.repo_url,
         commit_hash="origin/release",
     )
-    assert doof.said('has been released to production')
+    assert doof.said(
+        f"My evil scheme v{version} for {test_repo.name} has been released "
+        f"to production at {remove_path_from_url(test_repo.prod_hash_url)}. "
+        "And by 'released', I mean completely...um...leased."
+    )
     wait_for_deploy_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
         repo_url=test_repo.repo_url,
