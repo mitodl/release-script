@@ -4,6 +4,7 @@ import subprocess
 import pytest
 
 from async_subprocess import check_call, check_output, call
+from exception import AsyncCalledProcessError
 from test_util import async_wrapper
 
 
@@ -90,3 +91,27 @@ async def test_check_output_exec(mocker, is_success):
     else:
         with pytest.raises(subprocess.CalledProcessError):
             await check_output(args, shell=False, cwd=".")
+
+
+async def test_check_output_exception_stdout():
+    """Exceptions from check_output should include any text received from stdout"""
+    with pytest.raises(AsyncCalledProcessError) as ex:
+        await check_output("echo some text here && false", shell=True, cwd=".")
+
+    assert ex.value.returncode == 1
+    assert str(ex.value) == (
+        "Command 'echo some text here && false' returned non-zero exit status 1.."
+        " stdout=b'some text here\\n', stderr=b''"
+    )
+
+
+async def test_check_output_exception_stderr():
+    """Exceptions from check_output should include any text received from stderr"""
+    with pytest.raises(AsyncCalledProcessError) as ex:
+        await check_output("1>&2 echo some text here && false", shell=True, cwd=".")
+
+    assert ex.value.returncode == 1
+    assert str(ex.value) == (
+        "Command '1>&2 echo some text here && false' returned non-zero exit status 1.."
+        " stdout=b'', stderr=b'some text here\\n'"
+    )
