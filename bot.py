@@ -51,7 +51,8 @@ from lib import (
     next_workday_at_10,
     parse_date,
     VERSION_RE,
-    COMMIT_HASH_RE
+    COMMIT_HASH_RE,
+    remove_path_from_url,
 )
 from publish import publish
 from slack import get_channels_info, get_doofs_id
@@ -287,22 +288,42 @@ class Bot:
         repo_info = command_args.repo_info
         version = command_args.args[0]
         channel_id = repo_info.channel_id
+        org, repo = get_org_and_repo(repo_info.repo_url)
 
-        await self.say(
-            channel_id=channel_id,
-            text=f"Merging evil scheme {version} for {repo_info.name}...",
-        )
         await release(
             github_access_token=self.github_access_token,
             repo_info=repo_info,
             new_version=version,
         )
+        pr = await get_release_pr(
+            github_access_token=self.github_access_token,
+            org=org,
+            repo=repo,
+        )
         await self.say(
             channel_id=channel_id,
             text=(
-                f"My evil scheme {version} for {repo_info.name} has been released! "
-                f"Once Travis succeeds, finish the release."
-            )
+                f"Behold, my new evil scheme - release {version} for {repo_info.name}! PR is up at {pr.url}. Tests are running on Travis. "
+                f"Once the tests succeed, finish the release."
+            ),
+            attachments=[
+                {
+                    "fallback": "Finish the release",
+                    "callback_id": FINISH_RELEASE_ID,
+                    "actions": [
+                        {
+                            "name": "finish_release",
+                            "text": "Finish the release",
+                            "type": "button",
+                            "confirm": {
+                                "title": "Are you sure?",
+                                "ok_text": "Finish the release",
+                                "dismiss_text": "Cancel",
+                            }
+                        }
+                    ]
+                }
+            ]
         )
 
     async def _web_application_release(self, command_args, hotfix_version=None):
@@ -392,10 +413,11 @@ class Bot:
             org=org,
             repo=repo,
         )
+        rc_server = remove_path_from_url(repo_info.rc_hash_url)
         await self.say(
             channel_id=channel_id,
             text=(
-                f"Release {pr.version} for {repo_info.name} was deployed! PR is up at {pr.url}."
+                f"Release {pr.version} for {repo_info.name} was deployed at {rc_server}! PR is up at {pr.url}."
                 f" These people have commits in this release: {', '.join(slack_usernames)}"
             ),
             is_announcement=True
@@ -419,10 +441,11 @@ class Bot:
             hash_url=repo_info.prod_hash_url,
             watch_branch="release",
         )
+        prod_server = remove_path_from_url(repo_info.prod_hash_url)
         await self.say(
             channel_id=channel_id,
             text=(
-                f"My evil scheme {version} for {repo_info.name} has been released to production. "
+                f"My evil scheme {version} for {repo_info.name} has been released to production at {prod_server}. "
                 "And by 'released', I mean completely...um...leased."
             ),
             is_announcement=True,

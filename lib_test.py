@@ -16,6 +16,7 @@ from lib import (
     parse_checkmarks,
     reformatted_full_name,
     ReleasePR,
+    remove_path_from_url,
     url_with_access_token,
 )
 from repo_info import RepoInfo
@@ -291,3 +292,13 @@ async def test_async_patch(mocker):
     mocked.return_value = 123
     assert await call(["ls"], cwd="/") == 123
     assert await call(["ls"], cwd="/") == 123
+
+
+@pytest.mark.parametrize("url,expected", [
+    ["https://www.example.com", "https://www.example.com"],
+    ["http://mit.edu/a/path", "http://mit.edu"],
+    ["http://example.com:5678/?query=params#included", "http://example.com:5678"]
+])
+def test_remove_path_from_url(url, expected):
+    """remove_path_from_url should only keep the scheme, port, and host parts of the URL"""
+    assert remove_path_from_url(url) == expected
