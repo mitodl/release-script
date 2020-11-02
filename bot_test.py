@@ -95,8 +95,9 @@ class DoofSpoof(Bot):
         """
         self._append(channel_id, {"timestamp": timestamp})
 
-    def said(self, text, *, attachments=None, channel_id=None):
+    def said(self, text, *, attachments=None, channel_id=None, times=1):
         """Did doof say this thing?"""
+        match_count = 0
         for message_channel_id, messages in self.messages.items():
             if channel_id is None or message_channel_id == channel_id:
                 for message in messages:
@@ -104,11 +105,16 @@ class DoofSpoof(Bot):
                         continue
 
                     if attachments is None:
-                        return True
+                        match_count += 1
                     else:
-                        return attachments == message["attachments"]
+                        if attachments == message["attachments"]:
+                            match_count += 1
 
-        return False
+        if match_count == times:
+            return True
+        elif match_count == 0:
+            return False
+        raise Exception(f"Expected {text} to be said {times} time(s) but was said {match_count} times.")
 
 
 @pytest.fixture
@@ -302,12 +308,9 @@ async def test_release(doof, test_repo, mocker, command):
     assert doof.said("Now deploying to RC...")
     for channel_id in [test_repo.channel_id, ANNOUNCEMENTS_CHANNEL.channel_id]:
         assert doof.said(
-            f"Release {pr.version} for {test_repo.name} was deployed at {remove_path_from_url(test_repo.rc_hash_url)}!"
-            f" PR is up at {pr.url}. These people have commits in this release",
+            f"Release {pr.version} for {test_repo.name} was deployed at {remove_path_from_url(test_repo.rc_hash_url)}!",
             channel_id=channel_id,
         )
-        for author in authors:
-            assert doof.said(author, channel_id=channel_id)
     assert wait_for_checkboxes_sync_mock.called is True
 
 
@@ -369,13 +372,6 @@ async def test_hotfix_release(doof, test_repo, test_repo_directory, mocker):
         watch_branch='release-candidate',
     )
     assert doof.said("Now deploying to RC...")
-    for channel_id in [test_repo.channel_id, ANNOUNCEMENTS_CHANNEL.channel_id]:
-        assert doof.said(
-            "These people have commits in this release",
-            channel_id=channel_id,
-        )
-        for author in authors:
-            assert doof.said(author, channel_id=channel_id)
     assert wait_for_checkboxes_sync_mock.called is True
 
 
@@ -930,6 +926,7 @@ async def test_wait_for_checkboxes(
 ):
     """wait_for_checkboxes should poll github, parse checkboxes and see if all are checked"""
     org, repo = get_org_and_repo(test_repo.repo_url)
+    channel_id = test_repo.channel_id
 
     pr = ReleasePR('version', f'https://github.com/{org}/{repo}/pulls/123456', 'body')
     get_release_pr_mock = mocker.async_patch('bot.get_release_pr', return_value=pr)
@@ -987,16 +984,16 @@ async def test_wait_for_checkboxes(
             ]
         )
     if speak_initial:
-        assert doof.said(f"PR is up at {pr.url}. These people have commits in this release")
+        assert doof.said(f"PR is up at {pr.url}. These people have commits in this release:", channel_id=channel_id)
     if has_checkboxes:
         assert not doof.said(
-            "Thanks for checking off your boxes <@author1>, <@author2>, <@author3>!"
+            "Thanks for checking off your boxes <@author1>, <@author2>, <@author3>!", channel_id=channel_id
         )
         assert doof.said(
-            "Thanks for checking off your boxes <@author1>, <@author3>!"
+            "Thanks for checking off your boxes <@author1>, <@author3>!", channel_id=channel_id
         )
         assert doof.said(
-            "Thanks for checking off your boxes <@author2>!"
+            "Thanks for checking off your boxes <@author2>!", channel_id=channel_id
         )
 
 
@@ -1084,26 +1081,17 @@ async def test_wait_for_deploy(doof, test_repo, needs_deploy_rc, needs_deploy_pr
 async def test_wait_for_deploy_rc(doof, test_repo, mocker):
     """Bot._wait_for_deploy_prod should wait until repo has been deployed to RC"""
     wait_for_deploy_mock = mocker.async_patch('bot.wait_for_deploy')
-    get_unchecked_patch = mocker.async_patch(
-        'bot.get_unchecked_authors', return_value={'author1', 'author2', 'author3'}
-    )
     org, repo = get_org_and_repo(test_repo.repo_url)
     release_pr = ReleasePR('version', f'https://github.com/{org}/{repo}/pulls/123456', 'body')
     get_release_pr_mock = mocker.async_patch('bot.get_release_pr', return_value=release_pr)
 
     await doof._wait_for_deploy_rc(repo_info=test_repo)  # pylint: disable=protected-access
 
-    assert doof.said('These people have commits in this release')
     wait_for_deploy_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
         repo_url=test_repo.repo_url,
         hash_url=test_repo.rc_hash_url,
         watch_branch='release-candidate'
-    )
-    get_unchecked_patch.assert_called_once_with(
-        github_access_token=GITHUB_ACCESS,
-        org=org,
-        repo=repo,
     )
     get_release_pr_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
@@ -1117,6 +1105,7 @@ async def test_wait_for_deploy_prod(doof, test_repo, mocker):
     wait_for_deploy_mock = mocker.async_patch('bot.wait_for_deploy')
     version = "1.2.345"
     get_version_tag_mock = mocker.async_patch('bot.get_version_tag', return_value="v{}".format(version))
+    channel_id = test_repo.channel_id
 
     await doof._wait_for_deploy_prod(repo_info=test_repo)  # pylint: disable=protected-access
 
@@ -1128,7 +1117,7 @@ async def test_wait_for_deploy_prod(doof, test_repo, mocker):
     assert doof.said(
         f"My evil scheme v{version} for {test_repo.name} has been released "
         f"to production at {remove_path_from_url(test_repo.prod_hash_url)}. "
-        "And by 'released', I mean completely...um...leased."
+        "And by 'released', I mean completely...um...leased.", channel_id=channel_id
     )
     wait_for_deploy_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
