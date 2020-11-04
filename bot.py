@@ -402,12 +402,6 @@ class Bot:
             hash_url=repo_info.rc_hash_url,
             watch_branch="release-candidate",
         )
-        unchecked_authors = await get_unchecked_authors(
-            github_access_token=self.github_access_token,
-            org=org,
-            repo=repo,
-        )
-        slack_usernames = await self.translate_slack_usernames(unchecked_authors)
         pr = await get_release_pr(
             github_access_token=self.github_access_token,
             org=org,
@@ -417,8 +411,7 @@ class Bot:
         await self.say(
             channel_id=channel_id,
             text=(
-                f"Release {pr.version} for {repo_info.name} was deployed at {rc_server}! PR is up at {pr.url}."
-                f" These people have commits in this release: {', '.join(slack_usernames)}"
+                f"Release {pr.version} for {repo_info.name} was deployed at {rc_server}!"
             ),
             is_announcement=True
         )
