@@ -13,11 +13,15 @@ import pytz
 
 from client_wrapper import ClientWrapper
 from constants import (
+    CI,
     FINISH_RELEASE_ID,
     NEW_RELEASE_ID,
     LIBRARY_TYPE,
     NPM,
+    PROD,
+    RC,
     SETUPTOOLS,
+    VALID_DEPLOYMENT_SERVER_TYPES,
     WEB_APPLICATION_TYPE,
 )
 from exception import (
@@ -50,6 +54,7 @@ from lib import (
     now_in_utc,
     next_workday_at_10,
     parse_date,
+    parse_text_matching_options,
     VERSION_RE,
     COMMIT_HASH_RE,
     remove_path_from_url,
@@ -57,6 +62,7 @@ from lib import (
 from publish import publish
 from slack import get_channels_info, get_doofs_id
 from version import (
+    get_commit_oneline_message,
     get_version_tag,
     update_version,
 )
@@ -697,6 +703,38 @@ class Bot:
             text="Wait a minute! My evil scheme is at version {version}!".format(version=version[1:])
         )
 
+    async def report_hash(self, command_args):
+        """
+        Report the commit that is deployed on a server
+
+        Args:
+            command_args (CommandArg): The arguments for this command
+        """
+        repo_info = command_args.repo_info
+        channel_id = repo_info.channel_id
+        repo_url = repo_info.repo_url
+        deployment_server_type = command_args.args[0]
+
+        if deployment_server_type == CI:
+            hash_url = repo_info.ci_hash_url
+        elif deployment_server_type == RC:
+            hash_url = repo_info.rc_hash_url
+        elif deployment_server_type == PROD:
+            hash_url = repo_info.prod_hash_url
+        else:
+            raise Exception("Unexpected server type")
+
+        commit_hash = await fetch_release_hash(hash_url)
+        message = await get_commit_oneline_message(
+            github_access_token=self.github_access_token,
+            repo_url=repo_url,
+            commit_hash=commit_hash,
+        )
+        await self.say(
+            channel_id=channel_id,
+            text=f"Oh, Perry the Platypus, look what you've done on {deployment_server_type}! {message}"
+        )
+
     async def commits_since_last_release(self, command_args):
         """
         Have doof show the release notes since the last release
@@ -1059,6 +1097,18 @@ class Bot:
                 parsers=[],
                 command_func=self.report_version,
                 description='Show the version of the latest merged release',
+                supported_project_types=[WEB_APPLICATION_TYPE],
+            ),
+            Command(
+                command='hash',
+                parsers=[
+                    Parser(
+                        func=parse_text_matching_options(VALID_DEPLOYMENT_SERVER_TYPES),
+                        description=f"version type (one of {', '.join(VALID_DEPLOYMENT_SERVER_TYPES)})",
+                    )
+                ],
+                command_func=self.report_hash,
+                description='Show the latest commit deployed on a server',
                 supported_project_types=[WEB_APPLICATION_TYPE],
             ),
             Command(

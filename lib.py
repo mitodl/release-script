@@ -267,6 +267,27 @@ def parse_date(date_string):
     return parse(date_string).date()
 
 
+def parse_text_matching_options(valid_options):
+    """
+    Create a function to validate a string against choices
+
+    Args:
+        valid_options (list of str): Valid options for the text
+    """
+    def validate(text):
+        """
+        Verify that the string matches one of the options, or else raise an exception
+
+        Args:
+            text (str): Some text
+        """
+        if text not in valid_options:
+            raise Exception(f"Unexpected option {text}. Valid options: {', '.join(valid_options)}")
+        return text
+
+    return validate
+
+
 @asynccontextmanager
 async def virtualenv(python_interpreter, env):
     """
@@ -302,6 +323,9 @@ def load_repos_info(channel_lookup):
         RepoInfo(
             name=repo_info['name'],
             repo_url=repo_info.get('repo_url'),
+            ci_hash_url=(
+                repo_info["ci_hash_url"] if repo_info.get("project_type") == WEB_APPLICATION_TYPE else None
+            ),
             rc_hash_url=(
                 repo_info['rc_hash_url'] if repo_info.get('project_type') == WEB_APPLICATION_TYPE else None
             ),

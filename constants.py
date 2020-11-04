@@ -20,5 +20,11 @@ NPM = "npm"
 SETUPTOOLS = "setuptools"
 VALID_PACKAGING_TOOL_TYPES = [NPM, SETUPTOOLS]
 
+# deployment server types
+RC = "rc"
+CI = "ci"
+PROD = "prod"
+VALID_DEPLOYMENT_SERVER_TYPES = [CI, RC, PROD]
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 GIT_RELEASE_NOTES_PATH = os.path.join(SCRIPT_DIR, "./node_modules/.bin/git-release-notes")
