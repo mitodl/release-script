@@ -303,7 +303,7 @@ async def virtualenv(python_interpreter, env):
             cwd=virtualenv_dir,
         )
         output = output_bytes.decode()
-        yield virtualenv_dir, dict(line.split("=", 1) for line in output.splitlines())
+        yield virtualenv_dir, dict(line.split("=", 1) for line in output.splitlines() if "=" in line)
 
 
 def load_repos_info(channel_lookup):
