@@ -16,6 +16,7 @@ from constants import (
 )
 from repo_info import RepoInfo
 from version import (
+    get_commit_oneline_message,
     get_version_tag,
     UpdateVersionException,
     update_version,
@@ -155,6 +156,19 @@ async def test_get_version_tag(mocker):
         repo_url='http://github.com/mitodl/doof.git',
         commit_hash='commit',
     ) == a_hash.decode()
+
+
+async def test_get_commit_oneline_message(mocker):
+    """
+    get_commit_oneline_message should return the commit message and a piece of the commit hash
+    """
+    message = b"abc123 A useful pull request was merged (#143)"
+    mocker.async_patch('version.check_output', return_value=message)
+    assert await get_commit_oneline_message(
+        github_access_token='github',
+        repo_url='http://github.com/mitodl/doof.git',
+        commit_hash='commit',
+    ) == message.decode()
 
 
 @pytest.mark.parametrize("filename,line", [

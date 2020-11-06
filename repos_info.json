@@ -3,6 +3,7 @@
     {
       "name": "micromasters",
       "repo_url": "https://github.com/mitodl/micromasters.git",
+      "ci_hash_url": "https://micromasters-ci.odl.mit.edu/static/hash.txt",
       "rc_hash_url": "https://micromasters-rc.odl.mit.edu/static/hash.txt",
       "prod_hash_url": "https://micromasters.mit.edu/static/hash.txt",
       "channel_name": "micromasters-eng",
@@ -13,6 +14,7 @@
     {
       "name": "bootcamp-ecommerce",
       "repo_url": "https://github.com/mitodl/bootcamp-ecommerce.git",
+      "ci_hash_url": "https://bootcamp-ecommerce-ci.herokuapp.com/static/hash.txt",
       "rc_hash_url": "https://bootcamp-ecommerce-rc.herokuapp.com/static/hash.txt",
       "prod_hash_url": "https://bootcamp-ecommerce.herokuapp.com/static/hash.txt",
       "channel_name": "bootcamp-eng",
@@ -23,6 +25,7 @@
     {
       "name": "open-discussions",
       "repo_url": "https://github.com/mitodl/open-discussions.git",
+      "ci_hash_url": "https://odl-open-discussions-ci.herokuapp.com/static/hash.txt",
       "rc_hash_url": "https://odl-open-discussions-rc.herokuapp.com/static/hash.txt",
       "prod_hash_url": "https://odl-open-discussions.herokuapp.com/static/hash.txt",
       "channel_name": "mit-open-eng",
@@ -33,6 +36,7 @@
     {
       "name": "mitxpro",
       "repo_url": "https://github.com/mitodl/mitxpro.git",
+      "ci_hash_url": "https://xpro-ci.herokuapp.com/static/hash.txt",
       "rc_hash_url": "https://xpro-rc.odl.mit.edu/static/hash.txt",
       "prod_hash_url": "https://xpro.mit.edu/static/hash.txt",
       "channel_name": "mitxpro-eng",
@@ -43,6 +47,7 @@
     {
       "name": "odl-video-service",
       "repo_url": "https://github.com/mitodl/odl-video-service.git",
+      "ci_hash_url": "http://video-ci.odl.mit.edu/static/hash.txt",
       "rc_hash_url": "https://video-rc.odl.mit.edu/static/hash.txt",
       "prod_hash_url": "https://video.odl.mit.edu/static/hash.txt",
       "channel_name": "odl-video-service-eng",
@@ -125,6 +130,7 @@
       "channel_name": "hugo-course-publisher",
       "project_type": "web_application",
       "web_application_type": "hugo",
+      "ci_hash_url": "https://ocw-next.netlify.app/static/hash.txt",
       "rc_hash_url": "https://ocwnext-rc.odl.mit.edu/static/hash.txt",
       "prod_hash_url": "https://ocwnext.odl.mit.edu/static/hash.txt",
       "announcements": false

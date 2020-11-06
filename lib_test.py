@@ -14,6 +14,7 @@ from lib import (
     next_workday_at_10,
     next_versions,
     parse_checkmarks,
+    parse_text_matching_options,
     reformatted_full_name,
     ReleasePR,
     remove_path_from_url,
@@ -244,6 +245,7 @@ async def test_load_repos_info(mocker):
             {
                 "name": "bootcamp-ecommerce",
                 "repo_url": "https://github.com/mitodl/bootcamp-ecommerce.git",
+                "ci_hash_url": "https://bootcamp-ecommerce-ci.herokuapp.com/static/hash.txt",
                 "rc_hash_url": "https://bootcamp-ecommerce-rc.herokuapp.com/static/hash.txt",
                 "prod_hash_url": "https://bootcamp-ecommerce.herokuapp.com/static/hash.txt",
                 "channel_name": "bootcamp-eng",
@@ -260,6 +262,7 @@ async def test_load_repos_info(mocker):
         RepoInfo(
             name='bootcamp-ecommerce',
             repo_url='https://github.com/mitodl/bootcamp-ecommerce.git',
+            ci_hash_url="https://bootcamp-ecommerce-ci.herokuapp.com/static/hash.txt",
             rc_hash_url="https://bootcamp-ecommerce-rc.herokuapp.com/static/hash.txt",
             prod_hash_url="https://bootcamp-ecommerce.herokuapp.com/static/hash.txt",
             channel_id='bootcamp_channel_id',
@@ -302,3 +305,20 @@ async def test_async_patch(mocker):
 def test_remove_path_from_url(url, expected):
     """remove_path_from_url should only keep the scheme, port, and host parts of the URL"""
     assert remove_path_from_url(url) == expected
+
+
+def test_parse_text_matching_options():
+    """
+    parse_text_matching_options should create a function to return the same text if it matches one of the options
+    """
+    assert parse_text_matching_options(["abc", "xyz"])("xyz") == "xyz"
+    assert parse_text_matching_options(["abc", "xyz"])("abc") == "abc"
+
+
+def test_parse_text_matching_options_error():
+    """
+    parse_text_matching_options should error if the text does not match an option
+    """
+    with pytest.raises(Exception) as ex:
+        parse_text_matching_options(["abc", "xyz"])("def")
+    assert ex.value.args[0] == "Unexpected option def. Valid options: abc, xyz"

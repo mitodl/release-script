@@ -20,7 +20,14 @@ from lib import init_working_dir, VERSION_RE
 
 
 async def get_version_tag(*, github_access_token, repo_url, commit_hash):
-    """Determines the version tag (or None) of the given commit hash"""
+    """
+    Determines the version tag (or None) of the given commit hash
+
+    Args:
+        github_access_token (str): The access token
+        repo_url (str): The URL for the git repo of the project
+        commit_hash (str): The commit hash where we expect to find a tag with the version number
+    """
     async with init_working_dir(github_access_token, repo_url) as working_dir:
         output = await check_output(
             ["git", "tag", "-l", "--points-at", commit_hash],
@@ -29,9 +36,36 @@ async def get_version_tag(*, github_access_token, repo_url, commit_hash):
         return output.decode().strip()
 
 
+async def get_commit_oneline_message(*, github_access_token, repo_url, commit_hash):
+    """
+    Get the git commit message plus a piece of the hash for display purposes
+
+    Args:
+        github_access_token (str): The access token
+        repo_url (str): The URL for the git repo of the project
+        commit_hash (str): The commit hash where we expect to find a tag with the version number
+    """
+    async with init_working_dir(github_access_token, repo_url) as working_dir:
+        output = await check_output(
+            ["git", "log", "--oneline", f"{commit_hash}^1..{commit_hash}", "--"],
+            cwd=working_dir
+        )
+        return output.decode().strip()
+
+
 def update_python_version_in_file(*, root, filename, new_version):
     """
-    Update the version from the file and return the old version if it's found
+    Update the version from the file and return the old version if it's found.
+
+    Args:
+        root (str): The directory with the file
+        filename (str): The file within that directory
+        new_version (str): The new version to insert into the file
+
+    Returns:
+        str:
+            Return the old version that the file used to have before this function updated that file. If the
+            file doesn't seem to match the version pattern, return None.
     """
     version_filepath = os.path.join(root, filename)
     file_lines = []
@@ -83,7 +117,18 @@ def update_python_version_in_file(*, root, filename, new_version):
 
 
 def update_python_version(*, new_version, working_dir):
-    """Update the version from the project and return the old one, or raise an exception if none is found"""
+    """
+    Update the version from the project and return the old one, or raise an exception if none is found
+
+    Args:
+        new_version (str): The new version to insert into the file
+        working_dir (str): The project directory
+
+    Returns:
+        str:
+            If the right file was found, replace the old version with the new one, then return the old version.
+            If no file is found, or if two or more files match, raise an exception.
+    """
     exclude_dirs = ('.cache', '.git', '.settings', )
     version_files = ('settings.py', '__init__.py', 'setup.py')
     found_version_filename = None

@@ -15,10 +15,13 @@ from conftest import (
     WEB_TEST_REPO_INFO,
 )
 from constants import (
+    CI,
     LIBRARY_TYPE,
     WEB_APPLICATION_TYPE,
     FINISH_RELEASE_ID,
     NEW_RELEASE_ID,
+    PROD,
+    RC,
     SETUPTOOLS,
     VALID_PACKAGING_TOOL_TYPES,
 )
@@ -257,6 +260,37 @@ async def test_version(doof, test_repo, mocker):
         repo_url=test_repo.repo_url,
         commit_hash=a_hash,
     )
+
+
+@pytest.mark.parametrize("deployment_server_type, expected_url", [
+    [PROD, WEB_TEST_REPO_INFO.prod_hash_url],
+    [RC, WEB_TEST_REPO_INFO.rc_hash_url],
+    [CI, WEB_TEST_REPO_INFO.ci_hash_url]
+])
+async def test_hash(doof, test_repo, mocker, deployment_server_type, expected_url):
+    """
+    Doof should tell you what the latest commit was on production
+    """
+    a_hash = 'hash'
+    message = "def876 A merged PR (#97)"
+    fetch_release_hash_mock = mocker.async_patch('bot.fetch_release_hash', return_value=a_hash)
+    get_version_tag_mock = mocker.async_patch('bot.get_commit_oneline_message', return_value=message)
+    await doof.run_command(
+        manager='mitodl_user',
+        channel_id=test_repo.channel_id,
+        words=['hash', deployment_server_type],
+    )
+    assert doof.said(
+        f"Oh, Perry the Platypus, look what you've done on {deployment_server_type}! {message}"
+    )
+
+    fetch_release_hash_mock.assert_called_once_with(expected_url)
+    get_version_tag_mock.assert_called_once_with(
+        github_access_token=GITHUB_ACCESS,
+        repo_url=test_repo.repo_url,
+        commit_hash=a_hash,
+    )
+
 
 
 # pylint: disable=too-many-locals
