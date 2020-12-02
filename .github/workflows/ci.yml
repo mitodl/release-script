@@ -30,7 +30,7 @@ jobs:
         run: pylint *.py
 
       - name: Tests
-        run: pytest .
+        run: pytest . && coverage
 
       - name: Upload coverage to CodeCov
         uses: codecov/codecov-action@v1

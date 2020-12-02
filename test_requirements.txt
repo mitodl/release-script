@@ -5,5 +5,4 @@ pytest
 pytest-asyncio
 pytest-cov
 pytest-mock
-pytest-pylint
 tox
