@@ -309,8 +309,8 @@ class Bot:
         await self.say(
             channel_id=channel_id,
             text=(
-                f"Behold, my new evil scheme - release {version} for {repo_info.name}! PR is up at {pr.url}. Tests are running on Travis. "
-                f"Once the tests succeed, finish the release."
+                f"Behold, my new evil scheme - release {version} for {repo_info.name}! PR is up at {pr.url}. "
+                f"Once all tests pass, finish the release."
             ),
             attachments=[
                 {

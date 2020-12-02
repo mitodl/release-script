@@ -495,8 +495,8 @@ async def test_release_library(doof, library_test_repo, mocker):
         repo=repo,
     )
     assert doof.said(
-        f"Behold, my new evil scheme - release {pr.version} for {library_test_repo.name}! PR is up at {pr.url}. Tests are running on Travis. "
-        f"Once the tests succeed, finish the release.",
+        f"Behold, my new evil scheme - release {pr.version} for {library_test_repo.name}! PR is up at {pr.url}. "
+        f"Once all tests pass, finish the release.",
         attachments=[
             {
                 'actions': [

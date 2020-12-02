@@ -153,8 +153,6 @@ async def test_github_auth_headers():
 
 async def test_get_org_and_repo():
     """get_org_and_repo should get the GitHub organization and repo from the directory"""
-    # I would be fine with testing this on cwd but Travis has a really old version of git that doesn't support
-    # get-url
     for git_url in ["git@github.com:mitodl/release-script.git", "https://github.com/mitodl/release-script.git"]:
         assert get_org_and_repo(git_url) == ("mitodl", "release-script")
 
