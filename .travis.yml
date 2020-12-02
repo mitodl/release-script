@@ -2,9 +2,9 @@ language: python
 sudo: required  # for python 3.7, may not be needed in future
 dist: xenial  # for python 3.7
 python:
-  - "3.7"
+  - "3.9"
 node_js:
-  - "6.2"
+  - "12"
 install:
  - pip install -r test_requirements.txt
  - npm install
