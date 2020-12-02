@@ -211,7 +211,7 @@ If the test works, upload to the real deal:
 
 ## Tests
 
-To run unit tests, install the Python dependencies in `requirements.txt` and `test_requirements.txt`, then run unit tests via `tox`.
+To run unit tests, install the Python dependencies in `requirements.txt` and `test_requirements.txt`, then run unit tests via `pytest`.
 
 ## Misc notes
 
@@ -232,7 +232,7 @@ To run unit tests, install the Python dependencies in `requirements.txt` and `te
     The endpoint will return the hash for the branch that is running on the
     server.  For example,
 
-        https://micromasters-rc.herokuapp.com/static/hash.txt
+        https://micromasters-rc.odl.mit.edu/static/hash.txt
 
     returns the branch hash for the deployed Micromasters release-candidate.
 6.  There are three deployment servers, ci, rc, and production.
