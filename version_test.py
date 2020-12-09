@@ -62,16 +62,17 @@ async def test_update_python_version_settings(test_repo, test_repo_directory):
 async def test_update_python_version_init(test_repo_directory, test_repo):
     """If we detect a version in a __init__.py file we should update it properly"""
     old_version = '1.2.3'
-    os.unlink(os.path.join(test_repo_directory, "ccxcon/settings.py"))
-    with open(os.path.join(test_repo_directory, "ccxcon/__init__.py"), "w") as f:
+    test_repo_directory = Path(test_repo_directory)
+    os.unlink(test_repo_directory / "ccxcon" / "settings.py")
+    with open(test_repo_directory / "ccxcon" / "__init__.py", "w") as f:
         f.write("__version__ = '{}'".format(old_version))
     new_version = "4.5.6"
     assert await update_version(repo_info=test_repo, new_version=new_version, working_dir=test_repo_directory) == old_version
 
     found_new_version = False
-    with open(os.path.join(test_repo_directory, "ccxcon/__init__.py")) as f:
+    with open(test_repo_directory / "ccxcon" / "__init__.py") as f:
         for line in f.readlines():
-            if line.strip() == "__version__ = '{}'".format(new_version):
+            if line.strip() == f'__version__ = "{new_version}"':
                 found_new_version = True
                 break
     assert found_new_version, "Unable to find updated version"
