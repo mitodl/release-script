@@ -62,16 +62,17 @@ async def test_update_python_version_settings(test_repo, test_repo_directory):
 async def test_update_python_version_init(test_repo_directory, test_repo):
     """If we detect a version in a __init__.py file we should update it properly"""
     old_version = '1.2.3'
-    os.unlink(os.path.join(test_repo_directory, "ccxcon/settings.py"))
-    with open(os.path.join(test_repo_directory, "ccxcon/__init__.py"), "w") as f:
+    test_repo_directory = Path(test_repo_directory)
+    os.unlink(test_repo_directory / "ccxcon" / "settings.py")
+    with open(test_repo_directory / "ccxcon" / "__init__.py", "w") as f:
         f.write("__version__ = '{}'".format(old_version))
     new_version = "4.5.6"
     assert await update_version(repo_info=test_repo, new_version=new_version, working_dir=test_repo_directory) == old_version
 
     found_new_version = False
-    with open(os.path.join(test_repo_directory, "ccxcon/__init__.py")) as f:
+    with open(test_repo_directory / "ccxcon" / "__init__.py") as f:
         for line in f.readlines():
-            if line.strip() == "__version__ = '{}'".format(new_version):
+            if line.strip() == f'__version__ = "{new_version}"':
                 found_new_version = True
                 break
     assert found_new_version, "Unable to find updated version"
@@ -171,23 +172,33 @@ async def test_get_commit_oneline_message(mocker):
     ) == message.decode()
 
 
-@pytest.mark.parametrize("filename,line", [
-    ('settings.py', 'VERSION = \"0.34.56\"'),
-    ('__init__.py', '__version__ = \'0.34.56\''),
+@pytest.mark.parametrize("filename,line, expected_output", [
+    ('settings.py', 'VERSION = "0.34.56"\n', 'VERSION = "0.123.456"\n'),
+    ('__init__.py', "__version__ = \'0.34.56\'\n", "__version__ = \"0.123.456\"\n"),
+    ('setup.py', '    version="0.34.56",\n', '    version="0.123.456",\n'),
 ])
-async def test_update_python_version_in_file(filename, line):
+async def test_update_python_version_in_file(filename, line, expected_output):
     """update_python_version_in_file should update the version in the file and return the old version, if found"""
+    old_version = "0.34.56"
+    new_version = "0.123.456"
     with TemporaryDirectory() as base:
-        with open(os.path.join(base, filename), "w") as f:
+        path = Path(base) / filename
+        with open(path, "w") as f:
             f.write("text")
-        retrieved_version = update_python_version_in_file(root=base, filename=filename, new_version="0.123.456")
+        retrieved_version = update_python_version_in_file(root=base, filename=filename, new_version=new_version)
         assert retrieved_version is None
 
-        with open(os.path.join(base, filename), "w") as f:
+        with open(path, "w") as f:
             f.write(line)
 
-        retrieved_version = update_python_version_in_file(root=base, filename=filename, new_version="0.123.456")
-        assert retrieved_version == "0.34.56"
+        retrieved_version = update_python_version_in_file(root=base, filename=filename, new_version=new_version)
+        assert retrieved_version == old_version
+
+        with open(path) as f:
+            lines = f.readlines()
+
+        version_line = [line for line in lines if new_version in line][0]
+        assert version_line == expected_output
 
 
 async def test_update_npm_version():
