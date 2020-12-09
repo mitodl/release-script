@@ -171,23 +171,33 @@ async def test_get_commit_oneline_message(mocker):
     ) == message.decode()
 
 
-@pytest.mark.parametrize("filename,line", [
-    ('settings.py', 'VERSION = \"0.34.56\"'),
-    ('__init__.py', '__version__ = \'0.34.56\''),
+@pytest.mark.parametrize("filename,line, expected_output", [
+    ('settings.py', 'VERSION = "0.34.56"\n', 'VERSION = "0.123.456"\n'),
+    ('__init__.py', "__version__ = \'0.34.56\'\n", "__version__ = \"0.123.456\"\n"),
+    ('setup.py', '    version="0.34.56",\n', '    version="0.123.456",\n'),
 ])
-async def test_update_python_version_in_file(filename, line):
+async def test_update_python_version_in_file(filename, line, expected_output):
     """update_python_version_in_file should update the version in the file and return the old version, if found"""
+    old_version = "0.34.56"
+    new_version = "0.123.456"
     with TemporaryDirectory() as base:
-        with open(os.path.join(base, filename), "w") as f:
+        path = Path(base) / filename
+        with open(path, "w") as f:
             f.write("text")
-        retrieved_version = update_python_version_in_file(root=base, filename=filename, new_version="0.123.456")
+        retrieved_version = update_python_version_in_file(root=base, filename=filename, new_version=new_version)
         assert retrieved_version is None
 
-        with open(os.path.join(base, filename), "w") as f:
+        with open(path, "w") as f:
             f.write(line)
 
-        retrieved_version = update_python_version_in_file(root=base, filename=filename, new_version="0.123.456")
-        assert retrieved_version == "0.34.56"
+        retrieved_version = update_python_version_in_file(root=base, filename=filename, new_version=new_version)
+        assert retrieved_version == old_version
+
+        with open(path) as f:
+            lines = f.readlines()
+
+        version_line = [line for line in lines if new_version in line][0]
+        assert version_line == expected_output
 
 
 async def test_update_npm_version():

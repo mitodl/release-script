@@ -77,26 +77,30 @@ def update_python_version_in_file(*, root, filename, new_version):
             updated_line = line
 
             if filename == "settings.py":
-                regex = r"^VERSION = .*(?P<version>{}).*$".format(VERSION_RE)
+                regex = fr"^VERSION = .*(?P<version>{VERSION_RE}).*$"
                 match = re.match(regex, line)
                 if match:
                     update_count += 1
                     old_version = match.group('version').strip()
-                    updated_line = re.sub(regex, "VERSION = \"{}\"".format(new_version), line)
+                    updated_line = re.sub(regex, f"VERSION = \"{new_version}\"", line)
             elif filename == "__init__.py":
-                regex = r"^__version__ ?=.*(?P<version>{}).*".format(VERSION_RE)
+                regex = fr"^__version__ ?=.*(?P<version>{VERSION_RE}).*"
                 match = re.match(regex, line)
                 if match:
                     update_count += 1
                     old_version = match.group('version').strip()
-                    updated_line = re.sub(regex, "__version__ = '{}'".format(new_version), line)
+                    updated_line = re.sub(regex, f"__version__ = \"{new_version}\"", line)
             elif filename == "setup.py":
-                regex = r"\s*version=.*(?P<version>{}).*".format(VERSION_RE)
+                regex = fr"(?P<spaces>\s*)version=(?P<quote>.*)(?P<version>{VERSION_RE})(?P<after>.*)"
                 match = re.match(regex, line)
                 if match:
                     update_count += 1
                     old_version = match.group('version').strip()
-                    updated_line = re.sub(regex, "version='{}',".format(new_version), line)
+                    updated_line = re.sub(
+                        regex,
+                        f"{match.group('spaces')}version={match.group('quote')}{new_version}{match.group('after')}",
+                        line,
+                    )
 
             file_lines.append("{}\n".format(updated_line))
 
