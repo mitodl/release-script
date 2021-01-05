@@ -24,9 +24,9 @@ be all set.
 variable checks may become more fine grained in the future. Until then it may be easiest
 to fill in fake values for environment variables not needed for your command.
 
-## Deployment
+## Deployment of Doof
 Doof is a Slack bot running on heroku at `odl-release-bot`. New code will be
-deployed whenever a pull request is merged to `master`. Exceptions can be viewed
+deployed whenever a pull request in this project is merged and tests pass. Exceptions can be viewed
 in the heroku logs for `odl-release-bot`.
 
 ## Running commands
