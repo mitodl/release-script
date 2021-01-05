@@ -46,7 +46,7 @@ For a full listing of Doof commands type `@doof help` in Slack.
 ## Release process
 Release lifecycle:
   - Code starts out in a pull request which is reviewed by other team members.
-  - Then the pull request is merged to the `main` branch. This usually triggers a deployment
+  - Then the pull request is merged to the `main` branch (or `master` for legacy projects). After tests pass this triggers a deployment
     to a CI (continuous integration) server for web application projects.
   - At some point, usually daily, the release manager checks if there is new code available.
   - If there is, a release candidate is created in the `release-candidate`.
