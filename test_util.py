@@ -48,6 +48,10 @@ def make_test_repo():
 
                 sync_check_call(["git", "fast-import", "--quiet"], stdin=temp_file, cwd=directory)
         sync_check_call(["git", "checkout", "--quiet", "master"], cwd=directory)
+        sync_check_call(
+            ["git", "remote", "add", "origin", "https://github.com/mitodl/release-script.git"],
+            cwd=directory,
+        )
         yield Path(directory)
 
 

@@ -81,6 +81,8 @@ async def test_init_working_dir(mocker, branch):
     repo_url = "https://github.com/mitodl/release-script.git"
     access_token = 'fake_access_token'
     check_call_mock = mocker.async_patch('lib.check_call')
+    default_branch = "a_branch"
+    mocker.async_patch('lib.get_default_branch', return_value=default_branch)
     async with init_working_dir(
             access_token, repo_url, branch=branch,
     ) as other_directory:
@@ -93,7 +95,7 @@ async def test_init_working_dir(mocker, branch):
         ['git', 'config', 'push.default', 'simple'],
         ['git', 'remote', 'add', 'origin', url_with_access_token(access_token, repo_url)],
         ['git', 'fetch', '--tags', '-q'],
-        ['git', 'checkout', "master" if branch is None else branch, '-q'],
+        ['git', 'checkout', default_branch if branch is None else branch, '-q'],
     ]
 
 

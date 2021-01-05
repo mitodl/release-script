@@ -51,12 +51,15 @@ async def test_merge_release_candidate(mocker):
 async def test_merge_release(mocker):
     """merge_release should merge the release and push it to origin"""
     patched_check_call = mocker.async_patch('finish_release.check_call')
+    branch = "a_branch"
+    default_branch_mock = mocker.async_patch('finish_release.get_default_branch', return_value=branch)
     root = "/a/bad/directory/path"
     await merge_release(root=root)
-    patched_check_call.assert_any_call(['git', 'checkout', '-q', 'master'], cwd=root)
+    patched_check_call.assert_any_call(['git', 'checkout', '-q', branch], cwd=root)
     patched_check_call.assert_any_call(['git', 'pull'], cwd=root)
     patched_check_call.assert_any_call(['git', 'merge', 'release', '--no-edit'], cwd=root)
     patched_check_call.assert_any_call(['git', 'push'], cwd=root)
+    default_branch_mock.assert_called_once_with(root)
 
 
 async def test_tag_release(mocker, test_repo_directory):

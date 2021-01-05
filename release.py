@@ -20,7 +20,10 @@ from exception import (
     ReleaseException,
 )
 from github import create_pr
-from lib import init_working_dir
+from lib import (
+    get_default_branch,
+    init_working_dir,
+)
 from version import update_version
 
 
@@ -167,6 +170,7 @@ async def release(*, github_access_token, repo_info, new_version, branch=None, c
 
     await validate_dependencies()
     async with init_working_dir(github_access_token, repo_info.repo_url, branch=branch) as working_dir:
+        default_branch = await get_default_branch(working_dir)
         await check_call(["git", "checkout", "-qb", "release-candidate"], cwd=working_dir)
         if commit_hash:
             try:
@@ -179,7 +183,7 @@ async def release(*, github_access_token, repo_info, new_version, branch=None, c
                 old=old_version,
                 new=new_version,
             ))
-        base_branch = "release-candidate" if commit_hash else "master"
+        base_branch = "release-candidate" if commit_hash else default_branch
         await verify_new_commits(old_version, base_branch=base_branch, root=working_dir)
         await update_release_notes(old_version, new_version, base_branch=base_branch, root=working_dir)
         await build_release(root=working_dir)

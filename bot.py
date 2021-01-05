@@ -45,6 +45,7 @@ from release import (
     release,
 )
 from lib import (
+    get_default_branch,
     get_release_pr,
     get_unchecked_authors,
     format_user_id,
@@ -744,12 +745,13 @@ class Bot:
         """
         repo_info = command_args.repo_info
         async with init_working_dir(self.github_access_token, repo_info.repo_url) as working_dir:
+            default_branch = await get_default_branch(working_dir)
             last_version = await update_version(repo_info=repo_info, new_version="9.9.9", working_dir=working_dir)
 
             release_notes = await create_release_notes(
-                last_version, with_checkboxes=False, base_branch="master", root=working_dir
+                last_version, with_checkboxes=False, base_branch=default_branch, root=working_dir
             )
-            has_new_commits = await any_new_commits(last_version, base_branch="master", root=working_dir)
+            has_new_commits = await any_new_commits(last_version, base_branch=default_branch, root=working_dir)
 
         await self.say_with_attachment(
             channel_id=repo_info.channel_id,
