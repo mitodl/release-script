@@ -2,6 +2,7 @@
 from datetime import datetime
 import re
 import os
+from pathlib import Path
 
 import pytest
 
@@ -15,7 +16,9 @@ from finish_release import (
     merge_release,
     merge_release_candidate,
     tag_release,
-    set_release_date
+    set_release_date,
+    update_go_mod,
+    update_go_mod_and_commit,
 )
 from test_util import async_context_manager_yielder
 
@@ -74,7 +77,9 @@ async def test_tag_release(mocker, test_repo_directory):
     patched_check_call.assert_any_call(['git', 'push', '--follow-tags'], cwd=test_repo_directory)
 
 
-async def test_finish_release(mocker, timezone, test_repo_directory):
+# pylint: disable=too-many-locals
+@pytest.mark.parametrize("has_go_mod", [True, False])
+async def test_finish_release(mocker, timezone, test_repo_directory, has_go_mod, library_test_repo):
     """finish_release should tag, merge and push the release"""
     token = 'token'
     version = 'version'
@@ -89,12 +94,14 @@ async def test_finish_release(mocker, timezone, test_repo_directory):
     tag_release_mock = mocker.async_patch('finish_release.tag_release')
     merge_release_mock = mocker.async_patch('finish_release.merge_release')
     set_version_date_mock = mocker.async_patch('finish_release.set_release_date')
+    update_go_mod_and_commit_mock = mocker.async_patch('finish_release.update_go_mod_and_commit')
 
     await finish_release(
         github_access_token=token,
         repo_url=repo_url,
         version=version,
-        timezone=timezone
+        timezone=timezone,
+        go_mod_repo_info=library_test_repo if has_go_mod else None,
     )
     validate_dependencies_mock.assert_called_once_with()
     init_working_dir_mock.assert_called_once_with(token, repo_url)
@@ -103,6 +110,15 @@ async def test_finish_release(mocker, timezone, test_repo_directory):
     tag_release_mock.assert_called_once_with(version, root=test_repo_directory)
     merge_release_mock.assert_called_once_with(root=test_repo_directory)
     set_version_date_mock.assert_called_once_with(version, timezone, root=test_repo_directory)
+    if has_go_mod:
+        update_go_mod_and_commit_mock.assert_called_once_with(
+            github_access_token=token,
+            release_path=test_repo_directory,
+            new_version=version,
+            go_mod_repo_info=library_test_repo,
+        )
+    else:
+        assert update_go_mod_and_commit_mock.called is False
 
 
 async def test_set_release_date(test_repo_directory, timezone, mocker):
@@ -134,3 +150,83 @@ async def test_set_release_date_no_file(test_repo_directory, timezone, mocker):
     await set_release_date("0.1.0", timezone, root=test_repo_directory)
     mock_check.assert_not_called()
     mock_output.assert_not_called()
+
+
+@pytest.mark.parametrize("has_require", [True, False])
+def test_update_go_mod(test_repo_directory, test_repo, has_require):
+    """update_go_mod should update and replace a go.mod file"""
+    go_mod_path = Path(test_repo_directory) / "go.mod"
+    contents = """module github.com/mitodl/ocw-course-hugo-starter
+
+go 1.13
+
+"""
+    require_line = "require github.com/mitodl/ocw-course-hugo-theme v0.0.0-20210111160843-361358c1de80 // indirect\n"
+    if has_require:
+        contents += require_line
+
+    with open(go_mod_path, "w") as file:
+        file.write(contents)
+
+    git_string = "a-git-string"
+    version = "4.5.6"
+    changed = update_go_mod(
+        path=go_mod_path,
+        git_string=git_string,
+        version=version,
+        repo_url=test_repo.repo_url,
+    )
+    assert changed is has_require
+    with open(go_mod_path) as file:
+        new_contents = file.read()
+
+    if has_require:
+        assert new_contents == """module github.com/mitodl/ocw-course-hugo-starter
+
+go 1.13
+
+require github.com/mitodl/doof v4.5.6-a-git-string // indirect
+"""
+    else:
+        assert new_contents == contents
+
+
+@pytest.mark.parametrize("changed", [True, False])
+async def test_update_go_mod_and_commit(
+    mocker, test_repo_directory, library_test_repo, library_test_repo_directory, changed
+):
+    """update_go_mod_and_commit should call update_go_mod to update the file, then commit it to the default branch"""
+    version = "12.3.45"
+    token = "token"
+    git_string = "a_date_and_hash"
+    check_output_mock = mocker.async_patch("finish_release.check_output", return_value=git_string)
+    check_call_mock = mocker.async_patch("finish_release.check_call")
+    update_go_mod_mock = mocker.patch("finish_release.update_go_mod", return_value=changed)
+    init_working_dir_mock = mocker.patch(
+        'finish_release.init_working_dir', side_effect=async_context_manager_yielder(library_test_repo_directory)
+    )
+
+    await update_go_mod_and_commit(
+        github_access_token=token,
+        new_version=version,
+        release_path=test_repo_directory,
+        go_mod_repo_info=library_test_repo,
+    )
+
+    update_go_mod_mock.assert_called_once_with(
+        path=Path(library_test_repo_directory) / "go.mod",
+        git_string=git_string,
+        version=version,
+        repo_url=library_test_repo.repo_url,
+    )
+
+    init_working_dir_mock.assert_called_once_with(token, library_test_repo.repo_url)
+    check_output_mock.assert_called_once_with(["git", "--no-pager", "show", "--quiet", "--abbrev=12",
+                "--date='format-local:%Y%m%d%H%M%S'", '--format="%cd-%h"'], cwd=test_repo_directory)
+    if changed:
+        check_call_mock.assert_any_call(["git", "add", "go.mod"], cwd=Path(library_test_repo_directory))
+        message = f"Update go.mod to reference {library_test_repo.name}@{version}"
+        check_call_mock.assert_any_call(["git", "commit", "-m", message], cwd=Path(library_test_repo_directory))
+        check_call_mock.assert_any_call(["git", "push"], cwd=Path(library_test_repo_directory))
+    else:
+        assert check_call_mock.called is False

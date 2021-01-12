@@ -22,7 +22,7 @@ pytestmark = pytest.mark.asyncio
 
 
 # pylint: disable=unused-argument
-async def test_upload_with_twine(mocker, test_repo_directory, library_test_repo):
+async def test_upload_with_twine(mocker, library_test_repo, library_test_repo_directory):
     """upload_with_twine should create a dist based on a version and upload to pypi or pypitest"""
 
     twine_env = {
@@ -37,7 +37,7 @@ async def test_upload_with_twine(mocker, test_repo_directory, library_test_repo)
         if not command[0].endswith("twine"):
             return subprocess.call(command, *args, **kwargs)
 
-        assert kwargs['cwd'] == test_repo_directory
+        assert kwargs['cwd'] == library_test_repo_directory
         env = kwargs['env']
         assert env['TWINE_USERNAME'] == twine_env['PYPI_USERNAME']
         assert env['TWINE_PASSWORD'] == twine_env['PYPI_PASSWORD']
@@ -49,7 +49,7 @@ async def test_upload_with_twine(mocker, test_repo_directory, library_test_repo)
     async with virtualenv("python3", os.environ) as (virtualenv_dir, environ):
         call_mock = mocker.async_patch('async_subprocess.call', side_effect=_call)
         await upload_with_twine(
-            project_dir=test_repo_directory, virtualenv_dir=virtualenv_dir, environ=environ
+            project_dir=library_test_repo_directory, virtualenv_dir=virtualenv_dir, environ=environ
         )
     assert call_mock.call_count == 1
 

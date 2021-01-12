@@ -549,7 +549,8 @@ async def test_finish_release(doof, mocker, project_type):
         github_access_token=GITHUB_ACCESS,
         repo_url=test_repo.repo_url,
         version=version,
-        timezone=doof.timezone
+        timezone=doof.timezone,
+        go_mod_repo_info=None,
     )
     assert doof.said(f"Merged evil scheme {version} for {test_repo.name}!")
     if project_type == WEB_APPLICATION_TYPE:
@@ -676,7 +677,8 @@ async def test_webhook_finish_release(doof, mocker):
         github_access_token=doof.github_access_token,
         repo_url=repo_url,
         version=pr_body.version,
-        timezone=doof.timezone
+        timezone=doof.timezone,
+        go_mod_repo_info=None,
     )
     assert doof.said("Merging...")
     assert not doof.said("Error")

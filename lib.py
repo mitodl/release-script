@@ -337,7 +337,18 @@ def load_repos_info(channel_lookup):
             web_application_type=repo_info.get('web_application_type'),
             packaging_tool=repo_info.get('packaging_tool'),
             announcements=repo_info.get('announcements'),
+            go_mod_repo_info=None,
         ) for repo_info in repos_info['repos']
+    ]
+
+    repo_dict_lookup = {info["name"]: info for info in repos_info["repos"]}
+    repo_info_lookup = {info.name: info for info in infos}
+
+    infos = [
+        RepoInfo(
+            **{k: v for k, v in info._asdict().items() if k != "go_mod_repo_info"},
+            go_mod_repo_info=repo_info_lookup.get(repo_dict_lookup[info.name].get("go_mod")),
+        ) for info in infos
     ]
 
     # some basic validation for sanity checking

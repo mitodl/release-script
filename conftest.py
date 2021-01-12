@@ -52,6 +52,7 @@ WEB_TEST_REPO_INFO = RepoInfo(
     web_application_type=DJANGO,
     packaging_tool=None,
     announcements=False,
+    go_mod_repo_info=None,
 )
 
 
@@ -80,6 +81,7 @@ LIBRARY_TEST_REPO_INFO = RepoInfo(
     packaging_tool=SETUPTOOLS,
     web_application_type=None,
     announcements=False,
+    go_mod_repo_info=None,
 )
 NPM_TEST_REPO_INFO = RepoInfo(
     name='node_doof',
@@ -92,6 +94,7 @@ NPM_TEST_REPO_INFO = RepoInfo(
     packaging_tool=NPM,
     web_application_type=None,
     announcements=False,
+    go_mod_repo_info=None,
 )
 ANNOUNCEMENTS_CHANNEL = RepoInfo(
     name='doof_repo',
@@ -104,13 +107,21 @@ ANNOUNCEMENTS_CHANNEL = RepoInfo(
     web_application_type=None,
     packaging_tool=None,
     announcements=True,
+    go_mod_repo_info=None,
 )
 
 
 @pytest.fixture
-def library_test_repo(test_repo_directory):
+def library_test_repo_directory():
+    """Directory created for testing with library_test_repo"""
+    with make_test_repo() as working_dir:
+        yield working_dir
+
+
+@pytest.fixture
+def library_test_repo(library_test_repo_directory):
     """Initialize the library test repo from the gzipped file"""
-    with open(os.path.join(test_repo_directory, "setup.py"), "w") as f:
+    with open(os.path.join(library_test_repo_directory, "setup.py"), "w") as f:
         # Hacky way to convert a web application project to a library
         f.write(SETUP_PY)
 

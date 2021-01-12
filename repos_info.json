@@ -160,7 +160,8 @@
       "channel_name": "ocw-course-hugo-theme",
       "project_type": "library",
       "packaging_tool": "npm",
-      "announcements": false
+      "announcements": false,
+      "go_mod": "ocw-course-hugo-starter"
     }
   ]
 }

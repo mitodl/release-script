@@ -635,7 +635,6 @@ class Bot:
             is_announcement=True,
         )
 
-
     async def finish_release(self, command_args):
         """
         Merge the release candidate into the release branch, tag it, merge to master, and wait for deployment
@@ -660,7 +659,8 @@ class Bot:
             github_access_token=self.github_access_token,
             repo_url=repo_url,
             version=version,
-            timezone=self.timezone
+            timezone=self.timezone,
+            go_mod_repo_info=repo_info.go_mod_repo_info,
         )
 
         if repo_info.project_type == WEB_APPLICATION_TYPE:
