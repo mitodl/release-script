@@ -8,6 +8,7 @@ from async_subprocess import (
     check_output,
 )
 from exception import VersionMismatchException
+from lib import get_default_branch
 from release import (
     init_working_dir,
     validate_dependencies,
@@ -75,7 +76,9 @@ async def set_release_date(version, timezone, *, root):
 
 async def merge_release(*, root):
     """Merge release to master"""
-    await check_call(['git', 'checkout', '-q', 'master'], cwd=root)
+    default_branch = await get_default_branch(root)
+
+    await check_call(['git', 'checkout', '-q', default_branch], cwd=root)
     await check_call(['git', 'pull'], cwd=root)
     await check_call(['git', 'merge', 'release', '--no-edit'], cwd=root)
     await check_call(['git', 'push'], cwd=root)

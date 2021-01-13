@@ -7,6 +7,7 @@ import pytest
 from constants import DJANGO, WEB_APPLICATION_TYPE
 from github import github_auth_headers
 from lib import (
+    get_default_branch,
     get_release_pr,
     get_unchecked_authors,
     load_repos_info,
@@ -322,3 +323,10 @@ def test_parse_text_matching_options_error():
     with pytest.raises(Exception) as ex:
         parse_text_matching_options(["abc", "xyz"])("def")
     assert ex.value.args[0] == "Unexpected option def. Valid options: abc, xyz"
+
+
+async def test_get_default_branch(test_repo_directory):
+    """
+    get_default_branch should get master or main, depending on the default branch in the repository
+    """
+    assert await get_default_branch(test_repo_directory) == "master"

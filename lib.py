@@ -368,12 +368,21 @@ def next_versions(version):
     return new_minor, new_patch
 
 
+async def get_default_branch(repository_path):
+    """
+    Look up the default branch for a repository (usually master or main)
+
+    Args:
+        repository_path (str): The path of the repository
+    """
+    output = (await check_output(["git", "remote", "show", "origin"], cwd=repository_path)).decode()
+    head_branch_line = [line for line in output.splitlines() if "HEAD branch" in line]
+    return head_branch_line[0].rsplit(": ", maxsplit=1)[1]
+
+
 @asynccontextmanager
 async def init_working_dir(github_access_token, repo_url, *, branch=None):
     """Create a new directory with an empty git repo"""
-    if branch is None:
-        branch = 'master'
-
     url = url_with_access_token(github_access_token, repo_url)
     with TemporaryDirectory() as directory:
         # from http://stackoverflow.com/questions/2411031/how-do-i-clone-into-a-non-empty-directory
@@ -381,6 +390,10 @@ async def init_working_dir(github_access_token, repo_url, *, branch=None):
         await check_call(["git", "config", "push.default", "simple"], cwd=directory)
         await check_call(["git", "remote", "add", "origin", url], cwd=directory)
         await check_call(["git", "fetch", "--tags", "-q"], cwd=directory)
+
+        if branch is None:
+            branch = await get_default_branch(directory)
+
         await check_call(["git", "checkout", branch, "-q"], cwd=directory)
 
         yield directory
