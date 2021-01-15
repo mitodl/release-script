@@ -125,14 +125,41 @@
       "announcements": false
     },
     {
-      "name": "hugo-course-publisher",
-      "repo_url": "https://github.com/mitodl/hugo-course-publisher.git",
-      "channel_name": "hugo-course-publisher",
+      "name": "ocw-www",
+      "repo_url": "https://github.com/mitodl/ocw-www.git",
+      "channel_name": "ocw-www",
       "project_type": "web_application",
       "web_application_type": "hugo",
-      "ci_hash_url": "https://ocw-next.netlify.app/static/hash.txt",
+      "ci_hash_url": "https://ocw-www--ocw-next.netlify.app/static/hash.txt",
       "rc_hash_url": "https://ocwnext-rc.odl.mit.edu/static/hash.txt",
       "prod_hash_url": "https://ocwnext.odl.mit.edu/static/hash.txt",
+      "announcements": false
+    },
+    {
+      "name": "ocw-studio",
+      "repo_url": "https://github.com/mitodl/ocw-studio.git",
+      "channel_name": "ocw-studio",
+      "project_type": "web_application",
+      "web_application_type": "django",
+      "ci_hash_url": "https://ocw-studio-ci.odl.mit.edu/static/hash.txt",
+      "rc_hash_url": "https://ocw-studio-rc.odl.mit.edu/static/hash.txt",
+      "prod_hash_url": "https://ocw-studio.odl.mit.edu/static/hash.txt",
+      "announcements": false
+    },
+    {
+      "name": "ocw-course-hugo-starter",
+      "repo_url": "https://github.com/mitodl/ocw-course-hugo-starter.git",
+      "channel_name": "ocw-course-hugo-starter",
+      "project_type": "library",
+      "packaging_tool": "npm",
+      "announcements": false
+    },
+    {
+      "name": "ocw-course-hugo-theme",
+      "repo_url": "https://github.com/mitodl/ocw-course-hugo-theme.git",
+      "channel_name": "ocw-course-hugo-theme",
+      "project_type": "library",
+      "packaging_tool": "npm",
       "announcements": false
     }
   ]
