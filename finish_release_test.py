@@ -113,7 +113,6 @@ async def test_finish_release(mocker, timezone, test_repo_directory, has_go_mod,
     if has_go_mod:
         update_go_mod_and_commit_mock.assert_called_once_with(
             github_access_token=token,
-            release_path=test_repo_directory,
             new_version=version,
             go_mod_repo_info=library_test_repo,
         )
@@ -168,11 +167,9 @@ go 1.13
     with open(go_mod_path, "w") as file:
         file.write(contents)
 
-    git_string = "a-git-string"
     version = "4.5.6"
     changed = update_go_mod(
         path=go_mod_path,
-        git_string=git_string,
         version=version,
         repo_url=test_repo.repo_url,
     )
@@ -185,7 +182,7 @@ go 1.13
 
 go 1.13
 
-require github.com/mitodl/doof v4.5.6-a-git-string // indirect
+require github.com/mitodl/doof v4.5.6 // indirect
 """
     else:
         assert new_contents == contents
@@ -193,13 +190,11 @@ require github.com/mitodl/doof v4.5.6-a-git-string // indirect
 
 @pytest.mark.parametrize("changed", [True, False])
 async def test_update_go_mod_and_commit(
-    mocker, test_repo_directory, library_test_repo, library_test_repo_directory, changed
+    mocker, library_test_repo, library_test_repo_directory, changed
 ):
     """update_go_mod_and_commit should call update_go_mod to update the file, then commit it to the default branch"""
     version = "12.3.45"
     token = "token"
-    git_string = "a_date_and_hash"
-    check_output_mock = mocker.async_patch("finish_release.check_output", return_value=git_string)
     check_call_mock = mocker.async_patch("finish_release.check_call")
     update_go_mod_mock = mocker.patch("finish_release.update_go_mod", return_value=changed)
     init_working_dir_mock = mocker.patch(
@@ -209,20 +204,16 @@ async def test_update_go_mod_and_commit(
     await update_go_mod_and_commit(
         github_access_token=token,
         new_version=version,
-        release_path=test_repo_directory,
         go_mod_repo_info=library_test_repo,
     )
 
     update_go_mod_mock.assert_called_once_with(
         path=Path(library_test_repo_directory) / "go.mod",
-        git_string=git_string,
         version=version,
         repo_url=library_test_repo.repo_url,
     )
 
     init_working_dir_mock.assert_called_once_with(token, library_test_repo.repo_url)
-    check_output_mock.assert_called_once_with(["git", "--no-pager", "show", "--quiet", "--abbrev=12",
-                "--date='format-local:%Y%m%d%H%M%S'", '--format="%cd-%h"'], cwd=test_repo_directory)
     if changed:
         check_call_mock.assert_any_call(["git", "add", "go.mod"], cwd=Path(library_test_repo_directory))
         message = f"Update go.mod to reference {library_test_repo.name}@{version}"
