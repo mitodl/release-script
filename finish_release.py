@@ -86,13 +86,12 @@ async def merge_release(*, root):
     await check_call(['git', 'push'], cwd=root)
 
 
-def update_go_mod(*, path, git_string, version, repo_url):
+def update_go_mod(*, path, version, repo_url):
     """
     Update go.mod, replacing the original git tag with our own copy
 
     Args:
         path (str or Path): The path to the go.mod file
-        git_string (str): The git hash and date referring to the commit for the module
         version (str): The new version for the referenced go module
         repo_url (str): The URL for the repository
 
@@ -105,7 +104,7 @@ def update_go_mod(*, path, git_string, version, repo_url):
 
     lines = [
         (
-            f"require github.com/{org}/{repo} v{version}-{git_string} // indirect\n"
+            f"require github.com/{org}/{repo} v{version} // indirect\n"
             if line.startswith("require ") else line
         ) for line in old_lines
     ]
@@ -117,30 +116,21 @@ def update_go_mod(*, path, git_string, version, repo_url):
     return False
 
 
-async def update_go_mod_and_commit(*, github_access_token, new_version, release_path, go_mod_repo_info):
+async def update_go_mod_and_commit(*, github_access_token, new_version, go_mod_repo_info):
     """
     Create a new PR with an updated go.mod file
 
     Args:
         github_access_token (str): A token to access github APIs
         new_version (str): The new version of the finished release
-        release_path (str or Path): The path to the project which is being released
         go_mod_repo_info (RepoInfo): The repository information of the linked repository
     """
     go_mod_repo_url = go_mod_repo_info.repo_url
     go_mod_name = go_mod_repo_info.name
     async with init_working_dir(github_access_token, go_mod_repo_url) as go_mod_repo_path:
         go_mod_repo_path = Path(go_mod_repo_path)
-        git_string = await check_output(
-            [
-                "git", "--no-pager", "show", "--quiet", "--abbrev=12",
-                "--date='format-local:%Y%m%d%H%M%S'", '--format="%cd-%h"',
-            ],
-            cwd=release_path,
-        )
         changed = update_go_mod(
             path=go_mod_repo_path / "go.mod",
-            git_string=git_string,
             version=new_version,
             repo_url=go_mod_repo_url,
         )
@@ -171,7 +161,6 @@ async def finish_release(*, github_access_token, repo_url, version, timezone, go
         if go_mod_repo_info:
             await update_go_mod_and_commit(
                 github_access_token=github_access_token,
-                release_path=working_dir,
                 new_version=version,
                 go_mod_repo_info=go_mod_repo_info,
             )
