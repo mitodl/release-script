@@ -12,4 +12,5 @@ RepoInfo = namedtuple('RepoInfo', [
     'web_application_type',
     'packaging_tool',
     'announcements',
+    'go_mod_repo_info',
 ])

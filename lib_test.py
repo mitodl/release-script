@@ -4,7 +4,12 @@ from datetime import datetime, timezone
 from requests import Response, HTTPError
 import pytest
 
-from constants import DJANGO, WEB_APPLICATION_TYPE
+from constants import (
+    DJANGO,
+    LIBRARY_TYPE,
+    NPM,
+    WEB_APPLICATION_TYPE,
+)
 from github import github_auth_headers
 from lib import (
     get_default_branch,
@@ -254,24 +259,50 @@ async def test_load_repos_info(mocker):
                 "web_application_type": DJANGO,
                 "announcements": False,
             },
+            {
+                "name": "bootcamp-ecommerce-library",
+                "repo_url": "https://github.com/mitodl/bootcamp-ecommerce-library.git",
+                "channel_name": "bootcamp-library",
+                "project_type": LIBRARY_TYPE,
+                "packaging_tool": NPM,
+                "announcements": False,
+                "go_mod": "bootcamp-ecommerce"
+            },
         ]
     })
 
+    expected_web_application = RepoInfo(
+        name='bootcamp-ecommerce',
+        repo_url='https://github.com/mitodl/bootcamp-ecommerce.git',
+        ci_hash_url="https://bootcamp-ecommerce-ci.herokuapp.com/static/hash.txt",
+        rc_hash_url="https://bootcamp-ecommerce-rc.herokuapp.com/static/hash.txt",
+        prod_hash_url="https://bootcamp-ecommerce.herokuapp.com/static/hash.txt",
+        channel_id='bootcamp_channel_id',
+        project_type=WEB_APPLICATION_TYPE,
+        web_application_type=DJANGO,
+        packaging_tool=None,
+        announcements=False,
+        go_mod_repo_info=None,
+    )
+    expected_library = RepoInfo(
+        name='bootcamp-ecommerce-library',
+        repo_url='https://github.com/mitodl/bootcamp-ecommerce-library.git',
+        ci_hash_url=None,
+        rc_hash_url=None,
+        prod_hash_url=None,
+        channel_id='bootcamp_library_channel_id',
+        project_type=LIBRARY_TYPE,
+        web_application_type=None,
+        packaging_tool=NPM,
+        announcements=False,
+        go_mod_repo_info=expected_web_application,
+    )
+
     assert load_repos_info({
-        'bootcamp-eng': 'bootcamp_channel_id'
+        'bootcamp-eng': 'bootcamp_channel_id',
+        'bootcamp-library': 'bootcamp_library_channel_id',
     }) == [
-        RepoInfo(
-            name='bootcamp-ecommerce',
-            repo_url='https://github.com/mitodl/bootcamp-ecommerce.git',
-            ci_hash_url="https://bootcamp-ecommerce-ci.herokuapp.com/static/hash.txt",
-            rc_hash_url="https://bootcamp-ecommerce-rc.herokuapp.com/static/hash.txt",
-            prod_hash_url="https://bootcamp-ecommerce.herokuapp.com/static/hash.txt",
-            channel_id='bootcamp_channel_id',
-            project_type=WEB_APPLICATION_TYPE,
-            web_application_type=DJANGO,
-            packaging_tool=None,
-            announcements=False,
-        ),
+        expected_web_application, expected_library
     ]
     assert json_load.call_count == 1
 
