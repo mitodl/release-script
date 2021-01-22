@@ -547,10 +547,10 @@ async def test_finish_release(doof, mocker, project_type):
     )
     finish_release_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
-        repo_url=test_repo.repo_url,
+        repo_info=test_repo,
         version=version,
         timezone=doof.timezone,
-        go_mod_repo_info=None,
+        go_mod_repo_url=None,
     )
     assert doof.said(f"Merged evil scheme {version} for {test_repo.name}!")
     if project_type == WEB_APPLICATION_TYPE:
@@ -632,10 +632,18 @@ async def test_webhook_different_callback_id(doof, mocker):
     assert finish_release_mock.called is False
 
 
-async def test_webhook_finish_release(doof, mocker):
+@pytest.mark.parametrize("has_go_mod_repo", [True, False])
+async def test_webhook_finish_release(doof, mocker, test_repo, library_test_repo, has_go_mod_repo):
     """
     Finish the release
     """
+    if has_go_mod_repo:
+        test_repo = RepoInfo(
+            **{k: v for k, v in test_repo._asdict().items() if k != "go_mod_repo_info"},
+            go_mod_repo_info=library_test_repo,
+        )
+    doof.repos_info = [test_repo, library_test_repo]
+
     pr_body = ReleasePR(
         version='version',
         url='url',
@@ -662,11 +670,11 @@ async def test_webhook_finish_release(doof, mocker):
         },
     )
 
-    repo_url = WEB_TEST_REPO_INFO.repo_url
+    repo_url = test_repo.repo_url
     org, repo = get_org_and_repo(repo_url)
     wait_for_deploy_prod_mock.assert_any_call(
         doof,
-        repo_info=WEB_TEST_REPO_INFO,
+        repo_info=test_repo,
     )
     get_release_pr_mock.assert_any_call(
         github_access_token=doof.github_access_token,
@@ -675,10 +683,10 @@ async def test_webhook_finish_release(doof, mocker):
     )
     finish_release_mock.assert_any_call(
         github_access_token=doof.github_access_token,
-        repo_url=repo_url,
+        repo_info=test_repo,
         version=pr_body.version,
         timezone=doof.timezone,
-        go_mod_repo_info=None,
+        go_mod_repo_url=library_test_repo.repo_url if has_go_mod_repo else None,
     )
     assert doof.said("Merging...")
     assert not doof.said("Error")
