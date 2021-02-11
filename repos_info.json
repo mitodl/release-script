@@ -122,7 +122,7 @@
       "channel_name": "ocw-to-hugo",
       "project_type": "web_application",
       "web_application_type": "hugo",
-      "ci_hash_url": "https://ocw-www--ocw-next.netlify.app/static/ocw-to-hugo-hash.txt",
+      "ci_hash_url": "https://ocw-next.netlify.app/static/ocw-to-hugo-hash.txt",
       "rc_hash_url": "https://ocwnext-rc.odl.mit.edu/static/ocw-to-hugo-hash.txt",
       "prod_hash_url": "https://ocwnext.odl.mit.edu/static/ocw-to-hugo-hash.txt",
       "announcements": false
@@ -133,7 +133,7 @@
       "channel_name": "ocw-www",
       "project_type": "web_application",
       "web_application_type": "hugo",
-      "ci_hash_url": "https://ocw-www--ocw-next.netlify.app/static/hash.txt",
+      "ci_hash_url": "https://ocw-next.netlify.app/static/hash.txt",
       "rc_hash_url": "https://ocwnext-rc.odl.mit.edu/static/hash.txt",
       "prod_hash_url": "https://ocwnext.odl.mit.edu/static/hash.txt",
       "announcements": false
@@ -155,7 +155,7 @@
       "channel_name": "ocw-course-hugo-starter",
       "project_type": "web_application",
       "web_application_type": "hugo",
-      "ci_hash_url": "https://ocw-www--ocw-next.netlify.app/static/ocw-course-hugo-starter-hash.txt",
+      "ci_hash_url": "https://ocw-next.netlify.app/static/ocw-course-hugo-starter-hash.txt",
       "rc_hash_url": "https://ocwnext-rc.odl.mit.edu/static/ocw-course-hugo-starter-hash.txt",
       "prod_hash_url": "https://ocwnext.odl.mit.edu/static/ocw-course-hugo-starter-hash.txt",
       "announcements": false
