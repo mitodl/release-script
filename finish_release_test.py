@@ -7,7 +7,10 @@ from pathlib import Path
 import pytest
 
 from exception import VersionMismatchException
-from lib import check_call
+from lib import (
+    check_call,
+    ReleasePR,
+)
 from release import create_release_notes
 from release_test import make_empty_commit
 from finish_release import (
@@ -94,6 +97,8 @@ async def test_finish_release(mocker, timezone, test_repo_directory, has_go_mod,
     merge_release_mock = mocker.async_patch('finish_release.merge_release')
     set_version_date_mock = mocker.async_patch('finish_release.set_release_date')
     update_go_mod_and_commit_mock = mocker.async_patch('finish_release.update_go_mod_and_commit')
+    release_pr = ReleasePR('version', 'https://github.com/org/repo/pull/123456', 'body')
+    mocker.async_patch('finish_release.get_release_pr', return_value=release_pr)
     go_mod_repo_url = "https://github.com/example-test/repo-with-go-mod.git"
 
     await finish_release(
@@ -116,6 +121,7 @@ async def test_finish_release(mocker, timezone, test_repo_directory, has_go_mod,
             new_version=version,
             repo_info=test_repo,
             go_mod_repo_url=go_mod_repo_url,
+            pull_request=release_pr,
         )
     else:
         assert update_go_mod_and_commit_mock.called is False
@@ -209,6 +215,7 @@ async def test_update_go_mod_and_commit(
         new_version=version,
         repo_info=library_test_repo,
         go_mod_repo_url=go_mod_repo_url,
+        pull_request=ReleasePR('version', 'https://github.com/org/repo/pull/123456', 'body')
     )
 
     update_go_mod_mock.assert_called_once_with(
@@ -220,7 +227,7 @@ async def test_update_go_mod_and_commit(
     init_working_dir_mock.assert_called_once_with(token, go_mod_repo_url)
     if changed:
         check_call_mock.assert_any_call(["git", "add", "go.mod"], cwd=Path(go_mod_repo_path))
-        message = f"Update go.mod to reference {library_test_repo.name}@{version}"
+        message = f"Update go.mod to reference {library_test_repo.name}@{version} from (org/repo#123456)"
         check_call_mock.assert_any_call(["git", "commit", "-m", message], cwd=Path(go_mod_repo_path))
         check_call_mock.assert_any_call(["git", "push"], cwd=Path(go_mod_repo_path))
     else:

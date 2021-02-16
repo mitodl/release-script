@@ -13,6 +13,7 @@ from constants import (
 from github import github_auth_headers
 from lib import (
     get_default_branch,
+    get_pr_ref,
     get_release_pr,
     get_unchecked_authors,
     load_repos_info,
@@ -361,3 +362,8 @@ async def test_get_default_branch(test_repo_directory):
     get_default_branch should get master or main, depending on the default branch in the repository
     """
     assert await get_default_branch(test_repo_directory) == "master"
+
+
+def test_get_pr_ref():
+    """get_pr_ref should convert a github pull request URL to a shorter reference"""
+    assert get_pr_ref("https://github.com/mitodl/micromasters/pull/2993") == "mitodl/micromasters#2993"
