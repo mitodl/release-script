@@ -10,7 +10,11 @@ from async_subprocess import (
 )
 from exception import VersionMismatchException
 from github import get_org_and_repo
-from lib import get_default_branch
+from lib import (
+    get_default_branch,
+    get_pr_ref,
+    get_release_pr,
+)
 from release import (
     init_working_dir,
     validate_dependencies,
@@ -116,7 +120,7 @@ def update_go_mod(*, path, version, repo_url):
     return False
 
 
-async def update_go_mod_and_commit(*, github_access_token, new_version, repo_info, go_mod_repo_url):
+async def update_go_mod_and_commit(*, github_access_token, new_version, repo_info, go_mod_repo_url, pull_request):
     """
     Create a new PR with an updated go.mod file
 
@@ -125,6 +129,7 @@ async def update_go_mod_and_commit(*, github_access_token, new_version, repo_inf
         new_version (str): The new version of the finished release
         repo_info (RepoInfo): The repository info for the finished release
         go_mod_repo_url (str): The repository info for the project with the go.mod file to update
+        pull_request (ReleasePR): The release PR
     """
     # go_mod is starter, finished repo is theme
     # theme was just merged, so we want to checkout and update starter's go.mod to point to the new version for theme
@@ -143,8 +148,9 @@ async def update_go_mod_and_commit(*, github_access_token, new_version, repo_inf
                 ["git", "add", "go.mod"],
                 cwd=go_mod_repo_path,
             )
+            pr_ref = get_pr_ref(pull_request.url)
             await check_call(
-                ["git", "commit", "-m", f"Update go.mod to reference {name}@{new_version}"],
+                ["git", "commit", "-m", f"Update go.mod to reference {name}@{new_version} from ({pr_ref})"],
                 cwd=go_mod_repo_path,
             )
             await check_call(["git", "push"], cwd=go_mod_repo_path)
@@ -164,6 +170,12 @@ async def finish_release(*, github_access_token, repo_info, version, timezone, g
 
     await validate_dependencies()
     async with init_working_dir(github_access_token, repo_info.repo_url) as working_dir:
+        org, repo = get_org_and_repo(repo_info.repo_url)
+        pr = await get_release_pr(
+            github_access_token=github_access_token,
+            org=org,
+            repo=repo,
+        )
         await check_release_tag(version, root=working_dir)
         await set_release_date(version, timezone, root=working_dir)
         await merge_release_candidate(root=working_dir)
@@ -176,4 +188,5 @@ async def finish_release(*, github_access_token, repo_info, version, timezone, g
                 new_version=version,
                 repo_info=repo_info,
                 go_mod_repo_url=go_mod_repo_url,
+                pull_request=pr,
             )

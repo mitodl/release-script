@@ -427,3 +427,20 @@ def remove_path_from_url(url):
     # The docs recommend _replace: https://docs.python.org/3/library/urllib.parse.html#urllib.parse.urlparse
     updated = parsed._replace(path="", query="", fragment="")
     return urlunparse(updated)
+
+
+def get_pr_ref(url):
+    """
+    Convert a HTML link to a github pull request to a shorter piece of text that will still act as a link for github
+
+    Args:
+        url (str): A pull request URL, for example: https://github.com/mitodl/micromasters/pull/2993
+
+    Returns:
+        str: The shorter reference for a pull request. For example: mitodl/micromasters#2993
+    """
+    match = re.match(r".+://github.com/(?P<org>[^/]+)/(?P<repo>[^/]+)/pull/(?P<number>\d+)", url)
+    if not match:
+        raise Exception(f"Unable to parse pull request URL: {url}")
+    org, repo, number = match.group("org"), match.group("repo"), match.group("number")
+    return f"{org}/{repo}#{number}"
