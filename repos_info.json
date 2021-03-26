@@ -168,6 +168,14 @@
       "packaging_tool": "npm",
       "announcements": false,
       "go_mod": "ocw-course-hugo-starter"
+    },
+    {
+      "name": "course-search-utils",
+      "repo_url": "https://github.com/mitodl/course-search-utils.git",
+      "channel_name": "course-search-utils",
+      "project_type": "library",
+      "packaging_tool": "npm",
+      "announcements": false
     }
   ]
 }
