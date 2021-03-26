@@ -71,7 +71,7 @@ async def test_upload_to_npm(mocker, test_repo_directory, library_test_repo):
 
     await upload_to_npm(project_dir=test_repo_directory, npm_token=npm_token)
     assert call_mock.call_count == 2
-    assert recorded_commands == [["npm", "install"], ["npm", "publish"]]
+    assert recorded_commands == [["npm", "install", "--production=false"], ["npm", "publish"]]
 
 
 async def test_upload_to_pypi(mocker, test_repo_directory, library_test_repo):

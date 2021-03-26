@@ -84,7 +84,7 @@ async def upload_to_npm(*, project_dir, npm_token):
     with open(Path(project_dir) / ".npmrc", "w") as f:
         f.write(f"//registry.npmjs.org/:_authToken={npm_token}")
 
-    await check_call(["npm", "install"], cwd=project_dir)
+    await check_call(["npm", "install", "--production=false"], cwd=project_dir)
     await check_call(["npm", "publish"], cwd=project_dir)
 
 
