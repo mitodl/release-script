@@ -57,19 +57,21 @@ async def test_upload_with_twine(mocker, library_test_repo, library_test_repo_di
 async def test_upload_to_npm(mocker, test_repo_directory, library_test_repo):
     """upload_to_npm should set a token then run npm publish to upload to the repository"""
     npm_token = 'npm-token'
+    recorded_commands = []
 
     def _call(command, *, cwd, **kwargs):
         """check that the token was written correctly"""
         with open(Path(cwd) / ".npmrc") as f:
             assert f.read() == f"//registry.npmjs.org/:_authToken={npm_token}"
 
-        assert command == ["npm", "publish"]
+        recorded_commands.append(command)
         return 0
 
     call_mock = mocker.async_patch('async_subprocess.call', side_effect=_call)
 
     await upload_to_npm(project_dir=test_repo_directory, npm_token=npm_token)
-    assert call_mock.call_count == 1
+    assert call_mock.call_count == 2
+    assert recorded_commands == [["npm", "install"], ["npm", "publish"]]
 
 
 async def test_upload_to_pypi(mocker, test_repo_directory, library_test_repo):
