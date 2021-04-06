@@ -660,7 +660,6 @@ class Bot:
             repo_info=repo_info,
             version=version,
             timezone=self.timezone,
-            go_mod_repo_url=repo_info.go_mod_repo_info.repo_url if repo_info.go_mod_repo_info else None,
         )
 
         if repo_info.project_type == WEB_APPLICATION_TYPE:

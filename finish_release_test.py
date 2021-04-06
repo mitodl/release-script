@@ -81,8 +81,9 @@ async def test_tag_release(mocker, test_repo_directory):
 
 
 # pylint: disable=too-many-locals
-@pytest.mark.parametrize("has_go_mod", [True, False])
-async def test_finish_release(mocker, timezone, test_repo_directory, has_go_mod, test_repo):
+@pytest.mark.parametrize("has_update_go_mod", [True, False])
+@pytest.mark.parametrize("has_update_npm", [True, False])
+async def test_finish_release(mocker, timezone, test_repo_directory, has_update_go_mod, has_update_npm, test_repo):
     """finish_release should tag, merge and push the release"""
     token = 'token'
     version = 'version'
@@ -106,7 +107,7 @@ async def test_finish_release(mocker, timezone, test_repo_directory, has_go_mod,
         repo_info=test_repo,
         version=version,
         timezone=timezone,
-        go_mod_repo_url=go_mod_repo_url if has_go_mod else None,
+        update_go_mod_repo_url=go_mod_repo_url if has_update_go_mod else None,
     )
     validate_dependencies_mock.assert_called_once_with()
     init_working_dir_mock.assert_called_once_with(token, test_repo.repo_url)
@@ -115,7 +116,7 @@ async def test_finish_release(mocker, timezone, test_repo_directory, has_go_mod,
     tag_release_mock.assert_called_once_with(version, root=test_repo_directory)
     merge_release_mock.assert_called_once_with(root=test_repo_directory)
     set_version_date_mock.assert_called_once_with(version, timezone, root=test_repo_directory)
-    if has_go_mod:
+    if has_update_go_mod:
         update_go_mod_and_commit_mock.assert_called_once_with(
             github_access_token=token,
             new_version=version,
@@ -125,6 +126,8 @@ async def test_finish_release(mocker, timezone, test_repo_directory, has_go_mod,
         )
     else:
         assert update_go_mod_and_commit_mock.called is False
+
+    raise Exception("TODO")
 
 
 async def test_set_release_date(test_repo_directory, timezone, mocker):

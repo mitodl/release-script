@@ -267,7 +267,8 @@ async def test_load_repos_info(mocker):
                 "project_type": LIBRARY_TYPE,
                 "packaging_tool": NPM,
                 "announcements": False,
-                "go_mod": "bootcamp-ecommerce"
+                "update_go_mod": "bootcamp-ecommerce",
+                "update_npm": "bootcamp-ecommerce"
             },
         ]
     })
@@ -283,7 +284,8 @@ async def test_load_repos_info(mocker):
         web_application_type=DJANGO,
         packaging_tool=None,
         announcements=False,
-        go_mod_repo_info=None,
+        update_go_mod_repo_info=None,
+        update_npm_repo_info=None
     )
     expected_library = RepoInfo(
         name='bootcamp-ecommerce-library',
@@ -296,7 +298,8 @@ async def test_load_repos_info(mocker):
         web_application_type=None,
         packaging_tool=NPM,
         announcements=False,
-        go_mod_repo_info=expected_web_application,
+        update_go_mod_repo_info=expected_web_application,
+        update_npm_repo_info=expected_web_application,
     )
 
     assert load_repos_info({

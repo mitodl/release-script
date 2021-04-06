@@ -633,15 +633,19 @@ async def test_webhook_different_callback_id(doof, mocker):
 
 
 @pytest.mark.parametrize("has_go_mod_repo", [True, False])
-async def test_webhook_finish_release(doof, mocker, test_repo, library_test_repo, has_go_mod_repo):
+@pytest.mark.parametrize("has_npm_repo", [True, False])
+async def test_webhook_finish_release(doof, mocker, test_repo, library_test_repo, has_go_mod_repo, has_npm_repo):
     """
     Finish the release
     """
-    if has_go_mod_repo:
-        test_repo = RepoInfo(
-            **{k: v for k, v in test_repo._asdict().items() if k != "go_mod_repo_info"},
-            go_mod_repo_info=library_test_repo,
-        )
+    test_repo = RepoInfo(
+        **{
+            k: v for k, v in test_repo._asdict().items()
+            if k not in ("update_go_mod_repo_info", "update_npm_repo_info")
+        },
+        update_go_mod_repo_info=library_test_repo if has_go_mod_repo else None,
+        update_npm_repo_info=library_test_repo if has_npm_repo else None,
+    )
     doof.repos_info = [test_repo, library_test_repo]
 
     pr_body = ReleasePR(
@@ -686,7 +690,8 @@ async def test_webhook_finish_release(doof, mocker, test_repo, library_test_repo
         repo_info=test_repo,
         version=pr_body.version,
         timezone=doof.timezone,
-        go_mod_repo_url=library_test_repo.repo_url if has_go_mod_repo else None,
+        update_go_mod_repo_url=library_test_repo.repo_url if has_go_mod_repo else None,
+        update_npm_repo_url=library_test_repo.repo_url if has_npm_repo else None,
     )
     assert doof.said("Merging...")
     assert not doof.said("Error")
