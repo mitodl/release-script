@@ -122,7 +122,13 @@
       "channel_name": "ocw-to-hugo",
       "project_type": "library",
       "packaging_tool": "npm",
-      "announcements": false
+      "announcements": false,
+      "update_other_repos": [
+        {
+          "name": "ocw-course-hugo-theme",
+          "packaging_tool": "npm"
+        }
+      ]
     },
     {
       "name": "ocw-www",
@@ -164,7 +170,12 @@
       "project_type": "library",
       "packaging_tool": "npm",
       "announcements": false,
-      "go_mod": "ocw-course-hugo-starter"
+      "update_other_repos": [
+        {
+          "name": "ocw-course-hugo-starter",
+          "packaging_tool": "go"
+        }
+      ]
     },
     {
       "name": "course-search-utils",

@@ -8,6 +8,7 @@ from constants import (
     DJANGO,
     LIBRARY_TYPE,
     NPM,
+    SETUPTOOLS,
     WEB_APPLICATION_TYPE,
 )
 from github import github_auth_headers
@@ -27,7 +28,7 @@ from lib import (
     remove_path_from_url,
     url_with_access_token,
 )
-from repo_info import RepoInfo
+from repo_info import RepoInfo, UpdateOtherRepo
 from test_util import async_wrapper, sync_call as call
 
 
@@ -267,7 +268,10 @@ async def test_load_repos_info(mocker):
                 "project_type": LIBRARY_TYPE,
                 "packaging_tool": NPM,
                 "announcements": False,
-                "go_mod": "bootcamp-ecommerce"
+                "update_other_repos": [{
+                    "name": "bootcamp-ecommerce",
+                    "packaging_tool": SETUPTOOLS
+                }],
             },
         ]
     })
@@ -283,7 +287,7 @@ async def test_load_repos_info(mocker):
         web_application_type=DJANGO,
         packaging_tool=None,
         announcements=False,
-        go_mod_repo_info=None,
+        update_other_repos=[]
     )
     expected_library = RepoInfo(
         name='bootcamp-ecommerce-library',
@@ -296,7 +300,13 @@ async def test_load_repos_info(mocker):
         web_application_type=None,
         packaging_tool=NPM,
         announcements=False,
-        go_mod_repo_info=expected_web_application,
+        update_other_repos=[
+            UpdateOtherRepo(
+                name="bootcamp-ecommerce",
+                packaging_tool=SETUPTOOLS,
+                repo_info=expected_web_application,
+            )
+        ]
     )
 
     assert load_repos_info({

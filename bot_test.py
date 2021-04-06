@@ -23,7 +23,7 @@ from constants import (
     PROD,
     RC,
     SETUPTOOLS,
-    VALID_PACKAGING_TOOL_TYPES,
+    NPM,
 )
 from exception import (
     ReleaseException,
@@ -550,7 +550,6 @@ async def test_finish_release(doof, mocker, project_type):
         repo_info=test_repo,
         version=version,
         timezone=doof.timezone,
-        go_mod_repo_url=None,
     )
     assert doof.said(f"Merged evil scheme {version} for {test_repo.name}!")
     if project_type == WEB_APPLICATION_TYPE:
@@ -632,16 +631,11 @@ async def test_webhook_different_callback_id(doof, mocker):
     assert finish_release_mock.called is False
 
 
-@pytest.mark.parametrize("has_go_mod_repo", [True, False])
-async def test_webhook_finish_release(doof, mocker, test_repo, library_test_repo, has_go_mod_repo):
+# pylint: disable=too-many-arguments
+async def test_webhook_finish_release(doof, mocker, test_repo, library_test_repo):
     """
     Finish the release
     """
-    if has_go_mod_repo:
-        test_repo = RepoInfo(
-            **{k: v for k, v in test_repo._asdict().items() if k != "go_mod_repo_info"},
-            go_mod_repo_info=library_test_repo,
-        )
     doof.repos_info = [test_repo, library_test_repo]
 
     pr_body = ReleasePR(
@@ -686,7 +680,6 @@ async def test_webhook_finish_release(doof, mocker, test_repo, library_test_repo
         repo_info=test_repo,
         version=pr_body.version,
         timezone=doof.timezone,
-        go_mod_repo_url=library_test_repo.repo_url if has_go_mod_repo else None,
     )
     assert doof.said("Merging...")
     assert not doof.said("Error")
@@ -855,7 +848,7 @@ async def test_reset(doof, test_repo):
 
 
 @pytest.mark.parametrize("command", [["publish"], ["upload", "to", "pypi"]])
-@pytest.mark.parametrize("packaging_tool", VALID_PACKAGING_TOOL_TYPES)
+@pytest.mark.parametrize("packaging_tool", [NPM, SETUPTOOLS])
 async def test_publish(doof, library_test_repo, mocker, command, packaging_tool):
     """the publish command should start the upload process"""
     publish_patched = mocker.async_patch('bot.publish')

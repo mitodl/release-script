@@ -14,6 +14,7 @@ from async_subprocess import (
 from constants import (
     GIT_RELEASE_NOTES_PATH,
     SCRIPT_DIR,
+    YARN_PATH,
 )
 from exception import (
     DependencyException,
@@ -38,7 +39,7 @@ async def validate_dependencies():
         raise DependencyException('Please install git https://git-scm.com/downloads')
     if not await dependency_exists("node"):
         raise DependencyException('Please install node.js https://nodejs.org/')
-    if not await dependency_exists(GIT_RELEASE_NOTES_PATH):
+    if not await dependency_exists(GIT_RELEASE_NOTES_PATH) or not await dependency_exists(YARN_PATH):
         raise DependencyException("Please run 'npm install' first")
 
     version_output = await check_output(["node", "--version"], cwd="/")
