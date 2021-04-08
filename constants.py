@@ -18,7 +18,8 @@ VALID_WEB_APPLICATION_TYPES = [DJANGO, HUGO]
 # packaging tool types
 NPM = "npm"
 SETUPTOOLS = "setuptools"
-VALID_PACKAGING_TOOL_TYPES = [NPM, SETUPTOOLS]
+GO = "go"
+VALID_PACKAGING_TOOL_TYPES = [NPM, SETUPTOOLS, GO]
 
 # deployment server types
 RC = "rc"
@@ -28,3 +29,4 @@ VALID_DEPLOYMENT_SERVER_TYPES = [CI, RC, PROD]
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 GIT_RELEASE_NOTES_PATH = os.path.join(SCRIPT_DIR, "./node_modules/.bin/git-release-notes")
+YARN_PATH = os.path.join(SCRIPT_DIR, "./node_modules/.bin/yarn")

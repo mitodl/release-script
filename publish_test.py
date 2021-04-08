@@ -10,7 +10,6 @@ import pytest
 from constants import (
     NPM,
     SETUPTOOLS,
-    VALID_PACKAGING_TOOL_TYPES,
 )
 from lib import virtualenv
 from publish import upload_with_twine, upload_to_npm, upload_to_pypi, publish
@@ -81,7 +80,7 @@ async def test_upload_to_pypi(mocker, test_repo_directory, library_test_repo):
     assert twine_mocked.call_count == 1
 
 
-@pytest.mark.parametrize("packaging_tool", VALID_PACKAGING_TOOL_TYPES)
+@pytest.mark.parametrize("packaging_tool", [NPM, SETUPTOOLS])
 async def test_publish(mocker, test_repo_directory, library_test_repo, packaging_tool):
     """publish should call upload_to_pypi or upload_to_npm depending on the packaging_tool"""
     upload_to_pypi_mocked = mocker.async_patch('publish.upload_to_pypi')

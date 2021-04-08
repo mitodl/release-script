@@ -24,7 +24,7 @@ from github import (
     get_pull_request,
     get_org_and_repo,
 )
-from repo_info import RepoInfo
+from repo_info import RepoInfo, UpdateOtherRepo
 
 
 ReleasePR = namedtuple("ReleasePR", ['version', 'url', 'body'])
@@ -337,19 +337,23 @@ def load_repos_info(channel_lookup):
             web_application_type=repo_info.get('web_application_type'),
             packaging_tool=repo_info.get('packaging_tool'),
             announcements=repo_info.get('announcements'),
-            go_mod_repo_info=None,
+            update_other_repos=[]  # this is filled in below
         ) for repo_info in repos_info['repos']
     ]
 
     repo_dict_lookup = {info["name"]: info for info in repos_info["repos"]}
     repo_info_lookup = {info.name: info for info in infos}
 
-    infos = [
-        RepoInfo(
-            **{k: v for k, v in info._asdict().items() if k != "go_mod_repo_info"},
-            go_mod_repo_info=repo_info_lookup.get(repo_dict_lookup[info.name].get("go_mod")),
-        ) for info in infos
-    ]
+    for info in infos:
+        other_dicts = repo_dict_lookup[info.name].get("update_other_repos", [])
+        other_repos = [
+            UpdateOtherRepo(
+                name=other_dict["name"],
+                packaging_tool=other_dict["packaging_tool"],
+                repo_info=repo_info_lookup[other_dict["name"]],
+            ) for other_dict in other_dicts
+        ]
+        info.update_other_repos.extend(other_repos)
 
     # some basic validation for sanity checking
     for info in infos:

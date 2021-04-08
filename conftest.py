@@ -11,7 +11,7 @@ from constants import (
     SETUPTOOLS,
     WEB_APPLICATION_TYPE,
 )
-from repo_info import RepoInfo
+from repo_info import RepoInfo, UpdateOtherRepo
 from test_util import make_test_repo
 from test_util import async_wrapper
 
@@ -52,7 +52,7 @@ WEB_TEST_REPO_INFO = RepoInfo(
     web_application_type=DJANGO,
     packaging_tool=None,
     announcements=False,
-    go_mod_repo_info=None,
+    update_other_repos=[]
 )
 
 
@@ -70,19 +70,6 @@ def test_repo(test_repo_directory):
     yield WEB_TEST_REPO_INFO
 
 
-LIBRARY_TEST_REPO_INFO = RepoInfo(
-    name='lib_repo',
-    repo_url='http://github.com/mitodl/doof-lib.git',
-    prod_hash_url=None,
-    rc_hash_url=None,
-    ci_hash_url=None,
-    channel_id='doof-lib',
-    project_type=LIBRARY_TYPE,
-    packaging_tool=SETUPTOOLS,
-    web_application_type=None,
-    announcements=False,
-    go_mod_repo_info=None,
-)
 NPM_TEST_REPO_INFO = RepoInfo(
     name='node_doof',
     repo_url='http://github.com/mitodl/doof-node.git',
@@ -94,7 +81,22 @@ NPM_TEST_REPO_INFO = RepoInfo(
     packaging_tool=NPM,
     web_application_type=None,
     announcements=False,
-    go_mod_repo_info=None,
+    update_other_repos=[],
+)
+LIBRARY_TEST_REPO_INFO = RepoInfo(
+    name='lib_repo',
+    repo_url='http://github.com/mitodl/doof-lib.git',
+    prod_hash_url=None,
+    rc_hash_url=None,
+    ci_hash_url=None,
+    channel_id='doof-lib',
+    project_type=LIBRARY_TYPE,
+    packaging_tool=SETUPTOOLS,
+    web_application_type=None,
+    announcements=False,
+    update_other_repos=[
+        UpdateOtherRepo("node_doof", "npm", NPM_TEST_REPO_INFO)
+    ],
 )
 ANNOUNCEMENTS_CHANNEL = RepoInfo(
     name='doof_repo',
@@ -107,7 +109,7 @@ ANNOUNCEMENTS_CHANNEL = RepoInfo(
     web_application_type=None,
     packaging_tool=None,
     announcements=True,
-    go_mod_repo_info=None,
+    update_other_repos=[]
 )
 
 
@@ -126,6 +128,12 @@ def library_test_repo(library_test_repo_directory):
         f.write(SETUP_PY)
 
     yield LIBRARY_TEST_REPO_INFO
+
+
+@pytest.fixture
+def npm_library_test_repo(library_test_repo):
+    """Create a repository"""
+    yield NPM_TEST_REPO_INFO
 
 
 @pytest.fixture

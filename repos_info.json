@@ -120,11 +120,8 @@
       "name": "ocw-to-hugo",
       "repo_url": "https://github.com/mitodl/ocw-to-hugo.git",
       "channel_name": "ocw-to-hugo",
-      "project_type": "web_application",
-      "web_application_type": "hugo",
-      "ci_hash_url": "https://ocw-next.netlify.app/static/ocw-to-hugo-hash.txt",
-      "rc_hash_url": "https://ocwnext-rc.odl.mit.edu/static/ocw-to-hugo-hash.txt",
-      "prod_hash_url": "https://ocwnext.odl.mit.edu/static/ocw-to-hugo-hash.txt",
+      "project_type": "library",
+      "packaging_tool": "npm",
       "announcements": false
     },
     {
@@ -167,7 +164,12 @@
       "project_type": "library",
       "packaging_tool": "npm",
       "announcements": false,
-      "go_mod": "ocw-course-hugo-starter"
+      "update_other_repos": [
+        {
+          "name": "ocw-course-hugo-starter",
+          "packaging_tool": "go"
+        }
+      ]
     },
     {
       "name": "course-search-utils",

@@ -5,9 +5,11 @@ from datetime import datetime
 from pathlib import Path
 
 from async_subprocess import (
+    call,
     check_call,
     check_output,
 )
+from constants import GO, NPM, YARN_PATH
 from exception import VersionMismatchException
 from github import get_org_and_repo
 from lib import (
@@ -120,43 +122,60 @@ def update_go_mod(*, path, version, repo_url):
     return False
 
 
-async def update_go_mod_and_commit(*, github_access_token, new_version, repo_info, go_mod_repo_url, pull_request):
+async def update_other_repo_and_commit(*, github_access_token, new_version, repo_info, update_other_repo, pull_request):
     """
-    Create a new PR with an updated go.mod file
+    After a release we sometimes want to update another repository to reference the newly released code.
+    This checks out the other repository, attempts to update the reference to a new version,
+    and commits and pushes that update.
 
     Args:
         github_access_token (str): A token to access github APIs
         new_version (str): The new version of the finished release
         repo_info (RepoInfo): The repository info for the finished release
-        go_mod_repo_url (str): The repository info for the project with the go.mod file to update
+        update_other_repo (UpdateOtherRepo): Info for the project to update
         pull_request (ReleasePR): The release PR
     """
-    # go_mod is starter, finished repo is theme
-    # theme was just merged, so we want to checkout and update starter's go.mod to point to the new version for theme
-    repo_url = repo_info.repo_url
     name = repo_info.name
-    async with init_working_dir(github_access_token, go_mod_repo_url) as go_mod_repo_path:
-        go_mod_repo_path = Path(go_mod_repo_path)
-        changed = update_go_mod(
-            path=go_mod_repo_path / "go.mod",
-            version=new_version,
-            repo_url=repo_url,
-        )
+    other_repo_url = update_other_repo.repo_info.repo_url
+    packaging_tool = update_other_repo.packaging_tool
 
+    async with init_working_dir(github_access_token, other_repo_url) as other_repo_path:
+        other_repo_path = Path(other_repo_path)
+        if packaging_tool == NPM:
+            # This doesn't handle npm install but I don't think we have any packages that need that
+            await check_call(
+                [YARN_PATH, "add", f"{repo_info.name}@{new_version}"],
+                cwd=other_repo_path
+            )
+        elif packaging_tool == GO:
+            update_go_mod(
+                path=other_repo_path / "go.mod",
+                version=new_version,
+                repo_url=repo_info.repo_url,
+            )
+        else:
+            raise Exception(f"Unsupported packaging tool {packaging_tool}")
+
+        changed = (await call(
+            ["git", "diff", "--exit-code"],
+            cwd=other_repo_path,
+        ) != 0)
         if changed:
             await check_call(
-                ["git", "add", "go.mod"],
-                cwd=go_mod_repo_path,
+                ["git", "add", "."],
+                cwd=other_repo_path,
             )
             pr_ref = get_pr_ref(pull_request.url)
             await check_call(
-                ["git", "commit", "-m", f"Update go.mod to reference {name}@{new_version} from ({pr_ref})"],
-                cwd=go_mod_repo_path,
+                ["git", "commit", "-m", f"Update {name} to {new_version} ({pr_ref})"],
+                cwd=other_repo_path,
             )
-            await check_call(["git", "push"], cwd=go_mod_repo_path)
+            await check_call(["git", "push"], cwd=other_repo_path)
 
 
-async def finish_release(*, github_access_token, repo_info, version, timezone, go_mod_repo_url):
+async def finish_release(
+    *, github_access_token, repo_info, version, timezone
+):
     """
     Merge release to master and deploy to production
 
@@ -165,7 +184,6 @@ async def finish_release(*, github_access_token, repo_info, version, timezone, g
         repo_info (RepoInfo): The info of the project being released
         version (str): The new version of the release
         timezone (any): Some timezone object to set the proper release datetime string
-        go_mod_repo_url (str): The URL for the repository with the go.mod file to update
     """
 
     await validate_dependencies()
@@ -182,11 +200,11 @@ async def finish_release(*, github_access_token, repo_info, version, timezone, g
         await tag_release(version, root=working_dir)
         await merge_release(root=working_dir)
 
-        if go_mod_repo_url:
-            await update_go_mod_and_commit(
+        for update_other_repo in repo_info.update_other_repos:
+            await update_other_repo_and_commit(
                 github_access_token=github_access_token,
                 new_version=version,
                 repo_info=repo_info,
-                go_mod_repo_url=go_mod_repo_url,
+                update_other_repo=update_other_repo,
                 pull_request=pr,
             )
