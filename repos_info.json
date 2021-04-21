@@ -178,6 +178,14 @@
       "project_type": "library",
       "packaging_tool": "npm",
       "announcements": false
+    },
+    {
+      "name": "edx-username-changer",
+      "repo_url": "https://github.com/mitodl/edx-username-changer.git",
+      "channel_name": "edx-username-changer-doof",
+      "project_type": "library",
+      "packaging_tool": "setuptools",
+      "announcements": false
     }
   ]
 }
