@@ -150,12 +150,13 @@ async def test_set_release_date_no_file(test_repo_directory, timezone, mocker):
 def test_update_go_mod(test_repo_directory, test_repo, has_require):
     """update_go_mod should update and replace a go.mod file"""
     go_mod_path = Path(test_repo_directory) / "go.mod"
-    contents = """module github.com/mitodl/ocw-course-hugo-starter
+    contents = """module github.com/mitodl/ocw-www
 
-go 1.13
+go 1.16
 
 """
-    require_line = "require github.com/mitodl/ocw-course-hugo-theme v0.0.0-20210111160843-361358c1de80 // indirect\n"
+    require_line = "require github.com/mitodl/ocw-hugo-themes/base-theme v0.0.0-20210429192641-b4d04aa624a0 // indirect"
+
     if has_require:
         contents += require_line
 
@@ -173,9 +174,9 @@ go 1.13
         new_contents = file.read()
 
     if has_require:
-        assert new_contents == """module github.com/mitodl/ocw-course-hugo-starter
+        assert new_contents == """module github.com/mitodl/ocw-www
 
-go 1.13
+go 1.16
 
 require github.com/mitodl/doof v4.5.6 // indirect
 """
