@@ -65,7 +65,7 @@ class DoofSpoof(Bot):
             github_access_token=GITHUB_ACCESS,
             npm_token=NPM_TOKEN,
             timezone=pytz.timezone("America/New_York"),
-            repos_info=[WEB_TEST_REPO_INFO, LIBRARY_TEST_REPO_INFO, ANNOUNCEMENTS_CHANNEL],
+            repos_info=[WEB_TEST_REPO_INFO, LIBRARY_TEST_REPO_INFO],
             loop=loop,
         )
 
@@ -129,7 +129,7 @@ def doof(event_loop):
 async def test_release_notes(doof, test_repo, test_repo_directory, mocker):
     """Doof should show release notes"""
     old_version = "0.1.2"
-    update_version_mock = mocker.async_patch('bot.update_version', autospec=True, return_value=old_version)
+    get_project_version_mock = mocker.async_patch('bot.get_project_version', autospec=True, return_value=old_version)
     mocker.patch(
         'bot.init_working_dir', side_effect=async_context_manager_yielder(test_repo_directory)
     )
@@ -146,8 +146,8 @@ async def test_release_notes(doof, test_repo, test_repo_directory, mocker):
         words=['release', 'notes'],
     )
 
-    update_version_mock.assert_called_once_with(
-        repo_info=test_repo, new_version="9.9.9", working_dir=test_repo_directory
+    get_project_version_mock.assert_called_once_with(
+        repo_info=test_repo, working_dir=test_repo_directory
     )
     create_release_notes_mock.assert_called_once_with(
         old_version, with_checkboxes=False, base_branch="master", root=test_repo_directory
@@ -166,7 +166,7 @@ async def test_release_notes_no_new_notes(doof, test_repo, test_repo_directory, 
         'bot.init_working_dir', side_effect=async_context_manager_yielder(test_repo_directory)
     )
     old_version = "0.1.2"
-    update_version_mock = mocker.async_patch('bot.update_version', autospec=True, return_value=old_version)
+    get_project_version_mock = mocker.async_patch('bot.get_project_version', autospec=True, return_value=old_version)
     notes = "no new commits"
     create_release_notes_mock = mocker.async_patch('bot.create_release_notes', return_value=notes)
     org, repo = get_org_and_repo(test_repo.repo_url)
@@ -180,8 +180,8 @@ async def test_release_notes_no_new_notes(doof, test_repo, test_repo_directory, 
     )
 
     any_new_commits_mock.assert_called_once_with(old_version, base_branch="master", root=test_repo_directory)
-    update_version_mock.assert_called_once_with(
-        repo_info=test_repo, new_version="9.9.9", working_dir=test_repo_directory
+    get_project_version_mock.assert_called_once_with(
+        repo_info=test_repo, working_dir=test_repo_directory
     )
     create_release_notes_mock.assert_called_once_with(
         old_version, with_checkboxes=False, base_branch="master", root=test_repo_directory
@@ -198,7 +198,7 @@ async def test_release_notes_buttons(doof, test_repo, test_repo_directory, mocke
         'bot.init_working_dir', side_effect=async_context_manager_yielder(test_repo_directory)
     )
     old_version = "0.1.2"
-    update_version_mock = mocker.async_patch('bot.update_version', autospec=True, return_value=old_version)
+    get_project_version_mock = mocker.async_patch('bot.get_project_version', autospec=True, return_value=old_version)
     notes = "some notes"
     create_release_notes_mock = mocker.async_patch('bot.create_release_notes', return_value=notes)
     org, repo = get_org_and_repo(test_repo.repo_url)
@@ -212,8 +212,8 @@ async def test_release_notes_buttons(doof, test_repo, test_repo_directory, mocke
     )
 
     any_new_commits_mock.assert_called_once_with(old_version, base_branch="master", root=test_repo_directory)
-    update_version_mock.assert_called_once_with(
-        repo_info=test_repo, new_version="9.9.9", working_dir=test_repo_directory
+    get_project_version_mock.assert_called_once_with(
+        repo_info=test_repo, working_dir=test_repo_directory
     )
     create_release_notes_mock.assert_called_once_with(
         old_version, with_checkboxes=False, base_branch="master", root=test_repo_directory
@@ -340,11 +340,10 @@ async def test_release(doof, test_repo, mocker, command):
         watch_branch='release-candidate',
     )
     assert doof.said("Now deploying to RC...")
-    for channel_id in [test_repo.channel_id, ANNOUNCEMENTS_CHANNEL.channel_id]:
-        assert doof.said(
-            f"Release {pr.version} for {test_repo.name} was deployed at {remove_path_from_url(test_repo.rc_hash_url)}!",
-            channel_id=channel_id,
-        )
+    assert doof.said(
+        f"Release {pr.version} for {test_repo.name} was deployed at {remove_path_from_url(test_repo.rc_hash_url)}!",
+        channel_id=test_repo.channel_id,
+    )
     assert wait_for_checkboxes_sync_mock.called is True
 
 
@@ -373,7 +372,7 @@ async def test_hotfix_release(doof, test_repo, test_repo_directory, mocker):
     wait_for_checkboxes_sync_mock = mocker.async_patch('bot.Bot.wait_for_checkboxes')
 
     old_version = "0.1.1"
-    update_version_mock = mocker.async_patch('bot.update_version', autospec=True, return_value=old_version)
+    get_project_version_mock = mocker.async_patch('bot.get_project_version', autospec=True, return_value=old_version)
 
     command_words = ['hotfix', commit_hash]
     me = 'mitodl_user'
@@ -389,8 +388,8 @@ async def test_hotfix_release(doof, test_repo, test_repo_directory, mocker):
         org=org,
         repo=repo,
     )
-    update_version_mock.assert_called_once_with(
-        repo_info=test_repo, new_version="9.9.9", working_dir=test_repo_directory
+    get_project_version_mock.assert_called_once_with(
+        repo_info=test_repo, working_dir=test_repo_directory
     )
     release_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
@@ -723,18 +722,20 @@ async def test_webhook_start_release(doof, test_repo, mocker):
     org, repo = get_org_and_repo(test_repo.repo_url)
     get_release_pr_mock = mocker.async_patch('bot.get_release_pr', return_value=None)
 
-    release_mock = mocker.async_patch('bot.Bot._web_application_release')
+    release_mock = mocker.async_patch('bot.Bot.release_command')
 
     version = "3.4.5"
+    manager = "doofenshmirtz"
+    channel_id = "doof"
     await doof.handle_webhook(
         webhook_dict={
             "token": "token",
             "callback_id": NEW_RELEASE_ID,
             "channel": {
-                "id": "doof"
+                "id": channel_id
             },
             "user": {
-                "id": "doofenshmirtz"
+                "id": manager
             },
             "message_ts": "123.45",
             "original_message": {
@@ -751,9 +752,13 @@ async def test_webhook_start_release(doof, test_repo, mocker):
 
     assert doof.said(f"Starting release {version}...")
     assert release_mock.call_count == 1
-    assert release_mock.call_args[0][1].args == [version]
+    assert release_mock.call_args[0][1] == CommandArgs(
+        repo_info=test_repo,
+        args=[version],
+        manager=manager,
+        channel_id=channel_id,
+    )
     assert not doof.said("Error")
-    get_release_pr_mock.assert_called_once_with(github_access_token=GITHUB_ACCESS, org=org, repo=repo)
 
 
 async def test_webhook_start_release_fail(doof, mocker):
@@ -920,23 +925,6 @@ async def test_command_without_repo(doof, command):
     assert doof.said(
         'That command requires a repo but this channel is not attached to any project.'
     )
-
-
-@pytest.mark.parametrize("is_announcement", [True, False])
-async def test_announcement(is_announcement, doof):
-    """
-    Test that an announcement will get sent to multiple channels
-    """
-    text = "some text here"
-    await doof.say(
-        channel_id=LIBRARY_TEST_REPO_INFO.channel_id,
-        text=text,
-        attachments=[{"some": "attachment"}],
-        message_type="a message",
-        is_announcement=is_announcement
-    )
-    assert doof.said(text, channel_id=LIBRARY_TEST_REPO_INFO.channel_id) is True
-    assert doof.said(text, channel_id=ANNOUNCEMENTS_CHANNEL.channel_id) is is_announcement
 
 
 async def test_help(doof):
@@ -1299,3 +1287,48 @@ async def test_handle_event_message_changed(doof, mocker):
     )
 
     assert handle_message.called is False
+
+
+@pytest.mark.parametrize("version_arg, expected_version", [["minor", "1.3.0"], ["patch", "1.2.4"]])
+@pytest.mark.parametrize("has_release_pr", [True, False])
+@pytest.mark.parametrize("has_new_commits", [True, False])
+async def test_start_new_releases(
+    doof, mocker, test_repo, test_repo_directory, version_arg, expected_version, has_release_pr, has_new_commits
+):
+    """start new releases command should iterate through releases and start ones without an existing PR"""
+    old_version = "1.2.3"
+    default_branch = "default"
+    command_args = CommandArgs(
+        channel_id="channel-id",
+        manager="me",
+        repo_info=test_repo,
+        args=[version_arg],
+    )
+    org, repo = get_org_and_repo(test_repo.repo_url)
+    mocker.patch(
+        'bot.init_working_dir', side_effect=async_context_manager_yielder(test_repo_directory)
+    )
+    get_release_pr_mock = mocker.async_patch(
+        "bot.get_release_pr",
+        return_value=ReleasePR(version=old_version, url="https://example.com", body="...") if has_release_pr else None
+    )
+    get_project_version_mock = mocker.async_patch("bot.get_project_version", return_value=old_version)
+    get_default_branch_mock = mocker.async_patch("bot.get_default_branch", return_value=default_branch)
+    any_new_commits_mock = mocker.async_patch("bot.any_new_commits", return_value=has_new_commits)
+    new_release_mock = mocker.async_patch("bot.Bot._new_release")
+
+    await doof.start_new_releases(command_args)
+
+    get_release_pr_mock.assert_any_call(github_access_token=GITHUB_ACCESS, org=org, repo=repo)
+
+    if not has_release_pr:
+        get_project_version_mock.assert_any_call(repo_info=test_repo, working_dir=test_repo_directory)
+        get_default_branch_mock.assert_any_call(test_repo_directory)
+        any_new_commits_mock.assert_any_call(old_version, base_branch=default_branch, root=test_repo_directory)
+
+    if not has_release_pr and has_new_commits:
+        new_release_mock.assert_any_call(doof,
+            repo_info=test_repo, version=expected_version, manager=command_args.manager
+        )
+    else:
+        assert new_release_mock.called is False

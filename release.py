@@ -178,7 +178,9 @@ async def release(*, github_access_token, repo_info, new_version, branch=None, c
                 await check_call(["git", "cherry-pick", commit_hash], cwd=working_dir)
             except CalledProcessError as ex:
                 raise ReleaseException(f"Cherry pick failed for the given hash {commit_hash}") from ex
-        old_version = await update_version(repo_info=repo_info, new_version=new_version, working_dir=working_dir)
+        old_version = await update_version(
+            repo_info=repo_info, new_version=new_version, working_dir=working_dir, readonly=False
+        )
         if parse_version(old_version) >= parse_version(new_version):
             raise ReleaseException("old version is {old} but the new version {new} is not newer".format(
                 old=old_version,
