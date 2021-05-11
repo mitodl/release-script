@@ -130,9 +130,9 @@
       "channel_name": "ocw-www",
       "project_type": "web_application",
       "web_application_type": "hugo",
-      "ci_hash_url": "https://ocw-next.netlify.app/static/hash.txt",
-      "rc_hash_url": "https://ocwnext-rc.odl.mit.edu/static/hash.txt",
-      "prod_hash_url": "https://ocwnext.odl.mit.edu/static/hash.txt",
+      "ci_hash_url": "https://ocw-next.netlify.app/static/ocw-www-hash.txt",
+      "rc_hash_url": "https://ocwnext-rc.odl.mit.edu/static/ocw-www-hash.txt",
+      "prod_hash_url": "https://ocwnext.odl.mit.edu/static/ocw-www-hash.txt",
       "announcements": false
     },
     {
