@@ -719,9 +719,6 @@ async def test_webhook_start_release(doof, test_repo, mocker):
     """
     Start a new release
     """
-    org, repo = get_org_and_repo(test_repo.repo_url)
-    get_release_pr_mock = mocker.async_patch('bot.get_release_pr', return_value=None)
-
     release_mock = mocker.async_patch('bot.Bot.release_command')
 
     version = "3.4.5"

@@ -19,7 +19,6 @@ from constants import (
     LIBRARY_TYPE,
     MINOR,
     NPM,
-    PATCH,
     PROD,
     RC,
     SETUPTOOLS,
@@ -1078,7 +1077,7 @@ class Bot:
                 command='start new releases',
                 parsers=[Parser(
                     func=parse_text_matching_options(VALID_RELEASE_ALL_TYPES),
-                    description=f"how to increment version for the next release (either 'minor' or 'patch')",
+                    description="how to increment version for the next release (either 'minor' or 'patch')",
                 )],
                 command_func=self.start_new_releases,
                 description="Start new releases for all projects which have new commits",
