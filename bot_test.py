@@ -23,6 +23,8 @@ from constants import (
     RC,
     SETUPTOOLS,
     NPM,
+    WAITING_FOR_CHECKBOXES,
+    FREEZE_RELEASE,
 )
 from exception import ReleaseException
 from github import get_org_and_repo
@@ -62,6 +64,7 @@ class DoofSpoof(Bot):
 
         self.slack_users = []
         self.messages = {}
+        self.labels = {}
 
     async def lookup_users(self):
         """Users in the channel"""
@@ -110,6 +113,11 @@ class DoofSpoof(Bot):
             return False
         raise Exception(f"Expected {text} to be said {times} time(s) but was said {match_count} times.")
 
+    async def _set_release_label(self, *, repo_url, pr_number, label):
+        self.labels[(repo_url, pr_number)] = label
+
+    async def _get_release_label(self, *, repo_url, pr_number):
+        return self.labels.get((repo_url, pr_number))
 
 @pytest.fixture
 def doof(event_loop):
@@ -128,7 +136,7 @@ async def test_release_notes(doof, test_repo, test_repo_directory, mocker):
     create_release_notes_mock = mocker.async_patch('bot.create_release_notes', return_value=notes)
     any_new_commits_mock = mocker.async_patch('bot.any_new_commits', return_value=True)
     org, repo = get_org_and_repo(test_repo.repo_url)
-    release_pr = ReleasePR('version', f'https://github.com/{org}/{repo}/pulls/123456', 'body')
+    release_pr = ReleasePR('version', f'https://github.com/{org}/{repo}/pulls/123456', 'body', 123456)
     get_release_pr_mock = mocker.async_patch('bot.get_release_pr', return_value=release_pr)
 
     await doof.run_command(
@@ -295,6 +303,7 @@ async def test_release(doof, test_repo, mocker, command):
         version=version,
         url='http://new.url',
         body='Release PR body',
+        number=123,
     )
     get_release_pr_mock = mocker.async_patch('bot.get_release_pr', side_effect=[None, pr, pr])
     release_mock = mocker.async_patch('bot.release')
@@ -352,6 +361,7 @@ async def test_hotfix_release(doof, test_repo, test_repo_directory, mocker):
         version=version,
         url='http://new.url',
         body='Release PR body',
+        number=123,
     )
     get_release_pr_mock = mocker.async_patch('bot.get_release_pr', side_effect=[None, pr, pr])
     release_mock = mocker.async_patch('bot.release')
@@ -410,6 +420,7 @@ async def test_release_in_progress(doof, test_repo, mocker, command):
         version=version,
         url=url,
         body='Release PR body',
+        number=123,
     ))
 
     command_words = command.split() + [version]
@@ -461,6 +472,7 @@ async def test_release_library(doof, library_test_repo, mocker):
         version=version,
         url='http://new.url',
         body='Release PR body',
+        number=123,
     )
     get_release_pr_mock = mocker.async_patch('bot.get_release_pr', side_effect=[None, pr, pr])
     release_mock = mocker.async_patch('bot.release')
@@ -515,6 +527,7 @@ async def test_finish_release(doof, mocker, project_type):
         version=version,
         url='http://new.url',
         body='Release PR body',
+        number=123,
     )
     get_release_pr_mock = mocker.async_patch('bot.get_release_pr', return_value=pr)
     finish_release_mock = mocker.async_patch('bot.finish_release')
@@ -546,7 +559,9 @@ async def test_finish_release(doof, mocker, project_type):
         assert doof.said('deploying to production...')
         wait_for_deploy_prod_mock.assert_called_once_with(
             doof,
-            repo_info=test_repo
+            repo_info=test_repo,
+            manager="mitodl_user",
+            release_pr=pr,
         )
 
 
@@ -608,26 +623,28 @@ async def test_webhook_finish_release(doof, mocker, test_repo, library_test_repo
         version='version',
         url='url',
         body='body',
+        number=123,
     )
     get_release_pr_mock = mocker.async_patch('bot.get_release_pr', return_value=pr_body)
     finish_release_mock = mocker.async_patch('bot.finish_release')
     wait_for_deploy_prod_mock = mocker.async_patch('bot.Bot._wait_for_deploy_prod')
 
-    await doof.handle_webhook(
-        webhook_dict={
-            "token": "token",
-            "callback_id": FINISH_RELEASE_ID,
-            "channel": {
-                "id": "doof"
-            },
-            "user": {
-                "id": "doofenshmirtz"
-            },
-            "message_ts": "123.45",
-            "original_message": {
-                "text": "Doof's original text",
-            }
+    payload = {
+        "token": "token",
+        "callback_id": FINISH_RELEASE_ID,
+        "channel": {
+            "id": "doof"
         },
+        "user": {
+            "id": "doofenshmirtz"
+        },
+        "message_ts": "123.45",
+        "original_message": {
+            "text": "Doof's original text",
+        }
+    }
+    await doof.handle_webhook(
+        webhook_dict=payload,
     )
 
     repo_url = test_repo.repo_url
@@ -635,6 +652,8 @@ async def test_webhook_finish_release(doof, mocker, test_repo, library_test_repo
     wait_for_deploy_prod_mock.assert_any_call(
         doof,
         repo_info=test_repo,
+        manager=payload["user"]["id"],
+        release_pr=pr_body
     )
     get_release_pr_mock.assert_any_call(
         github_access_token=doof.github_access_token,
@@ -891,20 +910,13 @@ async def test_help(doof):
     assert doof.said("*help*: Show available commands")
 
 
-@pytest.mark.parametrize("speak_initial, has_checkboxes", [
-    [True, False],
-    [True, True],
-    [False, False],
-    [False, True],
-])
-async def test_wait_for_checkboxes(
-        mocker, doof, test_repo, speak_initial, has_checkboxes
-):
+@pytest.mark.parametrize("has_checkboxes", [True, False])
+async def test_wait_for_checkboxes(mocker, doof, test_repo, has_checkboxes):
     """wait_for_checkboxes should poll github, parse checkboxes and see if all are checked"""
     org, repo = get_org_and_repo(test_repo.repo_url)
     channel_id = test_repo.channel_id
 
-    pr = ReleasePR('version', f'https://github.com/{org}/{repo}/pulls/123456', 'body')
+    pr = ReleasePR('version', f'https://github.com/{org}/{repo}/pulls/123456', 'body', 123456)
     get_release_pr_mock = mocker.async_patch('bot.get_release_pr', return_value=pr)
     get_unchecked_patch = mocker.async_patch('bot.get_unchecked_authors', side_effect=[
         {'author1', 'author2', 'author3'},
@@ -925,10 +937,8 @@ async def test_wait_for_checkboxes(
     await doof.wait_for_checkboxes(
         manager=me,
         repo_info=test_repo,
-        speak_initial=speak_initial,
+        release_pr=pr
     )
-    if speak_initial:
-        assert doof.said("isn't evil enough until all the checkboxes are checked")
     get_unchecked_patch.assert_any_call(
         github_access_token=GITHUB_ACCESS,
         org=org,
@@ -937,7 +947,7 @@ async def test_wait_for_checkboxes(
     assert get_unchecked_patch.call_count == (3 if has_checkboxes else 1)
     assert sleep_sync_mock.call_count == (2 if has_checkboxes else 0)
     get_release_pr_mock.assert_called_once_with(github_access_token=GITHUB_ACCESS, org=org, repo=repo)
-    if speak_initial or has_checkboxes:
+    if has_checkboxes:
         assert doof.said(
             "All checkboxes checked off. Release {version} is ready for the Merginator {name}".format(
                 version=pr.version,
@@ -959,8 +969,6 @@ async def test_wait_for_checkboxes(
                 }
             ]
         )
-    if speak_initial:
-        assert doof.said(f"PR is up at {pr.url}. These people have commits in this release:", channel_id=channel_id)
     if has_checkboxes:
         assert not doof.said(
             "Thanks for checking off your boxes <@author1>, <@author2>, <@author3>!", channel_id=channel_id
@@ -989,12 +997,12 @@ async def test_startup(doof, mocker, repo_info, has_release_pr, has_expected):
         version="version",
         url=repo_info.repo_url,
         body='Release PR body',
+        number=123,
     )
     mocker.async_patch('bot.get_release_pr', return_value=(
         release_pr if has_release_pr else None
     ))
-    wait_for_checkboxes_mock = mocker.async_patch('bot.Bot.wait_for_checkboxes')
-    wait_for_deploy_mock = mocker.async_patch('bot.Bot.wait_for_deploy')
+    run_release_lifecycle_mock = mocker.async_patch('bot.Bot.run_release_lifecycle')
 
     await doof.startup()
     # iterate once through event loop
@@ -1002,64 +1010,25 @@ async def test_startup(doof, mocker, repo_info, has_release_pr, has_expected):
     assert not doof.said("isn't evil enough until all the checkboxes are checked")
 
     if has_expected:
-        wait_for_checkboxes_mock.assert_called_once_with(doof, manager=None, repo_info=repo_info, speak_initial=False)
-        wait_for_deploy_mock.assert_called_once_with(doof, repo_info=repo_info)
+        run_release_lifecycle_mock.assert_called_once_with(
+            doof, manager=None, repo_info=repo_info, release_pr=release_pr
+        )
     else:
-        assert wait_for_checkboxes_mock.call_count == 0
-        assert wait_for_deploy_mock.call_count == 0
-
-
-@pytest.mark.parametrize("needs_deploy_rc", [True, False])
-@pytest.mark.parametrize("needs_deploy_prod", [True, False])
-async def test_wait_for_deploy(doof, test_repo, needs_deploy_rc, needs_deploy_prod, mocker):
-    """bot.wait_for_deploy should check if deploys are needed for RC or PROD"""
-
-    def _is_release_deployed(branch, **kwargs):  # pylint: disable=unused-argument
-        """Helper function to provide right value for is_release_deployed"""
-        if branch == "release":
-            return not needs_deploy_prod
-        elif branch == "release-candidate":
-            return not needs_deploy_rc
-        raise Exception("Unexpected branch")
-
-    is_release_deployed_mock = mocker.async_patch(
-        'bot.is_release_deployed', side_effect=_is_release_deployed
-    )
-    wait_for_deploy_rc_mock = mocker.async_patch('bot.Bot._wait_for_deploy_rc')
-    wait_for_deploy_prod_mock = mocker.async_patch('bot.Bot._wait_for_deploy_prod')
-
-    await doof.wait_for_deploy(repo_info=test_repo)
-
-    is_release_deployed_mock.assert_any_call(
-        github_access_token=GITHUB_ACCESS,
-        repo_url=test_repo.repo_url,
-        hash_url=test_repo.prod_hash_url,
-        branch="release",
-    )
-    is_release_deployed_mock.assert_any_call(
-        github_access_token=GITHUB_ACCESS,
-        repo_url=test_repo.repo_url,
-        hash_url=test_repo.rc_hash_url,
-        branch="release-candidate",
-    )
-    if needs_deploy_rc:
-        wait_for_deploy_rc_mock.assert_called_once_with(doof, repo_info=test_repo)
-    else:
-        assert wait_for_deploy_rc_mock.called is False
-    if needs_deploy_prod:
-        wait_for_deploy_prod_mock.assert_called_once_with(doof, repo_info=test_repo)
-    else:
-        assert wait_for_deploy_prod_mock.called is False
+        assert run_release_lifecycle_mock.called is False
 
 
 async def test_wait_for_deploy_rc(doof, test_repo, mocker):
     """Bot._wait_for_deploy_prod should wait until repo has been deployed to RC"""
     wait_for_deploy_mock = mocker.async_patch('bot.wait_for_deploy')
     org, repo = get_org_and_repo(test_repo.repo_url)
-    release_pr = ReleasePR('version', f'https://github.com/{org}/{repo}/pulls/123456', 'body')
-    get_release_pr_mock = mocker.async_patch('bot.get_release_pr', return_value=release_pr)
+    release_pr = ReleasePR('version', f'https://github.com/{org}/{repo}/pulls/123456', 'body', 123456)
+    authors = {'author1', 'author2'}
+    get_unchecked = mocker.async_patch('bot.get_unchecked_authors', return_value=authors)
+    wait_for_checkboxes_sync_mock = mocker.async_patch('bot.Bot.wait_for_checkboxes')
 
-    await doof._wait_for_deploy_rc(repo_info=test_repo)  # pylint: disable=protected-access
+    await doof._wait_for_deploy_rc(  # pylint: disable=protected-access
+        repo_info=test_repo, manager="me", release_pr=release_pr
+    )
 
     wait_for_deploy_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
@@ -1067,10 +1036,16 @@ async def test_wait_for_deploy_rc(doof, test_repo, mocker):
         hash_url=test_repo.rc_hash_url,
         watch_branch='release-candidate'
     )
-    get_release_pr_mock.assert_called_once_with(
+    get_unchecked.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
         org=org,
         repo=repo,
+    )
+    wait_for_checkboxes_sync_mock.assert_called_once_with(
+        mocker.ANY,
+        repo_info=test_repo,
+        manager="me",
+        release_pr=release_pr,
     )
 
 
@@ -1080,8 +1055,11 @@ async def test_wait_for_deploy_prod(doof, test_repo, mocker):
     version = "1.2.345"
     get_version_tag_mock = mocker.async_patch('bot.get_version_tag', return_value="v{}".format(version))
     channel_id = test_repo.channel_id
+    release_pr = ReleasePR('version', 'https://github.com/org/repo/pulls/123456', 'body', 123456)
 
-    await doof._wait_for_deploy_prod(repo_info=test_repo)  # pylint: disable=protected-access
+    await doof._wait_for_deploy_prod(  # pylint: disable=protected-access
+        repo_info=test_repo, manager="me", release_pr=release_pr
+    )
 
     get_version_tag_mock.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
@@ -1222,7 +1200,9 @@ async def test_start_new_releases(
     )
     get_release_pr_mock = mocker.async_patch(
         "bot.get_release_pr",
-        return_value=ReleasePR(version=old_version, url="https://example.com", body="...") if has_release_pr else None
+        return_value=ReleasePR(
+            version=old_version, url="https://example.com", body="...", number=123
+        ) if has_release_pr else None
     )
     get_project_version_mock = mocker.async_patch("bot.get_project_version", return_value=old_version)
     get_default_branch_mock = mocker.async_patch("bot.get_default_branch", return_value=default_branch)
@@ -1248,3 +1228,39 @@ async def test_start_new_releases(
     else:
         assert new_release_mock.called is False
         assert doof.said("No new releases needed")
+
+
+async def test_set_release_label(doof, mocker, test_repo):
+    """_set_release_label should call github to set a release label"""
+    set_label_mock = mocker.async_patch("bot.set_release_label")
+    await Bot._set_release_label(  # pylint: disable=protected-access
+        doof,
+        repo_url=test_repo.repo_url,
+        pr_number=123,
+        label=WAITING_FOR_CHECKBOXES,
+    )
+    set_label_mock.assert_called_once_with(
+        github_access_token=GITHUB_ACCESS,
+        repo_url=test_repo.repo_url,
+        pr_number=123,
+        label=WAITING_FOR_CHECKBOXES,
+    )
+
+
+@pytest.mark.parametrize("github_labels, expected_label", [
+    [[WAITING_FOR_CHECKBOXES, FREEZE_RELEASE, "other"], None],
+    [[WAITING_FOR_CHECKBOXES, "other"], WAITING_FOR_CHECKBOXES],
+    [["other"], None],
+])
+async def test_get_release_label(doof, mocker, test_repo, github_labels, expected_label):
+    """_get_release_label should get a release label if one exists, or None"""
+    get_label_mock = mocker.async_patch("bot.get_labels", return_value=github_labels)
+    label = await Bot._get_release_label(  # pylint: disable=protected-access
+        doof,
+        repo_url=test_repo.repo_url,
+        pr_number=123
+    )
+    assert label == expected_label
+    get_label_mock.assert_called_once_with(
+        repo_url=test_repo.repo_url, github_access_token=GITHUB_ACCESS, pr_number=123
+    )

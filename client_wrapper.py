@@ -12,3 +12,7 @@ class ClientWrapper:
     async def post(self, *args, **kwargs):
         """POST request"""
         return requests.post(*args, **kwargs)
+
+    async def delete(self, *args, **kwargs):
+        """DELETE request"""
+        return requests.delete(*args, **kwargs)

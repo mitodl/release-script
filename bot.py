@@ -12,7 +12,14 @@ import pytz
 
 from client_wrapper import ClientWrapper
 from constants import (
+    ALL_CHECKBOXES_CHECKED,
     CI,
+    DEPLOYED_TO_PROD,
+    DEPLOYING_TO_PROD,
+    DEPLOYING_TO_RC,
+    WAITING_FOR_CHECKBOXES,
+    RELEASE_LABELS,
+    FREEZE_RELEASE,
     FINISH_RELEASE_ID,
     NEW_RELEASE_ID,
     LIBRARY_TYPE,
@@ -31,8 +38,10 @@ from exception import (
 )
 from finish_release import finish_release
 from github import (
+    get_labels,
     get_org_and_repo,
     needs_review,
+    set_release_label,
 )
 from release import (
     any_new_commits,
@@ -63,7 +72,6 @@ from version import (
 )
 from wait_for_deploy import (
     fetch_release_hash,
-    is_release_deployed,
     wait_for_deploy,
 )
 from web import make_app
@@ -271,6 +279,72 @@ class Bot:
             message_type=message_type,
         )
 
+    async def _get_release_label(self, *, repo_url, pr_number):
+        """
+        Helper function to get release labels on a repo. If there is a merge freeze label, a None is returned as if
+        there were no labels at all (which means ignore the repository).
+
+        Args:
+            repo_url (str): URL for a repository
+            pr_number (int): Pull request number
+        """
+        labels = await get_labels(
+            github_access_token=self.github_access_token,
+            repo_url=repo_url,
+            pr_number=pr_number,
+        )
+        if FREEZE_RELEASE in labels:
+            return None
+
+        labels = [label for label in labels if label in RELEASE_LABELS]
+        if len(labels) > 1:
+            raise Exception(f"Multiple release labels found for {repo_url}: {labels}")
+        if len(labels) == 0:
+            # A library release, or maybe a release made before these changes were made
+            return None
+        return labels[0]
+
+    async def _set_release_label(self, *, repo_url, pr_number, label):
+        """Helper function to set a release PR label (and make mocking easier)"""
+        await set_release_label(
+            github_access_token=self.github_access_token,
+            repo_url=repo_url,
+            pr_number=pr_number,
+            label=label,
+        )
+
+    async def run_release_lifecycle(self, *, repo_info, manager, release_pr):
+        """
+        Look up the release step from the label, then continue release from that step
+
+        Args:
+            repo_info (RepoInfo): Info for a repository
+            manager (str): Release manager
+            release_pr (ReleasePR): Release pull request
+        """
+        label = await self._get_release_label(repo_url=repo_info.repo_url, pr_number=release_pr.number)
+
+        # In general these functions should put things in this order:
+        #  - polling and waiting at the beginning of the function
+        #  - any actions like merging a branch
+        #  - set label to next step
+        #  - most speech by doof
+        #  - call this function again to decide on the next step
+        # The intention is that if a function terminates unexpectedly it
+        # can start over with as little repeated speech/actions as possible.
+        if label == DEPLOYING_TO_RC:
+            await self._wait_for_deploy_rc(repo_info=repo_info, manager=manager, release_pr=release_pr)
+        elif label == WAITING_FOR_CHECKBOXES:
+            await self.wait_for_checkboxes(repo_info=repo_info, manager=manager, release_pr=release_pr)
+        elif label == ALL_CHECKBOXES_CHECKED:
+            # Done, waiting for the release to finish
+            return
+        elif label == DEPLOYING_TO_PROD:
+            await self._wait_for_deploy_prod(repo_info=repo_info, manager=manager, release_pr=release_pr)
+        elif label == DEPLOYED_TO_PROD:
+            # all done
+            return
+
     async def _library_release(self, *, repo_info, version):
         """Do a library release"""
         channel_id = repo_info.channel_id
@@ -325,6 +399,7 @@ class Bot:
             manager (str): Manager for the release
         """
         channel_id = repo_info.channel_id
+        org, repo = get_org_and_repo(repo_info.repo_url)
         if hotfix_hash:
             await release(
                 github_access_token=self.github_access_token,
@@ -349,66 +424,47 @@ class Bot:
                 text=f"Behold, my new evil scheme - release {version} for {repo_info.name}! Now deploying to RC..."
             )
 
-        await self._wait_for_deploy_rc(
-            repo_info=repo_info,
+        release_pr = await get_release_pr(github_access_token=self.github_access_token, org=org, repo=repo)
+        await self._set_release_label(
+            repo_url=repo_info.repo_url,
+            pr_number=release_pr.number,
+            label=DEPLOYING_TO_RC,
         )
-        await self.wait_for_checkboxes(
-            repo_info=repo_info,
-            manager=manager,
+        await self.run_release_lifecycle(
+            repo_info=repo_info, manager=manager, release_pr=release_pr
         )
-
-    async def wait_for_deploy(self, *, repo_info):
-        """
-        Check hash values periodically and wait for deployment
-        """
-        if not await is_release_deployed(
-                github_access_token=self.github_access_token,
-                repo_url=repo_info.repo_url,
-                hash_url=repo_info.rc_hash_url,
-                branch="release-candidate"
-        ):
-            await self._wait_for_deploy_rc(
-                repo_info=repo_info,
-            )
-        if not await is_release_deployed(
-                github_access_token=self.github_access_token,
-                repo_url=repo_info.repo_url,
-                hash_url=repo_info.prod_hash_url,
-                branch="release"
-        ):
-            await self._wait_for_deploy_prod(
-                repo_info=repo_info,
-            )
 
     async def _wait_for_deploy_rc(
-            self, *, repo_info,
+        self, *, repo_info, manager, release_pr
     ):
         """
         Check hash values to wait for deployment for RC
         """
         repo_url = repo_info.repo_url
         channel_id = repo_info.channel_id
-        org, repo = get_org_and_repo(repo_url)
         await wait_for_deploy(
             github_access_token=self.github_access_token,
             repo_url=repo_url,
             hash_url=repo_info.rc_hash_url,
             watch_branch="release-candidate",
         )
-        pr = await get_release_pr(
-            github_access_token=self.github_access_token,
-            org=org,
-            repo=repo,
-        )
         rc_server = remove_path_from_url(repo_info.rc_hash_url)
+
+        await self._set_release_label(
+            repo_url=repo_url,
+            pr_number=release_pr.number,
+            label=WAITING_FOR_CHECKBOXES,
+        )
         await self.say(
             channel_id=channel_id,
             text=(
-                f"Release {pr.version} for {repo_info.name} was deployed at {rc_server}!"
-            )
+                f"Release {release_pr.version} for {repo_info.name} was deployed at {rc_server}!"
+            ),
         )
+        await self._wait_for_checkboxes_initial_message(repo_info=repo_info, release_pr=release_pr)
+        await self.run_release_lifecycle(repo_info=repo_info, manager=manager, release_pr=release_pr)
 
-    async def _wait_for_deploy_prod(self, *, repo_info):
+    async def _wait_for_deploy_prod(self, *, repo_info, manager, release_pr):
         """
         Check hash values to wait for deployment for production
         """
@@ -426,6 +482,12 @@ class Bot:
             hash_url=repo_info.prod_hash_url,
             watch_branch="release",
         )
+        await self._set_release_label(
+            repo_url=repo_url,
+            pr_number=release_pr.number,
+            label=DEPLOYED_TO_PROD,
+        )
+
         prod_server = remove_path_from_url(repo_info.prod_hash_url)
         await self.say(
             channel_id=channel_id,
@@ -434,6 +496,7 @@ class Bot:
                 "And by 'released', I mean completely...um...leased."
             )
         )
+        await self.run_release_lifecycle(repo_info=repo_info, manager=manager, release_pr=release_pr)
 
     async def _new_release(self, *, repo_info, version, manager):
         """
@@ -510,16 +573,62 @@ class Bot:
         Args:
             command_args (CommandArgs): The arguments for this command
         """
-        await self.wait_for_checkboxes(repo_info=command_args.repo_info, manager=command_args.manager)
+        repo_info = command_args.repo_info
+        org, repo = get_org_and_repo(repo_info.repo_url)
+        release_pr = await get_release_pr(
+            github_access_token=self.github_access_token,
+            org=org,
+            repo=repo,
+        )
+        await self._set_release_label(
+            repo_url=command_args.repo_info.repo_url,
+            pr_number=release_pr.number,
+            label=WAITING_FOR_CHECKBOXES,
+        )
+        await self._wait_for_checkboxes_initial_message(repo_info=repo_info, release_pr=release_pr)
+        await self.run_release_lifecycle(
+            repo_info=command_args.repo_info, manager=command_args.manager, release_pr=release_pr
+        )
 
-    async def wait_for_checkboxes(self, *, repo_info, manager, speak_initial=True):
+    async def _wait_for_checkboxes_initial_message(self, *, repo_info, release_pr):
+        """
+        Find out who hasn't checked their boxes and message the channel
+
+        Args:
+            repo_info (RepoInfo): Repo info
+            release_pr (ReleasePR): The release PR
+        """
+        org, repo = get_org_and_repo(repo_info.repo_url)
+        channel_id = repo_info.channel_id
+        prev_unchecked_authors = await get_unchecked_authors(
+            github_access_token=self.github_access_token,
+            org=org,
+            repo=repo,
+        )
+        await self.say(
+            channel_id=channel_id,
+            text=(
+                f"PR is up at {release_pr.url}."
+                f" These people have commits in this release: "
+                f"{', '.join(await self.translate_slack_usernames(prev_unchecked_authors))}"
+            ),
+        )
+        await self.say(
+            channel_id=channel_id,
+            text=(
+                f"Wait, wait. Time out. My evil plan for {repo_info.name} isn't evil enough "
+                "until all the checkboxes are checked..."
+            )
+        )
+
+    async def wait_for_checkboxes(self, *, repo_info, manager, release_pr):
         """
         Poll the Release PR and wait until all checkboxes are checked off
 
         Args:
             repo_info (RepoInfo): Information for a repo
             manager (str or None): User id for the release manager
-            speak_initial (bool): If True, say that the plan isn't evil enough until all checkboxes are checked
+            release_pr (ReleasePR): Release PR
         """
         repo_url = repo_info.repo_url
         channel_id = repo_info.channel_id
@@ -529,34 +638,8 @@ class Bot:
             org=org,
             repo=repo,
         )
-        pr = await get_release_pr(
-            github_access_token=self.github_access_token,
-            org=org,
-            repo=repo,
-        )
-
-        if speak_initial:
-            await self.say(
-                channel_id=channel_id,
-                text=(
-                    f"PR is up at {pr.url}."
-                    f" These people have commits in this release: "
-                    f"{', '.join(await self.translate_slack_usernames(prev_unchecked_authors))}"
-                )
-            )
-            await self.say(
-                channel_id=channel_id,
-                text=(
-                    f"Wait, wait. Time out. My evil plan for {repo_info.name} isn't evil enough "
-                    "until all the checkboxes are checked..."
-                )
-            )
-        org, repo = get_org_and_repo(repo_info.repo_url)
 
         while prev_unchecked_authors:
-            # There are still checkboxes, so we want to have doof say that all checkboxes are checked off
-            # even after doof restarts.
-            speak_initial = True
             await asyncio.sleep(60)
 
             new_unchecked_authors = await get_unchecked_authors(
@@ -574,32 +657,41 @@ class Bot:
                 )
             prev_unchecked_authors = new_unchecked_authors
 
-        if speak_initial:
-            await self.say(
-                channel_id=channel_id,
-                text="All checkboxes checked off. Release {version} is ready for the Merginator{name}!".format(
-                    name=" " + format_user_id(manager) if manager else "",
-                    version=pr.version
-                ),
-                attachments=[
-                    {
-                        "fallback": "Finish the release",
-                        "callback_id": FINISH_RELEASE_ID,
-                        "actions": [
-                            {
-                                "name": "finish_release",
-                                "text": "Finish the release",
-                                "type": "button",
-                                "confirm": {
-                                    "title": "Are you sure?",
-                                    "ok_text": "Finish the release",
-                                    "dismiss_text": "Cancel",
-                                }
+        await self._set_release_label(
+            repo_url=repo_url,
+            pr_number=release_pr.number,
+            label=ALL_CHECKBOXES_CHECKED,
+        )
+        pr = await get_release_pr(
+            github_access_token=self.github_access_token,
+            org=org,
+            repo=repo,
+        )
+        await self.say(
+            channel_id=channel_id,
+            text="All checkboxes checked off. Release {version} is ready for the Merginator{name}!".format(
+                name=" " + format_user_id(manager) if manager else "",
+                version=pr.version
+            ),
+            attachments=[
+                {
+                    "fallback": "Finish the release",
+                    "callback_id": FINISH_RELEASE_ID,
+                    "actions": [
+                        {
+                            "name": "finish_release",
+                            "text": "Finish the release",
+                            "type": "button",
+                            "confirm": {
+                                "title": "Are you sure?",
+                                "ok_text": "Finish the release",
+                                "dismiss_text": "Cancel",
                             }
-                        ]
-                    }
-                ]
-            )
+                        }
+                    ]
+                }
+            ]
+        )
 
     async def publish(self, command_args):
         """
@@ -669,7 +761,14 @@ class Bot:
                     project=repo_info.name,
                 ),
             )
-            await self._wait_for_deploy_prod(repo_info=repo_info)
+            await self._set_release_label(
+                repo_url=repo_url,
+                pr_number=pr.number,
+                label=DEPLOYING_TO_PROD,
+            )
+            await self.run_release_lifecycle(
+                repo_info=repo_info, manager=command_args.manager, release_pr=pr
+            )
         elif repo_info.project_type == LIBRARY_TYPE:
             await self.say(
                 channel_id=channel_id,
@@ -817,7 +916,7 @@ class Bot:
                 repo=repo,
             )
             if release_pr:
-                # Release already in progress, skip
+                # release already in progress, skip
                 continue
 
             async with init_working_dir(self.github_access_token, repo_info.repo_url) as working_dir:
@@ -1273,8 +1372,9 @@ class Bot:
             if not release_pr:
                 continue
 
-            self.loop.create_task(self.wait_for_checkboxes(manager=None, repo_info=repo_info, speak_initial=False))
-            self.loop.create_task(self.wait_for_deploy(repo_info=repo_info))
+            self.loop.create_task(self.run_release_lifecycle(
+                repo_info=repo_info, manager=None, release_pr=release_pr
+            ))
 
 
 def get_version_number(text):

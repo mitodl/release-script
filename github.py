@@ -3,8 +3,10 @@
 import json
 import re
 import logging
+from urllib.parse import quote
 
 from client_wrapper import ClientWrapper
+from constants import RELEASE_LABELS
 
 log = logging.getLogger(__name__)
 
@@ -93,6 +95,9 @@ async def create_pr(*, github_access_token, repo_url, title, body, head, base): 
         body (str): The body of the PR
         head (str): The head branch for the PR
         base (str): The base branch for the PR
+
+    Returns:
+        PullRequest: Info about the new pull request
     """
 
     org, repo = get_org_and_repo(repo_url)
@@ -200,3 +205,84 @@ def get_org_and_repo(repo_url):
     """
     org, repo = re.match(r'^.*github\.com[:|/](.+)/(.+)\.git', repo_url).groups()
     return org, repo
+
+
+async def get_labels(*, github_access_token, repo_url, pr_number):
+    """
+    Get a list of labels for a pull request
+
+    Args:
+        github_access_token (str): A Github access token
+        repo_url (str): The repository git URL
+        pr_number (int): A pull request number
+
+    Returns:
+        list of str: A list of labels
+    """
+    org, repo = get_org_and_repo(repo_url)
+    endpoint = f"https://api.github.com/repos/{org}/{repo}/issues/{pr_number}/labels"
+    client = ClientWrapper()
+    response = await client.get(endpoint, headers=github_auth_headers(github_access_token))
+    response.raise_for_status()
+    return [item["name"] for item in response.json()]
+
+
+async def add_label(*, github_access_token, repo_url, pr_number, label):
+    """
+    Add a label to a pull request, replacing other labels currently on that pull request.
+
+    Args:
+        github_access_token (str): A Github access token
+        repo_url (str): The repository git URL
+        pr_number (int): A pull request number
+        label (str): The label text
+    """
+    org, repo = get_org_and_repo(repo_url)
+    endpoint = f"https://api.github.com/repos/{org}/{repo}/issues/{pr_number}/labels"
+    client = ClientWrapper()
+    payload = {
+        "labels": [label]
+    }
+    response = await client.post(endpoint, json=payload, headers=github_auth_headers(github_access_token))
+    response.raise_for_status()
+
+
+async def delete_label(*, github_access_token, repo_url, pr_number, label):
+    """
+    Set labels on a pull request, replacing other labels currently on that pull request.
+
+    Args:
+        github_access_token (str): A Github access token
+        repo_url (str): The repository git URL
+        pr_number (int): A pull request number
+        label (str): The label text
+    """
+    org, repo = get_org_and_repo(repo_url)
+    endpoint = f"https://api.github.com/repos/{org}/{repo}/issues/{pr_number}/labels/{quote(label)}"
+    client = ClientWrapper()
+    response = await client.delete(endpoint, headers=github_auth_headers(github_access_token))
+    if response.status_code != 404:
+        response.raise_for_status()
+
+
+async def set_release_label(*, github_access_token, repo_url, pr_number, label):
+    """
+    Remove all release labels, and set a new release label
+
+    Args:
+        github_access_token (str): A Github access token
+        repo_url (str): The repository git URL
+        pr_number (int): A pull request number
+        label (str): The label text
+    """
+    labels = await get_labels(
+        github_access_token=github_access_token, repo_url=repo_url, pr_number=pr_number
+    )
+    for _label in labels:
+        if _label in RELEASE_LABELS:
+            await delete_label(
+                github_access_token=github_access_token, repo_url=repo_url, pr_number=pr_number, label=_label
+            )
+    await add_label(
+        github_access_token=github_access_token, repo_url=repo_url, pr_number=pr_number, label=label
+    )

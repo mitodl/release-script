@@ -27,7 +27,7 @@ from github import (
 from repo_info import RepoInfo
 
 
-ReleasePR = namedtuple("ReleasePR", ['version', 'url', 'body'])
+ReleasePR = namedtuple("ReleasePR", ['version', 'url', 'body', 'number'])
 
 
 VERSION_RE = r'\d+\.\d+\.\d+'
@@ -103,6 +103,7 @@ async def get_release_pr(*, github_access_token, org, repo):
 
     return ReleasePR(
         version=version,
+        number=pr["number"],
         body=pr['body'],
         url=pr['html_url'],
     )
