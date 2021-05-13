@@ -854,7 +854,9 @@ class Bot:
 
             minor, patch = next_versions(last_version)
             version = minor if new_release_type == MINOR else patch
-            await self._new_release(repo_info=repo_info, version=version, manager=command_args.manager)
+            self.loop.create_task(
+                self._new_release(repo_info=repo_info, version=version, manager=command_args.manager)
+            )
 
     async def message_if_unchecked(self, repo_info):
         """

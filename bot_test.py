@@ -1315,7 +1315,8 @@ async def test_start_new_releases(
     new_release_mock = mocker.async_patch("bot.Bot._new_release")
 
     await doof.start_new_releases(command_args)
-
+    # iterate once through event loop
+    await asyncio.sleep(0)
     get_release_pr_mock.assert_any_call(github_access_token=GITHUB_ACCESS, org=org, repo=repo)
 
     if not has_release_pr:
