@@ -833,6 +833,8 @@ class Bot:
         """
         new_release_type = command_args.args[0]
 
+        await self.say(channel_id=command_args.channel_id, text="Starting new releases...")
+        new_release_repos = []
         for repo_info in self.repos_info:
             org, repo = get_org_and_repo(repo_info.repo_url)
             release_pr = await get_release_pr(
@@ -852,10 +854,21 @@ class Bot:
                     # Nothing to release
                     continue
 
+            new_release_repos.append(repo_info.name)
             minor, patch = next_versions(last_version)
             version = minor if new_release_type == MINOR else patch
             self.loop.create_task(
                 self._new_release(repo_info=repo_info, version=version, manager=command_args.manager)
+            )
+        if new_release_repos:
+            await self.say(
+                channel_id=command_args.channel_id,
+                text=f"Started new releases for {', '.join(new_release_repos)}"
+            )
+        else:
+            await self.say(
+                channel_id=command_args.channel_id,
+                text="No new releases needed"
             )
 
     async def message_if_unchecked(self, repo_info):

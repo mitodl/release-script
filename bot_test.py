@@ -1315,6 +1315,7 @@ async def test_start_new_releases(
     new_release_mock = mocker.async_patch("bot.Bot._new_release")
 
     await doof.start_new_releases(command_args)
+    assert doof.said("Starting new releases...")
     # iterate once through event loop
     await asyncio.sleep(0)
     get_release_pr_mock.assert_any_call(github_access_token=GITHUB_ACCESS, org=org, repo=repo)
@@ -1328,5 +1329,7 @@ async def test_start_new_releases(
         new_release_mock.assert_any_call(doof,
             repo_info=test_repo, version=expected_version, manager=command_args.manager
         )
+        assert doof.said(f"Started new releases for {WEB_TEST_REPO_INFO.name}, {LIBRARY_TEST_REPO_INFO.name}")
     else:
         assert new_release_mock.called is False
+        assert doof.said("No new releases needed")
