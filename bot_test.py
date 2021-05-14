@@ -1,6 +1,6 @@
 """Tests for Doof"""
 import asyncio
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 import pytz
@@ -10,7 +10,6 @@ from bot import (
     Bot,
 )
 from conftest import (
-    ANNOUNCEMENTS_CHANNEL,
     LIBRARY_TEST_REPO_INFO,
     WEB_TEST_REPO_INFO,
 )
@@ -25,25 +24,17 @@ from constants import (
     SETUPTOOLS,
     NPM,
 )
-from exception import (
-    ReleaseException,
-    ResetException,
-)
+from exception import ReleaseException
 from github import get_org_and_repo
 from lib import (
     format_user_id,
     next_versions,
-    now_in_utc,
     ReleasePR,
     remove_path_from_url,
 )
 from repo_info import RepoInfo
 from test_util import (
     async_context_manager_yielder,
-    async_gen_wrapper,
-    make_pr,
-    make_issue,
-    make_parsed_issue,
 )
 
 pytestmark = pytest.mark.asyncio
@@ -579,30 +570,6 @@ async def test_finish_release_no_release(doof, test_repo, mocker):
     )
 
 
-async def test_delay_message(doof, test_repo, mocker):
-    """
-    Doof should finish a release when asked
-    """
-    now = datetime.now(tz=doof.timezone)
-    seconds_diff = 30
-    future = now + timedelta(seconds=seconds_diff)
-    next_workday_mock = mocker.patch('bot.next_workday_at_10', autospec=True, return_value=future)
-
-    sleep_sync_mock = mocker.async_patch('asyncio.sleep')
-
-    mocker.async_patch('bot.get_unchecked_authors', return_value={'author1'})
-
-    await doof.wait_for_checkboxes_reminder(repo_info=test_repo)
-    assert doof.said(
-        'The following authors have not yet checked off their boxes for doof_repo: author1',
-    )
-    assert next_workday_mock.call_count == 1
-    assert abs(next_workday_mock.call_args[0][0] - now).total_seconds() < 1
-    assert next_workday_mock.call_args[0][0].tzinfo.zone == doof.timezone.zone
-    assert sleep_sync_mock.call_count == 1
-    assert abs(seconds_diff - sleep_sync_mock.call_args[0][0]) < 1  # pylint: disable=unsubscriptable-object
-
-
 async def test_webhook_different_callback_id(doof, mocker):
     """
     If the callback id doesn't match nothing should be done
@@ -839,19 +806,8 @@ async def test_uptime(doof, mocker, test_repo):
     assert doof.said("Awake for 2 minutes.")
 
 
-async def test_reset(doof, test_repo):
-    """Reset should cause a reset"""
-    with pytest.raises(ResetException):
-        await doof.run_command(
-            manager='mitodl_user',
-            channel_id=test_repo.channel_id,
-            words=['reset'],
-        )
-
-
-@pytest.mark.parametrize("command", [["publish"], ["upload", "to", "pypi"]])
 @pytest.mark.parametrize("packaging_tool", [NPM, SETUPTOOLS])
-async def test_publish(doof, library_test_repo, mocker, command, packaging_tool):
+async def test_publish(doof, library_test_repo, mocker, packaging_tool):
     """the publish command should start the upload process"""
     publish_patched = mocker.async_patch('bot.publish')
 
@@ -865,7 +821,7 @@ async def test_publish(doof, library_test_repo, mocker, command, packaging_tool)
     await doof.run_command(
         manager='me',
         channel_id=library_test_repo.channel_id,
-        words=[*command, version],
+        words=["publish", version],
     )
 
     publish_patched.assert_called_once_with(
@@ -881,7 +837,6 @@ async def test_publish(doof, library_test_repo, mocker, command, packaging_tool)
 @pytest.mark.parametrize("command,project_type", [
     ['version', LIBRARY_TYPE],
     ['wait for checkboxes', LIBRARY_TYPE],
-    ['upload to pypi 1.2.3', WEB_APPLICATION_TYPE],
     ['publish 1.2.3', WEB_APPLICATION_TYPE],
 ])  # pylint: disable=too-many-arguments
 async def test_invalid_project_type(doof, test_repo, library_test_repo, command, project_type):
@@ -905,7 +860,6 @@ async def test_invalid_project_type(doof, test_repo, library_test_repo, command,
     'start release 1.2.3',
     'finish release',
     'wait for checkboxes',
-    'upload to pypi 1.2.3',
     'publish 1.2.3',
     'release notes',
 ])
@@ -1025,8 +979,6 @@ async def test_wait_for_checkboxes(
     [WEB_TEST_REPO_INFO, True, True],
     [LIBRARY_TEST_REPO_INFO, False, False],
     [LIBRARY_TEST_REPO_INFO, True, False],
-    [ANNOUNCEMENTS_CHANNEL, False, False],
-    [ANNOUNCEMENTS_CHANNEL, True, False],
 ])
 async def test_startup(doof, mocker, repo_info, has_release_pr, has_expected):
     """
@@ -1146,43 +1098,6 @@ async def test_wait_for_deploy_prod(doof, test_repo, mocker):
         repo_url=test_repo.repo_url,
         hash_url=test_repo.prod_hash_url,
         watch_branch='release'
-    )
-
-
-async def test_issue_release_notes(doof, test_repo, mocker):
-    """issue release notes should list closed issues over the last seven days"""
-    org, repo = get_org_and_repo(test_repo.repo_url)
-    channel_id = test_repo.channel_id
-    pr = make_pr(123, "A PR")
-    fetch_prs = mocker.patch('bot.fetch_pull_requests_since_date', return_value=[pr])
-    tups = [
-        (pr, [(make_issue(333), make_parsed_issue(333, False))])
-    ]
-    fetch_issues = mocker.patch('bot.fetch_issues_for_pull_requests', return_value=async_gen_wrapper(tups))
-    notes = "some release notes"
-    make_release_notes = mocker.patch('bot.make_issue_release_notes', return_value=notes)
-    await doof.issue_release_notes(CommandArgs(
-        repo_info=test_repo,
-        channel_id=test_repo.channel_id,
-        args=[],
-        manager="me"
-    ))
-
-    assert doof.said("Release notes for issues closed by PRs", channel_id=channel_id)
-    assert doof.said(notes, channel_id=channel_id)
-
-    fetch_prs.assert_called_once_with(
-        github_access_token=GITHUB_ACCESS,
-        org=org,
-        repo=repo,
-        since=(now_in_utc() - timedelta(days=7)).date()
-    )
-    fetch_issues.assert_called_once_with(
-        github_access_token=GITHUB_ACCESS,
-        pull_requests=[pr],
-    )
-    make_release_notes.assert_called_once_with(
-        tups,
     )
 
 

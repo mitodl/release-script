@@ -10,13 +10,5 @@ RepoInfo = namedtuple('RepoInfo', [
     'channel_id',
     'project_type',
     'web_application_type',
-    'packaging_tool',
-    'announcements',
-    'update_other_repos'
-])
-
-UpdateOtherRepo = namedtuple("UpdateOtherRepo", [
-    "name",
-    "packaging_tool",
-    "repo_info"
+    'packaging_tool'
 ])
