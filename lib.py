@@ -1,7 +1,7 @@
 """Shared functions for release script Python files"""
 from collections import namedtuple
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from difflib import SequenceMatcher
 import json
 import os
@@ -24,7 +24,7 @@ from github import (
     get_pull_request,
     get_org_and_repo,
 )
-from repo_info import RepoInfo, UpdateOtherRepo
+from repo_info import RepoInfo
 
 
 ReleasePR = namedtuple("ReleasePR", ['version', 'url', 'body'])
@@ -130,30 +130,6 @@ async def get_unchecked_authors(*, github_access_token, org, repo):
     body = release_pr.body
     commits = parse_checkmarks(body)
     return {commit['author_name'] for commit in commits if not commit['checked']}
-
-
-def next_workday_at_10(now):
-    """
-    Return time which is 10am the next day, or the following Monday if it lands on the weekend
-
-    Args:
-        now (datetime): The current time
-    Returns:
-        datetime:
-            10am the next day or on the following Monday of a weekend
-    """
-    tomorrow = now + timedelta(days=1)
-    next_weekday = tomorrow
-    while next_weekday.isoweekday() > 5:
-        # If Saturday or Sunday, go to next day
-        next_weekday += timedelta(days=1)
-    return datetime(
-        year=next_weekday.year,
-        month=next_weekday.month,
-        day=next_weekday.day,
-        hour=10,
-        tzinfo=now.tzinfo,
-    )
 
 
 def reformatted_full_name(full_name):
@@ -336,24 +312,8 @@ def load_repos_info(channel_lookup):
             project_type=repo_info.get('project_type'),
             web_application_type=repo_info.get('web_application_type'),
             packaging_tool=repo_info.get('packaging_tool'),
-            announcements=repo_info.get('announcements'),
-            update_other_repos=[]  # this is filled in below
         ) for repo_info in repos_info['repos'] if repo_info.get("repo_url")
     ]
-
-    repo_dict_lookup = {info["name"]: info for info in repos_info["repos"]}
-    repo_info_lookup = {info.name: info for info in infos}
-
-    for info in infos:
-        other_dicts = repo_dict_lookup[info.name].get("update_other_repos", [])
-        other_repos = [
-            UpdateOtherRepo(
-                name=other_dict["name"],
-                packaging_tool=other_dict["packaging_tool"],
-                repo_info=repo_info_lookup[other_dict["name"]],
-            ) for other_dict in other_dicts
-        ]
-        info.update_other_repos.extend(other_repos)
 
     # some basic validation for sanity checking
     for info in infos:
@@ -431,20 +391,3 @@ def remove_path_from_url(url):
     # The docs recommend _replace: https://docs.python.org/3/library/urllib.parse.html#urllib.parse.urlparse
     updated = parsed._replace(path="", query="", fragment="")
     return urlunparse(updated)
-
-
-def get_pr_ref(url):
-    """
-    Convert a HTML link to a github pull request to a shorter piece of text that will still act as a link for github
-
-    Args:
-        url (str): A pull request URL, for example: https://github.com/mitodl/micromasters/pull/2993
-
-    Returns:
-        str: The shorter reference for a pull request. For example: mitodl/micromasters#2993
-    """
-    match = re.match(r".+://github.com/(?P<org>[^/]+)/(?P<repo>[^/]+)/pull/(?P<number>\d+)", url)
-    if not match:
-        raise Exception(f"Unable to parse pull request URL: {url}")
-    org, repo, number = match.group("org"), match.group("repo"), match.group("number")
-    return f"{org}/{repo}#{number}"

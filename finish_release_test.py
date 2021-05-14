@@ -2,19 +2,13 @@
 from datetime import datetime
 import re
 import os
-from pathlib import Path
 
 import pytest
 
-from constants import GO, NPM, YARN_PATH
 from exception import VersionMismatchException
-from lib import (
-    check_call,
-    ReleasePR,
-)
+from lib import check_call
 from release import create_release_notes
 from release_test import make_empty_commit
-from repo_info import UpdateOtherRepo
 from finish_release import (
     check_release_tag,
     finish_release,
@@ -22,8 +16,6 @@ from finish_release import (
     merge_release_candidate,
     tag_release,
     set_release_date,
-    update_go_mod,
-    update_other_repo_and_commit,
 )
 from test_util import async_context_manager_yielder
 
@@ -97,8 +89,6 @@ async def test_finish_release(mocker, timezone, test_repo_directory, test_repo):
     tag_release_mock = mocker.async_patch('finish_release.tag_release')
     merge_release_mock = mocker.async_patch('finish_release.merge_release')
     set_version_date_mock = mocker.async_patch('finish_release.set_release_date')
-    release_pr = ReleasePR('version', 'https://github.com/org/repo/pull/123456', 'body')
-    mocker.async_patch('finish_release.get_release_pr', return_value=release_pr)
 
     await finish_release(
         github_access_token=token,
@@ -144,90 +134,3 @@ async def test_set_release_date_no_file(test_repo_directory, timezone, mocker):
     await set_release_date("0.1.0", timezone, root=test_repo_directory)
     mock_check.assert_not_called()
     mock_output.assert_not_called()
-
-
-@pytest.mark.parametrize("has_require", [True, False])
-def test_update_go_mod(test_repo_directory, test_repo, has_require):
-    """update_go_mod should update and replace a go.mod file"""
-    go_mod_path = Path(test_repo_directory) / "go.mod"
-    contents = """module github.com/mitodl/ocw-www
-
-go 1.16
-
-"""
-    require_line = "require github.com/mitodl/ocw-hugo-themes/base-theme v0.0.0-20210429192641-b4d04aa624a0 // indirect"
-
-    if has_require:
-        contents += require_line
-
-    with open(go_mod_path, "w") as file:
-        file.write(contents)
-
-    version = "4.5.6"
-    changed = update_go_mod(
-        path=go_mod_path,
-        version=version,
-        repo_url=test_repo.repo_url,
-    )
-    assert changed is has_require
-    with open(go_mod_path) as file:
-        new_contents = file.read()
-
-    if has_require:
-        assert new_contents == """module github.com/mitodl/ocw-www
-
-go 1.16
-
-require github.com/mitodl/doof v4.5.6 // indirect
-"""
-    else:
-        assert new_contents == contents
-
-
-@pytest.mark.parametrize("changed", [True, False])
-@pytest.mark.parametrize("packaging_tool", [NPM, GO])
-async def test_update_other_repo_and_commit(
-    mocker, library_test_repo, npm_library_test_repo, changed, packaging_tool
-):
-    """update_other_repo_and_commit should update a dependency and push the updated code"""
-    version = "12.3.45"
-    token = "token"
-    call_mock = mocker.async_patch("finish_release.call", return_value=1 if changed else 0)
-    check_call_mock = mocker.async_patch("finish_release.check_call")
-    update_go_mod_mock = mocker.patch("finish_release.update_go_mod")
-    other_repo_path = "/tmp/abcdef"
-    init_working_dir_mock = mocker.patch(
-        'finish_release.init_working_dir', side_effect=async_context_manager_yielder(other_repo_path)
-    )
-
-    await update_other_repo_and_commit(
-        github_access_token=token,
-        new_version=version,
-        repo_info=library_test_repo,
-        update_other_repo=UpdateOtherRepo(
-            name=npm_library_test_repo.name,
-            packaging_tool=packaging_tool,
-            repo_info=npm_library_test_repo
-        ),
-        pull_request=ReleasePR('version', 'https://github.com/org/repo/pull/123456', 'body')
-    )
-
-    if packaging_tool == NPM:
-        check_call_mock.assert_any_call(
-            [YARN_PATH, "add", f"{library_test_repo.name}@{version}"],
-            cwd=Path(other_repo_path)
-        )
-    elif packaging_tool == GO:
-        update_go_mod_mock.assert_called_once_with(
-            path=Path(other_repo_path) / "go.mod",
-            version=version,
-            repo_url=library_test_repo.repo_url,
-        )
-
-    init_working_dir_mock.assert_called_once_with(token, npm_library_test_repo.repo_url)
-    call_mock.assert_called_once_with(["git", "diff", "--exit-code"], cwd=Path(other_repo_path))
-    if changed:
-        check_call_mock.assert_any_call(["git", "add", "."], cwd=Path(other_repo_path))
-        message = f"Update {library_test_repo.name} to {version} (org/repo#123456)"
-        check_call_mock.assert_any_call(["git", "commit", "-m", message], cwd=Path(other_repo_path))
-        check_call_mock.assert_any_call(["git", "push"], cwd=Path(other_repo_path))

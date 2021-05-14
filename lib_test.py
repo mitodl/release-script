@@ -1,6 +1,4 @@
 """Tests for lib"""
-from datetime import datetime, timezone
-
 from requests import Response, HTTPError
 import pytest
 
@@ -8,18 +6,15 @@ from constants import (
     DJANGO,
     LIBRARY_TYPE,
     NPM,
-    SETUPTOOLS,
     WEB_APPLICATION_TYPE,
 )
 from github import github_auth_headers
 from lib import (
     get_default_branch,
-    get_pr_ref,
     get_release_pr,
     get_unchecked_authors,
     load_repos_info,
     match_user,
-    next_workday_at_10,
     next_versions,
     parse_checkmarks,
     parse_text_matching_options,
@@ -28,7 +23,7 @@ from lib import (
     remove_path_from_url,
     url_with_access_token,
 )
-from repo_info import RepoInfo, UpdateOtherRepo
+from repo_info import RepoInfo
 from test_util import async_wrapper, sync_call as call
 
 
@@ -183,16 +178,6 @@ async def test_get_unchecked_authors(mocker):
     )
 
 
-async def test_next_workday_at_10():
-    """next_workday_at_10 should get the time that's tomorrow at 10am, or Monday if that's the next workday"""
-    saturday_at_8am = datetime(2017, 4, 1, 8, tzinfo=timezone.utc)
-    assert next_workday_at_10(saturday_at_8am) == datetime(2017, 4, 3, 10, tzinfo=timezone.utc)
-    tuesday_at_4am = datetime(2017, 4, 4, 4, tzinfo=timezone.utc)
-    assert next_workday_at_10(tuesday_at_4am) == datetime(2017, 4, 5, 10, tzinfo=timezone.utc)
-    wednesday_at_3pm = datetime(2017, 4, 5, 15, tzinfo=timezone.utc)
-    assert next_workday_at_10(wednesday_at_3pm) == datetime(2017, 4, 6, 10, tzinfo=timezone.utc)
-
-
 async def test_reformatted_full_name():
     """reformatted_full_name should take the first and last names and make it lowercase"""
     assert reformatted_full_name("") == ""
@@ -258,8 +243,7 @@ async def test_load_repos_info(mocker):
                 "prod_hash_url": "https://bootcamp-ecommerce.herokuapp.com/static/hash.txt",
                 "channel_name": "bootcamp-eng",
                 "project_type": WEB_APPLICATION_TYPE,
-                "web_application_type": DJANGO,
-                "announcements": False,
+                "web_application_type": DJANGO
             },
             {
                 "name": "bootcamp-ecommerce-library",
@@ -267,11 +251,6 @@ async def test_load_repos_info(mocker):
                 "channel_name": "bootcamp-library",
                 "project_type": LIBRARY_TYPE,
                 "packaging_tool": NPM,
-                "announcements": False,
-                "update_other_repos": [{
-                    "name": "bootcamp-ecommerce",
-                    "packaging_tool": SETUPTOOLS
-                }],
             },
         ]
     })
@@ -286,8 +265,6 @@ async def test_load_repos_info(mocker):
         project_type=WEB_APPLICATION_TYPE,
         web_application_type=DJANGO,
         packaging_tool=None,
-        announcements=False,
-        update_other_repos=[]
     )
     expected_library = RepoInfo(
         name='bootcamp-ecommerce-library',
@@ -299,14 +276,6 @@ async def test_load_repos_info(mocker):
         project_type=LIBRARY_TYPE,
         web_application_type=None,
         packaging_tool=NPM,
-        announcements=False,
-        update_other_repos=[
-            UpdateOtherRepo(
-                name="bootcamp-ecommerce",
-                packaging_tool=SETUPTOOLS,
-                repo_info=expected_web_application,
-            )
-        ]
     )
 
     assert load_repos_info({
@@ -372,8 +341,3 @@ async def test_get_default_branch(test_repo_directory):
     get_default_branch should get master or main, depending on the default branch in the repository
     """
     assert await get_default_branch(test_repo_directory) == "master"
-
-
-def test_get_pr_ref():
-    """get_pr_ref should convert a github pull request URL to a shorter reference"""
-    assert get_pr_ref("https://github.com/mitodl/micromasters/pull/2993") == "mitodl/micromasters#2993"

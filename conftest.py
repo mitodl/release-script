@@ -11,7 +11,7 @@ from constants import (
     SETUPTOOLS,
     WEB_APPLICATION_TYPE,
 )
-from repo_info import RepoInfo, UpdateOtherRepo
+from repo_info import RepoInfo
 from test_util import make_test_repo
 from test_util import async_wrapper
 
@@ -50,9 +50,7 @@ WEB_TEST_REPO_INFO = RepoInfo(
     channel_id='doof',
     project_type=WEB_APPLICATION_TYPE,
     web_application_type=DJANGO,
-    packaging_tool=None,
-    announcements=False,
-    update_other_repos=[]
+    packaging_tool=None
 )
 
 
@@ -80,8 +78,6 @@ NPM_TEST_REPO_INFO = RepoInfo(
     project_type=LIBRARY_TYPE,
     packaging_tool=NPM,
     web_application_type=None,
-    announcements=False,
-    update_other_repos=[],
 )
 LIBRARY_TEST_REPO_INFO = RepoInfo(
     name='lib_repo',
@@ -93,23 +89,6 @@ LIBRARY_TEST_REPO_INFO = RepoInfo(
     project_type=LIBRARY_TYPE,
     packaging_tool=SETUPTOOLS,
     web_application_type=None,
-    announcements=False,
-    update_other_repos=[
-        UpdateOtherRepo("node_doof", "npm", NPM_TEST_REPO_INFO)
-    ],
-)
-ANNOUNCEMENTS_CHANNEL = RepoInfo(
-    name='doof_repo',
-    repo_url=None,
-    prod_hash_url=None,
-    rc_hash_url=None,
-    ci_hash_url=None,
-    channel_id='announcement_id',
-    project_type=None,
-    web_application_type=None,
-    packaging_tool=None,
-    announcements=True,
-    update_other_repos=[]
 )
 
 

@@ -2,21 +2,13 @@
 import os
 import re
 from datetime import datetime
-from pathlib import Path
 
 from async_subprocess import (
-    call,
     check_call,
     check_output,
 )
-from constants import GO, NPM, YARN_PATH
 from exception import VersionMismatchException
-from github import get_org_and_repo
-from lib import (
-    get_default_branch,
-    get_pr_ref,
-    get_release_pr,
-)
+from lib import get_default_branch
 from release import (
     init_working_dir,
     validate_dependencies,
@@ -92,87 +84,6 @@ async def merge_release(*, root):
     await check_call(['git', 'push'], cwd=root)
 
 
-def update_go_mod(*, path, version, repo_url):
-    """
-    Update go.mod, replacing the original git tag with our own copy
-
-    Args:
-        path (str or Path): The path to the go.mod file
-        version (str): The new version for the referenced go module
-        repo_url (str): The URL for the repository to be referenced in go.mod
-
-    Returns:
-        bool: True if an updated file was written, False otherwise
-    """
-    org, repo = get_org_and_repo(repo_url)
-    with open(path) as f:
-        old_lines = f.readlines()
-
-    lines = [
-        (
-            f"require github.com/{org}/{repo} v{version} // indirect\n"
-            if line.startswith("require ") else line
-        ) for line in old_lines
-    ]
-
-    if old_lines != lines:
-        with open(path, "w") as f:
-            f.write("".join(lines))
-        return True
-    return False
-
-
-async def update_other_repo_and_commit(*, github_access_token, new_version, repo_info, update_other_repo, pull_request):
-    """
-    After a release we sometimes want to update another repository to reference the newly released code.
-    This checks out the other repository, attempts to update the reference to a new version,
-    and commits and pushes that update.
-
-    Args:
-        github_access_token (str): A token to access github APIs
-        new_version (str): The new version of the finished release
-        repo_info (RepoInfo): The repository info for the finished release
-        update_other_repo (UpdateOtherRepo): Info for the project to update
-        pull_request (ReleasePR): The release PR
-    """
-    name = repo_info.name
-    other_repo_url = update_other_repo.repo_info.repo_url
-    packaging_tool = update_other_repo.packaging_tool
-
-    async with init_working_dir(github_access_token, other_repo_url) as other_repo_path:
-        other_repo_path = Path(other_repo_path)
-        if packaging_tool == NPM:
-            # This doesn't handle npm install but I don't think we have any packages that need that
-            await check_call(
-                [YARN_PATH, "add", f"{repo_info.name}@{new_version}"],
-                cwd=other_repo_path
-            )
-        elif packaging_tool == GO:
-            update_go_mod(
-                path=other_repo_path / "go.mod",
-                version=new_version,
-                repo_url=repo_info.repo_url,
-            )
-        else:
-            raise Exception(f"Unsupported packaging tool {packaging_tool}")
-
-        changed = (await call(
-            ["git", "diff", "--exit-code"],
-            cwd=other_repo_path,
-        ) != 0)
-        if changed:
-            await check_call(
-                ["git", "add", "."],
-                cwd=other_repo_path,
-            )
-            pr_ref = get_pr_ref(pull_request.url)
-            await check_call(
-                ["git", "commit", "-m", f"Update {name} to {new_version} ({pr_ref})"],
-                cwd=other_repo_path,
-            )
-            await check_call(["git", "push"], cwd=other_repo_path)
-
-
 async def finish_release(
     *, github_access_token, repo_info, version, timezone
 ):
@@ -188,23 +99,8 @@ async def finish_release(
 
     await validate_dependencies()
     async with init_working_dir(github_access_token, repo_info.repo_url) as working_dir:
-        org, repo = get_org_and_repo(repo_info.repo_url)
-        pr = await get_release_pr(
-            github_access_token=github_access_token,
-            org=org,
-            repo=repo,
-        )
         await check_release_tag(version, root=working_dir)
         await set_release_date(version, timezone, root=working_dir)
         await merge_release_candidate(root=working_dir)
         await tag_release(version, root=working_dir)
         await merge_release(root=working_dir)
-
-        for update_other_repo in repo_info.update_other_repos:
-            await update_other_repo_and_commit(
-                github_access_token=github_access_token,
-                new_version=version,
-                repo_info=repo_info,
-                update_other_repo=update_other_repo,
-                pull_request=pr,
-            )

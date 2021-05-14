@@ -1,6 +1,5 @@
 """Utility functions for testing"""
 from contextlib import asynccontextmanager, contextmanager
-from datetime import datetime, timezone
 import gzip
 import os
 from pathlib import Path
@@ -12,8 +11,6 @@ from tempfile import (
 import subprocess
 
 from constants import SCRIPT_DIR
-from github import Issue, PullRequest
-from markdown import ParsedIssue
 
 
 TEST_ORG = 'test-org'
@@ -74,39 +71,3 @@ async def async_gen_wrapper(iterable):
     """Helper method to convert an iterable to an async iterable"""
     for item in iterable:
         yield item
-
-
-def make_issue(number):
-    """Helper method to create a fake Issue and ParsedIssue given a number"""
-    return Issue(
-        number=number,
-        title=f"Issue {number}",
-        status="closed",
-        org=TEST_ORG,
-        repo=TEST_REPO,
-        updatedAt=datetime(2019, 6, 5, tzinfo=timezone.utc),
-        url="http://b.net/example/uri"
-    )
-
-
-def make_parsed_issue(number, closes):
-    """Helper method to create a fake ParsedIssue given a number"""
-    return ParsedIssue(
-        issue_number=number,
-        closes=closes,
-        org=TEST_ORG,
-        repo=TEST_REPO,
-    )
-
-
-def make_pr(number, body):
-    """Helper method to create a fake PullRequest"""
-    return PullRequest(
-        body=body,
-        title="PR title",
-        number=number,
-        org=TEST_ORG,
-        repo=TEST_REPO,
-        url="http://a.net/example/url",
-        updatedAt=datetime(2020, 1, 1, tzinfo=timezone.utc).date()
-    )

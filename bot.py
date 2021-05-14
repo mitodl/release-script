@@ -3,7 +3,6 @@
 """Slack bot for managing releases"""
 import asyncio
 from collections import namedtuple
-from datetime import datetime, timedelta
 import os
 import logging
 import json
@@ -29,15 +28,10 @@ from constants import (
 from exception import (
     InputException,
     ReleaseException,
-    ResetException,
 )
 from finish_release import finish_release
 from github import (
-    calculate_karma,
-    fetch_issues_for_pull_requests,
-    fetch_pull_requests_since_date,
     get_org_and_repo,
-    make_issue_release_notes,
     needs_review,
 )
 from release import (
@@ -55,8 +49,6 @@ from lib import (
     match_user,
     next_versions,
     now_in_utc,
-    next_workday_at_10,
-    parse_date,
     parse_text_matching_options,
     VERSION_RE,
     COMMIT_HASH_RE,
@@ -202,7 +194,7 @@ class Bot:
         })
         resp.raise_for_status()
 
-    async def say(self, *, channel_id, text=None, attachments=None, message_type=None, is_announcement=False):
+    async def say(self, *, channel_id, text=None, attachments=None, message_type=None):
         """
         Post a message in the Slack channel
 
@@ -211,7 +203,6 @@ class Bot:
             text (str): A message
             attachments (list of dict): Attachment information
             message_type (str): The type of message
-            is_announcement (bool): If true, also display this message to the announcements channel
         """
         await self._say(
             channel_id=channel_id,
@@ -219,16 +210,6 @@ class Bot:
             attachments=attachments,
             message_type=message_type,
         )
-
-        if is_announcement:
-            for repo_info in self.repos_info:
-                if repo_info.announcements:
-                    await self._say(
-                        channel_id=repo_info.channel_id,
-                        text=text,
-                        attachments=attachments,
-                        message_type=message_type,
-                    )
 
     async def update_message(self, *, channel_id, timestamp, text=None, attachments=None):
         """
@@ -269,7 +250,7 @@ class Bot:
         })
         resp.raise_for_status()
 
-    async def say_with_attachment(self, *, channel_id, title, text, is_announcement=False, message_type=None):
+    async def say_with_attachment(self, *, channel_id, title, text, message_type=None):
         """
         Post a message in the Slack channel, putting the text in an attachment with markdown enabled
 
@@ -277,7 +258,6 @@ class Bot:
             channel_id (channel_id): A channel id
             title (str): A line of text before the main message
             text (str): A message
-            is_announcement (bool): If true, also send this message to the announcements channel
             message_type (str): The type of message
         """
         await self.say(
@@ -288,7 +268,6 @@ class Bot:
                 "text": text,
                 "mrkdwn_in": ['text']
             }],
-            is_announcement=is_announcement,
             message_type=message_type,
         )
 
@@ -377,7 +356,6 @@ class Bot:
             repo_info=repo_info,
             manager=manager,
         )
-        self.loop.create_task(self.wait_for_checkboxes_reminder(repo_info=repo_info))
 
     async def wait_for_deploy(self, *, repo_info):
         """
@@ -427,8 +405,7 @@ class Bot:
             channel_id=channel_id,
             text=(
                 f"Release {pr.version} for {repo_info.name} was deployed at {rc_server}!"
-            ),
-            is_announcement=True
+            )
         )
 
     async def _wait_for_deploy_prod(self, *, repo_info):
@@ -455,8 +432,7 @@ class Bot:
             text=(
                 f"My evil scheme {version} for {repo_info.name} has been released to production at {prod_server}. "
                 "And by 'released', I mean completely...um...leased."
-            ),
-            is_announcement=True,
+            )
         )
 
     async def _new_release(self, *, repo_info, version, manager):
@@ -566,8 +542,7 @@ class Bot:
                     f"PR is up at {pr.url}."
                     f" These people have commits in this release: "
                     f"{', '.join(await self.translate_slack_usernames(prev_unchecked_authors))}"
-                ),
-                is_announcement=True
+                )
             )
             await self.say(
                 channel_id=channel_id,
@@ -657,7 +632,6 @@ class Bot:
         await self.say(
             channel_id=command_args.channel_id,
             text=f'Successfully uploaded {version} to {server}.',
-            is_announcement=True,
         )
 
     async def finish_release(self, command_args):
@@ -871,66 +845,6 @@ class Bot:
                 text="No new releases needed"
             )
 
-    async def message_if_unchecked(self, repo_info):
-        """
-        Send a message next morning if any boxes are not yet checked off
-
-        Args:
-            repo_info (RepoInfo): Information for a repo
-        """
-        org, repo = get_org_and_repo(repo_info.repo_url)
-        unchecked_authors = await get_unchecked_authors(
-            github_access_token=self.github_access_token,
-            org=org,
-            repo=repo,
-        )
-        if unchecked_authors:
-            slack_usernames = await self.translate_slack_usernames(unchecked_authors)
-            await self.say(
-                channel_id=repo_info.channel_id,
-                text="What an unexpected surprise! "
-                "The following authors have not yet checked off their boxes for {project}: {names}".format(
-                    names=", ".join(slack_usernames),
-                    project=repo_info.name,
-                )
-            )
-
-    async def wait_for_checkboxes_reminder(self, *, repo_info):
-        """
-        sleep until 10am next day, then message
-
-        Args:
-            repo_info (RepoInfo): The info for a repo
-        """
-        now = datetime.now(tz=self.timezone)
-        tomorrow_at_10 = next_workday_at_10(now)
-        await asyncio.sleep((tomorrow_at_10 - now).total_seconds())
-        await self.message_if_unchecked(repo_info)
-
-    async def karma(self, command_args):
-        """
-        Print out PR karma for each user
-
-        Args:
-            command_args (CommandArgs): The arguments for this command
-        """
-        channel_id = command_args.channel_id
-        start_date = command_args.args[0]
-
-        title = "Pull request karma since {}".format(start_date)
-        await self.say_with_attachment(
-            channel_id=channel_id,
-            title=title,
-            text="\n".join(
-                "*{name}*: {karma}".format(name=name, karma=karma)
-                for name, karma in await calculate_karma(
-                    github_access_token=self.github_access_token,
-                    begin_date=start_date,
-                    end_date=now_in_utc().date(),
-                )
-            ),
-        )
-
     async def needs_review(self, command_args):
         """
         Print out what PRs need review
@@ -951,36 +865,6 @@ class Bot:
                 ) for repo, title, url in
                 await needs_review(self.github_access_token)
             )
-        )
-
-    async def issue_release_notes(self, command_args):
-        """
-        Release notes for issues of PRs merged
-
-        Args:
-            command_args (CommandArgs): The arguments for this command
-        """
-        channel_id = command_args.channel_id
-        repo_info = command_args.repo_info
-        start_date = (now_in_utc() - timedelta(days=7)).date()
-        org, repo = get_org_and_repo(repo_info.repo_url)
-
-        prs = fetch_pull_requests_since_date(
-            github_access_token=self.github_access_token,
-            org=org,
-            repo=repo,
-            since=start_date,
-        )
-        prs_and_issues = fetch_issues_for_pull_requests(
-            github_access_token=self.github_access_token,
-            pull_requests=prs,
-        )
-
-        await self.say_with_attachment(
-            channel_id=channel_id,
-            title=f"Release notes for issues closed by PRs between {start_date} and today",
-            text=make_issue_release_notes([pr_and_issue async for pr_and_issue in prs_and_issues]),
-            message_type="mrkdwn",
         )
 
     async def uptime(self, command_args):
@@ -1033,36 +917,6 @@ class Bot:
             channel_id=channel_id,
             title=title,
             text=text,
-        )
-
-    async def reset(self, command_args):
-        """
-        Clear tasks and restart the process. For now this just restarts the process but when we have
-        persistent state we should also make sure to clear it too.
-
-        Args:
-            command_args (CommandArgs): The arguments for this command
-        """
-        await self.say(channel_id=command_args.channel_id, text="Um, hello, falling to my doom here!")
-        raise ResetException()
-
-    async def list_tasks(self, command_args):
-        """
-        List the long term or scheduled tasks which Doof is tracking
-
-        Args:
-            command_args (CommandArgs): The arguments for this command
-        """
-        title = (
-            "Oh! Take that! And that! Perry the Platypus! I, uh, I uh, uh... "
-            "There's no one else here. I mean, w-what are you doing here, Perry the Platypus?"
-        )
-        await self.say_with_attachment(
-            channel_id=command_args.channel_id,
-            title=title,
-            text="\n".join(
-                f"{task.task} on {task.channel_id}" for task in self.tasks
-            ) if self.tasks else "No tasks running or scheduled"
         )
 
     def make_commands(self):
@@ -1127,13 +981,6 @@ class Bot:
                 supported_project_types=[WEB_APPLICATION_TYPE],
             ),
             Command(
-                command='upload to pypi',
-                parsers=[Parser(func=get_version_number, description='new version number')],
-                command_func=self.publish,
-                description='Upload package to pypi (deprecated in favor of "publish")',
-                supported_project_types=[LIBRARY_TYPE],
-            ),
-            Command(
                 command='publish',
                 parsers=[Parser(func=get_version_number, description='version number of package to publish')],
                 command_func=self.publish,
@@ -1145,13 +992,6 @@ class Bot:
                 parsers=[],
                 command_func=self.hi,
                 description='Say hi to doof',
-                supported_project_types=None,
-            ),
-            Command(
-                command='karma',
-                parsers=[Parser(func=parse_date, description='beginning date')],
-                command_func=self.karma,
-                description='Show pull request karma from a given date until today',
                 supported_project_types=None,
             ),
             Command(
@@ -1167,13 +1007,6 @@ class Bot:
                 command_func=self.uptime,
                 description='Shows how long this bot has been running',
                 supported_project_types=None,
-            ),
-            Command(
-                command='issue release notes',
-                parsers=[],
-                command_func=self.issue_release_notes,
-                description='Show issues closed by PRs over the last seven days',
-                supported_project_types=[LIBRARY_TYPE, WEB_APPLICATION_TYPE],
             ),
             Command(
                 command='version',
@@ -1199,20 +1032,6 @@ class Bot:
                 parsers=[],
                 command_func=self.help,
                 description='Show available commands',
-                supported_project_types=None,
-            ),
-            Command(
-                command='reset',
-                parsers=[],
-                command_func=self.reset,
-                description="Tell Doof to stop everything he's doing",
-                supported_project_types=None,
-            ),
-            Command(
-                command='list tasks',
-                parsers=[],
-                command_func=self.list_tasks,
-                description="List running or scheduled tasks",
                 supported_project_types=None,
             ),
         ]
@@ -1311,8 +1130,6 @@ class Bot:
         except (InputException, ReleaseException) as ex:
             log.exception("A BotException was raised:")
             await self.say(channel_id=channel_id, text="Oops! {}".format(ex))
-        except ResetException:
-            self.loop.stop()
         except:  # pylint: disable=bare-except
             log.exception("Exception found when handling a message")
             await self.say(

@@ -14,16 +14,13 @@ from bot import (
 class ConsoleBot(Bot):
     """Fake console bot"""
     async def say(
-            self, *, channel_id, text='', attachments=None, message_type='', is_announcement=False
+            self, *, channel_id, text='', attachments=None, message_type=''
     ):  # pylint: disable=unused-argument
         """Print messages to stdout"""
         attachment_text = ''
         if attachments is not None:
             attachment_text = attachments[0].get('text', '')
-        line = (
-            f"{' '.join(word for word in [text, attachment_text, message_type] if word)} "
-            f"is_announcement={str(is_announcement)}"
-        )
+        line = f"{' '.join(word for word in [text, attachment_text, message_type] if word)} "
         print("\033[92m{}\033[0m".format(line))
 
 
