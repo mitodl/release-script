@@ -322,7 +322,7 @@ def load_repos_info(channel_lookup):
     infos = [
         RepoInfo(
             name=repo_info['name'],
-            repo_url=repo_info.get('repo_url'),
+            repo_url=repo_info['repo_url'],
             ci_hash_url=(
                 repo_info["ci_hash_url"] if repo_info.get("project_type") == WEB_APPLICATION_TYPE else None
             ),
@@ -338,7 +338,7 @@ def load_repos_info(channel_lookup):
             packaging_tool=repo_info.get('packaging_tool'),
             announcements=repo_info.get('announcements'),
             update_other_repos=[]  # this is filled in below
-        ) for repo_info in repos_info['repos']
+        ) for repo_info in repos_info['repos'] if repo_info.get("repo_url")
     ]
 
     repo_dict_lookup = {info["name"]: info for info in repos_info["repos"]}

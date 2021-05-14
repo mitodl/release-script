@@ -53,7 +53,7 @@ async def get_commit_oneline_message(*, github_access_token, repo_url, commit_ha
         return output.decode().strip()
 
 
-def update_python_version_in_file(*, root, filename, new_version):
+def update_python_version_in_file(*, root, filename, new_version, readonly):
     """
     Update the version from the file and return the old version if it's found.
 
@@ -61,6 +61,7 @@ def update_python_version_in_file(*, root, filename, new_version):
         root (str): The directory with the file
         filename (str): The file within that directory
         new_version (str): The new version to insert into the file
+        readonly (bool): If true, don't actually write changes to the file, just return the old version if found
 
     Returns:
         str:
@@ -106,9 +107,10 @@ def update_python_version_in_file(*, root, filename, new_version):
 
     if update_count == 1:
         # Replace contents of file with updated version
-        with open(version_filepath, "w") as f:
-            for line in file_lines:
-                f.write(line)
+        if not readonly:
+            with open(version_filepath, "w") as f:
+                for line in file_lines:
+                    f.write(line)
         return old_version
     elif update_count > 1:
         raise UpdateVersionException("Expected only one version for {file} but found {count}".format(
@@ -120,13 +122,14 @@ def update_python_version_in_file(*, root, filename, new_version):
     return None
 
 
-def update_python_version(*, new_version, working_dir):
+def update_python_version(*, new_version, working_dir, readonly):
     """
     Update the version from the project and return the old one, or raise an exception if none is found
 
     Args:
         new_version (str): The new version to insert into the file
         working_dir (str): The project directory
+        readonly (bool): If true, return the old version if found but don't actually write changes to any files
 
     Returns:
         str:
@@ -141,7 +144,9 @@ def update_python_version(*, new_version, working_dir):
         for root, dirs, filenames in os.walk(working_dir, topdown=True):
             dirs[:] = [d for d in dirs if d not in exclude_dirs]
             if version_filename in filenames:
-                version = update_python_version_in_file(root=root, filename=version_filename, new_version=new_version)
+                version = update_python_version_in_file(
+                    root=root, filename=version_filename, new_version=new_version, readonly=readonly
+                )
                 if version:
                     if not found_version_filename:
                         found_version_filename = version_filename
@@ -160,13 +165,14 @@ def update_python_version(*, new_version, working_dir):
     return old_version
 
 
-async def update_npm_version(*, new_version, working_dir):
+async def update_npm_version(*, new_version, working_dir, readonly):
     """
     Update NPM package version. Note that this does not tag or make any commit to git; this is handled separately.
 
     Args:
         new_version (str): The new version
         working_dir (str): The directory of the package
+        readonly (bool): If true, return the old version if found but don't actually write changes to any files
 
     Returns:
         str:
@@ -175,11 +181,23 @@ async def update_npm_version(*, new_version, working_dir):
     """
     with open(Path(working_dir) / "package.json", "r") as f:
         old_version = json.load(f)["version"]
-    await check_output(["npm", "--no-git-tag-version", "version", new_version], cwd=working_dir)
+    if not readonly:
+        await check_output(["npm", "--no-git-tag-version", "version", new_version], cwd=working_dir)
     return old_version
 
 
-async def update_version(*, repo_info, new_version, working_dir):
+async def get_project_version(*, repo_info, working_dir):
+    """
+    Look up the version of a project from the project instance in the working directory
+
+    Args:
+        repo_info (RepoInfo): Repository info
+        working_dir (str or Path): Where the project was recently checked out
+    """
+    return await update_version(repo_info=repo_info, new_version="9.9.9", working_dir=working_dir, readonly=True)
+
+
+async def update_version(*, repo_info, new_version, working_dir, readonly):
     """
     Update the version in the project if necessary, depending on project and packaging type.
 
@@ -187,6 +205,7 @@ async def update_version(*, repo_info, new_version, working_dir):
         repo_info (RepoInfo): Repo info
         new_version (str): The new version
         working_dir (str): The directory with the project
+        readonly (bool): If true, return the old version if found but don't actually write changes to any files
 
     Returns:
         str:
@@ -195,11 +214,11 @@ async def update_version(*, repo_info, new_version, working_dir):
     """
     if repo_info.project_type == WEB_APPLICATION_TYPE:
         if repo_info.web_application_type == DJANGO:
-            return update_python_version(new_version=new_version, working_dir=working_dir)
+            return update_python_version(new_version=new_version, working_dir=working_dir, readonly=readonly)
         elif repo_info.web_application_type == HUGO:
-            return await update_npm_version(new_version=new_version, working_dir=working_dir)
+            return await update_npm_version(new_version=new_version, working_dir=working_dir, readonly=readonly)
     elif repo_info.project_type == LIBRARY_TYPE:
         if repo_info.packaging_tool == SETUPTOOLS:
-            return update_python_version(new_version=new_version, working_dir=working_dir)
+            return update_python_version(new_version=new_version, working_dir=working_dir, readonly=readonly)
         elif repo_info.packaging_tool == NPM:
-            return await update_npm_version(new_version=new_version, working_dir=working_dir)
+            return await update_npm_version(new_version=new_version, working_dir=working_dir, readonly=readonly)

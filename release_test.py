@@ -372,7 +372,7 @@ async def test_release(mocker, hotfix_hash, test_repo_directory, test_repo):
         old_version, new_version, base_branch=base_branch, root=test_repo_directory
     )
     update_version_mock.assert_called_once_with(
-        repo_info=test_repo, new_version=new_version, working_dir=test_repo_directory,
+        repo_info=test_repo, new_version=new_version, working_dir=test_repo_directory, readonly=False
     )
     check_call_mock.assert_any_call(["git", "checkout", "-qb", "release-candidate"], cwd=test_repo_directory)
     if hotfix_hash:

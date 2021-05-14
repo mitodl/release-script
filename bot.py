@@ -17,11 +17,13 @@ from constants import (
     FINISH_RELEASE_ID,
     NEW_RELEASE_ID,
     LIBRARY_TYPE,
+    MINOR,
     NPM,
     PROD,
     RC,
     SETUPTOOLS,
     VALID_DEPLOYMENT_SERVER_TYPES,
+    VALID_RELEASE_ALL_TYPES,
     WEB_APPLICATION_TYPE,
 )
 from exception import (
@@ -64,8 +66,8 @@ from publish import publish
 from slack import get_channels_info, get_doofs_id
 from version import (
     get_commit_oneline_message,
+    get_project_version,
     get_version_tag,
-    update_version,
 )
 from wait_for_deploy import (
     fetch_release_hash,
@@ -290,10 +292,8 @@ class Bot:
             message_type=message_type,
         )
 
-    async def _library_release(self, command_args):
+    async def _library_release(self, *, repo_info, version):
         """Do a library release"""
-        repo_info = command_args.repo_info
-        version = command_args.args[0]
         channel_id = repo_info.channel_id
         org, repo = get_org_and_repo(repo_info.repo_url)
 
@@ -333,33 +333,41 @@ class Bot:
             ]
         )
 
-    async def _web_application_release(self, command_args, hotfix_version=None):
-        """Do a web application release"""
-        repo_info = command_args.repo_info
-        passed_arg = command_args.args[0]
+    async def _web_application_release(self, *, repo_info, version, hotfix_hash, manager):
+        """
+        Do a web application release
+
+        Args:
+            repo_info (RepoInfo): Repository info for a release
+            version (str): Version of a new release
+            hotfix_hash (str or None):
+                If present, treat this as a hotfix and use this for a commit hash.
+                If None, this is not a hotfix.
+            manager (str): Manager for the release
+        """
         channel_id = repo_info.channel_id
-        if hotfix_version:
+        if hotfix_hash:
             await release(
                 github_access_token=self.github_access_token,
                 repo_info=repo_info,
-                new_version=hotfix_version,
+                new_version=version,
                 branch='release',
-                commit_hash=passed_arg,
+                commit_hash=hotfix_hash,
             )
             await self.say(
                 channel_id=channel_id,
-                text=f"Behold, my new evil scheme - hotfix release {hotfix_version} "
-                     f"with commit {passed_arg}! Now deploying to RC..."
+                text=f"Behold, my new evil scheme - hotfix release {version} "
+                     f"with commit {hotfix_hash}! Now deploying to RC..."
             )
         else:
             await release(
                 github_access_token=self.github_access_token,
                 repo_info=repo_info,
-                new_version=passed_arg,
+                new_version=version,
             )
             await self.say(
                 channel_id=channel_id,
-                text=f"Behold, my new evil scheme - release {passed_arg} for {repo_info.name}! Now deploying to RC..."
+                text=f"Behold, my new evil scheme - release {version} for {repo_info.name}! Now deploying to RC..."
             )
 
         await self._wait_for_deploy_rc(
@@ -367,7 +375,7 @@ class Bot:
         )
         await self.wait_for_checkboxes(
             repo_info=repo_info,
-            manager=command_args.manager,
+            manager=manager,
         )
         self.loop.create_task(self.wait_for_checkboxes_reminder(repo_info=repo_info))
 
@@ -451,6 +459,24 @@ class Bot:
             is_announcement=True,
         )
 
+    async def _new_release(self, *, repo_info, version, manager):
+        """
+        Start a new release
+
+        Args:
+            repo_info (RepoInfo): Repository information for the release
+            version (str): The version of the new release
+            manager (str): Person starting a release
+        """
+        if repo_info.project_type == LIBRARY_TYPE:
+            await self._library_release(repo_info=repo_info, version=version)
+        elif repo_info.project_type == WEB_APPLICATION_TYPE:
+            await self._web_application_release(
+                repo_info=repo_info, version=version, hotfix_hash=None, manager=manager
+            )
+        else:
+            raise Exception("Configuration error: unknown project type {}".format(repo_info.project_type))
+
     async def release_command(self, command_args):
         """
         Start a new release and wait for deployment
@@ -459,6 +485,7 @@ class Bot:
             command_args (CommandArgs): The arguments for this command
         """
         repo_info = command_args.repo_info
+        version = command_args.args[0]
         repo_url = repo_info.repo_url
         org, repo = get_org_and_repo(repo_url)
         pr = await get_release_pr(
@@ -469,12 +496,7 @@ class Bot:
         if pr:
             raise ReleaseException("A release is already in progress: {}".format(pr.url))
 
-        if repo_info.project_type == LIBRARY_TYPE:
-            await self._library_release(command_args)
-        elif repo_info.project_type == WEB_APPLICATION_TYPE:
-            await self._web_application_release(command_args)
-        else:
-            raise Exception("Configuration error: unknown project type {}".format(repo_info.project_type))
+        await self._new_release(repo_info=repo_info, version=version, manager=command_args.manager)
 
     async def hotfix_command(self, command_args):
         """
@@ -484,6 +506,7 @@ class Bot:
             command_args (CommandArgs): The arguments for this command
         """
         repo_info = command_args.repo_info
+        hotfix_hash = command_args.args[0]
         repo_url = repo_info.repo_url
         org, repo = get_org_and_repo(repo_url)
 
@@ -496,11 +519,13 @@ class Bot:
             raise ReleaseException(f"There is a release already in progress: {release_pr.url}. Close that first!")
 
         async with init_working_dir(self.github_access_token, repo_info.repo_url) as working_dir:
-            last_version = await update_version(repo_info=repo_info, new_version="9.9.9", working_dir=working_dir)
+            last_version = await get_project_version(repo_info=repo_info, working_dir=working_dir)
 
         _, new_patch = next_versions(last_version)
 
-        await self._web_application_release(command_args, hotfix_version=new_patch)
+        await self._web_application_release(
+            repo_info=repo_info, version=new_patch, hotfix_hash=hotfix_hash, manager=command_args.manager
+        )
 
     async def wait_for_checkboxes_command(self, command_args):
         """
@@ -745,7 +770,7 @@ class Bot:
         repo_info = command_args.repo_info
         async with init_working_dir(self.github_access_token, repo_info.repo_url) as working_dir:
             default_branch = await get_default_branch(working_dir)
-            last_version = await update_version(repo_info=repo_info, new_version="9.9.9", working_dir=working_dir)
+            last_version = await get_project_version(repo_info=repo_info, working_dir=working_dir)
 
             release_notes = await create_release_notes(
                 last_version, with_checkboxes=False, base_branch=default_branch, root=working_dir
@@ -797,6 +822,40 @@ class Bot:
                         ]
                     }
                 ]
+            )
+
+    async def start_new_releases(self, command_args):
+        """
+        Start new releases for all projects with new commits
+
+        Args:
+            command_args (CommandArgs): The arguments for this command
+        """
+        new_release_type = command_args.args[0]
+
+        for repo_info in self.repos_info:
+            org, repo = get_org_and_repo(repo_info.repo_url)
+            release_pr = await get_release_pr(
+                github_access_token=self.github_access_token,
+                org=org,
+                repo=repo,
+            )
+            if release_pr:
+                # Release already in progress, skip
+                continue
+
+            async with init_working_dir(self.github_access_token, repo_info.repo_url) as working_dir:
+                last_version = await get_project_version(repo_info=repo_info, working_dir=working_dir)
+                default_branch = await get_default_branch(working_dir)
+                has_new_commits = await any_new_commits(last_version, base_branch=default_branch, root=working_dir)
+                if not has_new_commits:
+                    # Nothing to release
+                    continue
+
+            minor, patch = next_versions(last_version)
+            version = minor if new_release_type == MINOR else patch
+            self.loop.create_task(
+                self._new_release(repo_info=repo_info, version=version, manager=command_args.manager)
             )
 
     async def message_if_unchecked(self, repo_info):
@@ -1015,6 +1074,16 @@ class Bot:
                 command_func=self.release_command,
                 description='Start a new release',
                 supported_project_types=[LIBRARY_TYPE, WEB_APPLICATION_TYPE],
+            ),
+            Command(
+                command='start new releases',
+                parsers=[Parser(
+                    func=parse_text_matching_options(VALID_RELEASE_ALL_TYPES),
+                    description="how to increment version for the next release (either 'minor' or 'patch')",
+                )],
+                command_func=self.start_new_releases,
+                description="Start new releases for all projects which have new commits",
+                supported_project_types=None
             ),
             Command(
                 command='release',

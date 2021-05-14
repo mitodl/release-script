@@ -27,6 +27,10 @@ CI = "ci"
 PROD = "prod"
 VALID_DEPLOYMENT_SERVER_TYPES = [CI, RC, PROD]
 
+MINOR = "minor"
+PATCH = "patch"
+VALID_RELEASE_ALL_TYPES = [MINOR, PATCH]
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 GIT_RELEASE_NOTES_PATH = os.path.join(SCRIPT_DIR, "./node_modules/.bin/git-release-notes")
 YARN_PATH = os.path.join(SCRIPT_DIR, "./node_modules/.bin/yarn")
