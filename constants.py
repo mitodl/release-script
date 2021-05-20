@@ -34,3 +34,17 @@ VALID_RELEASE_ALL_TYPES = [MINOR, PATCH]
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 GIT_RELEASE_NOTES_PATH = os.path.join(SCRIPT_DIR, "./node_modules/.bin/git-release-notes")
 YARN_PATH = os.path.join(SCRIPT_DIR, "./node_modules/.bin/yarn")
+
+ALL_CHECKBOXES_CHECKED = "all checkboxes checked"
+DEPLOYING_TO_RC = "deploying to rc"
+WAITING_FOR_CHECKBOXES = "waiting for checkboxes"
+DEPLOYING_TO_PROD = "deploying to prod"
+DEPLOYED_TO_PROD = "deployed to prod"
+RELEASE_LABELS = [
+    ALL_CHECKBOXES_CHECKED,
+    DEPLOYING_TO_RC,
+    WAITING_FOR_CHECKBOXES,
+    DEPLOYING_TO_PROD,
+    DEPLOYED_TO_PROD,
+]
+FREEZE_RELEASE = "freeze release"

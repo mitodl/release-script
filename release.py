@@ -190,7 +190,7 @@ async def release(*, github_access_token, repo_info, new_version, branch=None, c
         await verify_new_commits(old_version, base_branch=base_branch, root=working_dir)
         await update_release_notes(old_version, new_version, base_branch=base_branch, root=working_dir)
         await build_release(root=working_dir)
-        await generate_release_pr(
+        return await generate_release_pr(
             github_access_token=github_access_token,
             repo_url=repo_info.repo_url,
             old_version=old_version,

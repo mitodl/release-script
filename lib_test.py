@@ -49,6 +49,7 @@ OTHER_PR = {
     "head": {
         "ref": "other-branch"
     },
+    "number": 345
 }
 RELEASE_PR = {
     "url": "https://api.github.com/repos/mitodl/micromasters/pulls/2993",
@@ -58,6 +59,7 @@ RELEASE_PR = {
     "head": {
         "ref": "release-candidate"
     },
+    "number": 234,
 }
 FAKE_PULLS = [OTHER_PR, RELEASE_PR]
 
@@ -104,6 +106,7 @@ async def test_get_release_pr(mocker):
     assert pr.body == RELEASE_PR['body']
     assert pr.url == RELEASE_PR['html_url']
     assert pr.version == '0.53.3'
+    assert pr.number == 234
 
 
 async def test_get_release_pr_no_pulls(mocker):
@@ -163,7 +166,8 @@ async def test_get_unchecked_authors(mocker):
     get_release_pr_mock = mocker.async_patch('lib.get_release_pr', return_value=ReleasePR(
         body=FAKE_RELEASE_PR_BODY,
         version='1.2.3',
-        url='http://url'
+        url='http://url',
+        number=234,
     ))
     unchecked = await get_unchecked_authors(
         github_access_token=access_token,
