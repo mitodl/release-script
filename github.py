@@ -120,7 +120,7 @@ async def create_pr(*, github_access_token, repo_url, title, body, head, base): 
     resp.raise_for_status()
 
 
-async def get_pull_request(*, github_access_token, org, repo, branch):
+async def get_pull_request(*, github_access_token, org, repo, branch, all_prs):
     """
     Look up the pull request for a branch
 
@@ -129,14 +129,15 @@ async def get_pull_request(*, github_access_token, org, repo, branch):
         org (str): The github organization (eg mitodl)
         repo (str): The github repository (eg micromasters)
         branch (str): The name of the associated branch
+        all_prs (bool):
+            If True, look through open and closed PRs. The most recent PR for that branch will be returned.
+            If False, look only through open PRs.
 
     Returns:
         dict: The information about the pull request
     """
-    endpoint = "https://api.github.com/repos/{org}/{repo}/pulls".format(
-        org=org,
-        repo=repo,
-    )
+    state = "all" if all_prs else "open"
+    endpoint = f"https://api.github.com/repos/{org}/{repo}/pulls?state={state}&head={org}:{branch}&per_page=1"
 
     client = ClientWrapper()
     response = await client.get(
@@ -145,14 +146,7 @@ async def get_pull_request(*, github_access_token, org, repo, branch):
     )
     response.raise_for_status()
     pulls = response.json()
-    pulls = [pull for pull in pulls if pull['head']['ref'] == branch]
-    if not pulls:
-        return None
-    elif len(pulls) > 1:
-        # Shouldn't happen since we look up by branch
-        raise Exception("More than one pull request for the branch {}".format(branch))
-
-    return pulls[0]
+    return pulls[0] if pulls else None
 
 
 async def needs_review(github_access_token):

@@ -74,7 +74,7 @@ def parse_checkmarks(body):
     return commits
 
 
-async def get_release_pr(*, github_access_token, org, repo):
+async def get_release_pr(*, github_access_token, org, repo, all_prs=False):
     """
     Look up the pull request information for a release, or return None if it doesn't exist
 
@@ -82,6 +82,9 @@ async def get_release_pr(*, github_access_token, org, repo):
         github_access_token (str): The github access token
         org (str): The github organization (eg mitodl)
         repo (str): The github repository (eg micromasters)
+        all_prs (bool):
+            If True, look through open and closed PRs. The most recent release PR will be returned.
+            If False, look only through open PRs.
 
     Returns:
         ReleasePR: The information about the release pull request, or None if there is no release PR in progress
@@ -91,6 +94,7 @@ async def get_release_pr(*, github_access_token, org, repo):
         org=org,
         repo=repo,
         branch='release-candidate',
+        all_prs=all_prs,
     )
     if pr is None:
         return None

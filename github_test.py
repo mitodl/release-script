@@ -12,10 +12,12 @@ from github import (
     delete_label,
     get_labels,
     get_org_and_repo,
+    get_pull_request,
     github_auth_headers,
     needs_review,
     NEEDS_REVIEW_QUERY,
 )
+from test_constants import RELEASE_PR
 
 
 pytestmark = pytest.mark.asyncio
@@ -221,3 +223,32 @@ async def test_delete_label(mocker, status, expected_raise_for_status):
         headers=github_auth_headers(token),
     )
     assert response.raise_for_status.called is expected_raise_for_status
+
+
+@pytest.mark.parametrize("all_prs", [True, False])
+@pytest.mark.parametrize("has_pr", [True, False])
+async def test_get_pull_request(mocker, all_prs, has_pr):
+    """get_pull_request should fetch a pull request from GitHub's API"""
+    org = 'org'
+    repo = 'repo'
+    access_token = 'access'
+    branch = "release-candidate"
+
+    get_mock = mocker.async_patch('client_wrapper.ClientWrapper.get', return_value=mocker.Mock(
+        json=mocker.Mock(return_value=[RELEASE_PR] if has_pr else [])
+    ))
+    response = await get_pull_request(
+        github_access_token=access_token,
+        org=org,
+        repo=repo,
+        branch=branch,
+        all_prs=all_prs,
+    )
+    assert response == (RELEASE_PR if has_pr else None)
+    get_mock.return_value.raise_for_status.assert_called_once_with()
+    state = 'all' if all_prs else 'open'
+    get_mock.assert_called_once_with(
+        mocker.ANY,
+        f"https://api.github.com/repos/{org}/{repo}/pulls?state={state}&head={org}:{branch}&per_page=1",
+        headers=github_auth_headers(access_token)
+    )
