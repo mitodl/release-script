@@ -1204,9 +1204,11 @@ async def test_start_new_releases(
             version=old_version, url="https://example.com", body="...", number=123
         ) if has_release_pr else None
     )
+    release_notes = f"Release notes for {test_repo.repo_url}"
     get_project_version_mock = mocker.async_patch("bot.get_project_version", return_value=old_version)
     get_default_branch_mock = mocker.async_patch("bot.get_default_branch", return_value=default_branch)
     any_new_commits_mock = mocker.async_patch("bot.any_new_commits", return_value=has_new_commits)
+    release_notes_mock = mocker.async_patch("bot.create_release_notes", return_value=release_notes)
     new_release_mock = mocker.async_patch("bot.Bot._new_release")
 
     await doof.start_new_releases(command_args)
@@ -1219,15 +1221,31 @@ async def test_start_new_releases(
         get_project_version_mock.assert_any_call(repo_info=test_repo, working_dir=test_repo_directory)
         get_default_branch_mock.assert_any_call(test_repo_directory)
         any_new_commits_mock.assert_any_call(old_version, base_branch=default_branch, root=test_repo_directory)
-
     if not has_release_pr and has_new_commits:
+        release_notes_mock.assert_any_call(
+            old_version, with_checkboxes=False, base_branch=default_branch, root=test_repo_directory
+        )
         new_release_mock.assert_any_call(doof,
             repo_info=test_repo, version=expected_version, manager=command_args.manager
         )
-        assert doof.said(f"Started new releases for {WEB_TEST_REPO_INFO.name}, {LIBRARY_TEST_REPO_INFO.name}")
+        assert doof.said(
+            f"Started new releases for {WEB_TEST_REPO_INFO.name}, {LIBRARY_TEST_REPO_INFO.name}",
+            channel_id=command_args.channel_id
+        )
+        title = f"Starting release {expected_version} with these commits"
+        assert doof.said(
+            title,
+            channel_id=test_repo.channel_id,
+            attachments=[{
+                "fallback": title,
+                "text": release_notes,
+                "mrkdwn_in": ['text']
+            }]
+        )
+
     else:
         assert new_release_mock.called is False
-        assert doof.said("No new releases needed")
+        assert doof.said("No new releases needed", channel_id=command_args.channel_id)
 
 
 async def test_set_release_label(doof, mocker, test_repo):

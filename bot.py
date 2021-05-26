@@ -897,7 +897,7 @@ class Bot:
                 ]
             )
 
-    async def start_new_releases(self, command_args):
+    async def start_new_releases(self, command_args):  # pylint: disable=too-many-locals
         """
         Start new releases for all projects with new commits
 
@@ -926,10 +926,18 @@ class Bot:
                 if not has_new_commits:
                     # Nothing to release
                     continue
+                release_notes = await create_release_notes(
+                    last_version, with_checkboxes=False, base_branch=default_branch, root=working_dir
+                )
 
             new_release_repos.append(repo_info.name)
             minor, patch = next_versions(last_version)
             version = minor if new_release_type == MINOR else patch
+            await self.say_with_attachment(
+                channel_id=repo_info.channel_id,
+                title=f"Starting release {version} with these commits",
+                text=release_notes,
+            )
             self.loop.create_task(
                 self._new_release(repo_info=repo_info, version=version, manager=command_args.manager)
             )
