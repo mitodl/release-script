@@ -1376,6 +1376,7 @@ class Bot:
                 github_access_token=self.github_access_token,
                 org=org,
                 repo=repo,
+                all_prs=True,
             )
             if not release_pr:
                 continue

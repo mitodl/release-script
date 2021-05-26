@@ -999,12 +999,23 @@ async def test_startup(doof, mocker, repo_info, has_release_pr, has_expected):
         body='Release PR body',
         number=123,
     )
-    mocker.async_patch('bot.get_release_pr', return_value=(
+    org, repo = get_org_and_repo(repo_info.repo_url)
+    get_release_pr_mock = mocker.async_patch('bot.get_release_pr', return_value=(
         release_pr if has_release_pr else None
     ))
     run_release_lifecycle_mock = mocker.async_patch('bot.Bot.run_release_lifecycle')
 
     await doof.startup()
+    if repo_info.project_type == WEB_APPLICATION_TYPE:
+        get_release_pr_mock.assert_called_once_with(
+            github_access_token=GITHUB_ACCESS,
+            org=org,
+            repo=repo,
+            all_prs=True,
+        )
+    else:
+        assert get_release_pr_mock.called is False
+
     # iterate once through event loop
     await asyncio.sleep(0)
     assert not doof.said("isn't evil enough until all the checkboxes are checked")

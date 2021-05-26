@@ -8,7 +8,6 @@ from constants import (
     NPM,
     WEB_APPLICATION_TYPE,
 )
-from github import github_auth_headers
 from lib import (
     get_default_branch,
     get_release_pr,
@@ -25,43 +24,10 @@ from lib import (
 )
 from repo_info import RepoInfo
 from test_util import async_wrapper, sync_call as call
+from test_constants import FAKE_RELEASE_PR_BODY, RELEASE_PR
 
 
 pytestmark = pytest.mark.asyncio
-
-
-FAKE_RELEASE_PR_BODY = """
-
-## Alice Pote
-  - [x] Implemented AutomaticEmail API ([5de04973](../commit/5de049732f769ec8a2a24068514603f353e13ed4))
-  - [ ] Unmarked some files as executable ([c665a2c7](../commit/c665a2c79eaf5e2d54b18f5a880709f5065ed517))
-
-## Nathan Levesque
-  - [x] Fixed seed data for naive timestamps (#2712) ([50d19c4a](../commit/50d19c4adf22c5ddc8b8299f4b4579c2b1e35b7f))
-  - [garbage] xyz
-    """
-
-OTHER_PR = {
-    "url": "https://api.github.com/repos/mitodl/micromasters/pulls/2985",
-    "html_url": "https://github.com/mitodl/micromasters/pull/2985",
-    "body": "not a release",
-    "title": "not a release",
-    "head": {
-        "ref": "other-branch"
-    },
-    "number": 345
-}
-RELEASE_PR = {
-    "url": "https://api.github.com/repos/mitodl/micromasters/pulls/2993",
-    "html_url": "https://github.com/mitodl/micromasters/pull/2993",
-    "body": FAKE_RELEASE_PR_BODY,
-    "title": "Release 0.53.3",
-    "head": {
-        "ref": "release-candidate"
-    },
-    "number": 234,
-}
-FAKE_PULLS = [OTHER_PR, RELEASE_PR]
 
 
 async def test_parse_checkmarks():
@@ -85,56 +51,43 @@ async def test_parse_checkmarks():
     ]
 
 
-async def test_get_release_pr(mocker):
+@pytest.mark.parametrize("all_prs", [True, False])
+@pytest.mark.parametrize("has_pr", [True, False])
+@pytest.mark.parametrize("wrong_title", [True, False])
+async def test_get_release_pr(mocker, all_prs, has_pr, wrong_title):
     """get_release_pr should grab a release from GitHub's API"""
     org = 'org'
     repo = 'repo'
     access_token = 'access'
 
-    get_mock = mocker.async_patch('client_wrapper.ClientWrapper.get', return_value=mocker.Mock(
-        json=mocker.Mock(return_value=FAKE_PULLS)
-    ))
+    if wrong_title:
+        release_pr_json = {
+            **RELEASE_PR,
+            "title": "Some other title"
+        }
+    else:
+        release_pr_json = RELEASE_PR
+    get_pull_request_mock = mocker.async_patch("lib.get_pull_request", return_value=release_pr_json if has_pr else None)
     pr = await get_release_pr(
         github_access_token=access_token,
         org=org,
         repo=repo,
+        all_prs=all_prs
     )
-    get_mock.assert_called_once_with(mocker.ANY, "https://api.github.com/repos/{org}/{repo}/pulls".format(
+    get_pull_request_mock.assert_called_once_with(
+        github_access_token=access_token,
         org=org,
         repo=repo,
-    ), headers=github_auth_headers(access_token))
-    assert pr.body == RELEASE_PR['body']
-    assert pr.url == RELEASE_PR['html_url']
-    assert pr.version == '0.53.3'
-    assert pr.number == 234
-
-
-async def test_get_release_pr_no_pulls(mocker):
-    """If there is no release PR it should return None"""
-    mocker.async_patch(
-        'client_wrapper.ClientWrapper.get', return_value=mocker.Mock(json=mocker.Mock(return_value=[OTHER_PR]))
+        branch='release-candidate',
+        all_prs=all_prs,
     )
-    assert await get_release_pr(
-        github_access_token='access_token',
-        org='org',
-        repo='repo-missing',
-    ) is None
-
-
-async def test_too_many_releases(mocker):
-    """If there is no release PR, an exception should be raised"""
-    pulls = [RELEASE_PR, RELEASE_PR]
-    mocker.async_patch(
-        'client_wrapper.ClientWrapper.get', return_value=mocker.Mock(json=mocker.Mock(return_value=pulls))
-    )
-    with pytest.raises(Exception) as ex:
-        await get_release_pr(
-            github_access_token='access_token',
-            org='org',
-            repo='repo',
-        )
-
-    assert ex.value.args[0] == "More than one pull request for the branch release-candidate"
+    if has_pr and not wrong_title:
+        assert pr.body == RELEASE_PR['body']
+        assert pr.url == RELEASE_PR['html_url']
+        assert pr.version == '0.53.3'
+        assert pr.number == 234
+    else:
+        assert pr is None
 
 
 async def test_no_release_wrong_repo(mocker):
