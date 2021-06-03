@@ -27,12 +27,12 @@ from github import (
 from repo_info import RepoInfo
 
 
-ReleasePR = namedtuple("ReleasePR", ['version', 'url', 'body', 'number'])
+ReleasePR = namedtuple("ReleasePR", ["version", "url", "body", "number"])
 
 
-VERSION_RE = r'\d+\.\d+\.\d+'
+VERSION_RE = r"\d+\.\d+\.\d+"
 
-COMMIT_HASH_RE = r'^[a-z0-9]+$'
+COMMIT_HASH_RE = r"^[a-z0-9]+$"
 
 
 def parse_checkmarks(body):
@@ -64,13 +64,15 @@ def parse_checkmarks(body):
             start = line.find("]")
             end = line.rfind("([")
             if start != -1 and end != -1:
-                title = line[start + 1:end].strip()
+                title = line[start + 1 : end].strip()
 
-                commits.append({
-                    "checked": checked,
-                    "title": title,
-                    "author_name": current_name,
-                })
+                commits.append(
+                    {
+                        "checked": checked,
+                        "title": title,
+                        "author_name": current_name,
+                    }
+                )
     return commits
 
 
@@ -93,23 +95,23 @@ async def get_release_pr(*, github_access_token, org, repo, all_prs=False):
         github_access_token=github_access_token,
         org=org,
         repo=repo,
-        branch='release-candidate',
+        branch="release-candidate",
         all_prs=all_prs,
     )
     if pr is None:
         return None
 
-    title = pr['title']
-    match = re.match(r'^Release (?P<version>\d+\.\d+\.\d+)$', title)
+    title = pr["title"]
+    match = re.match(r"^Release (?P<version>\d+\.\d+\.\d+)$", title)
     if not match:
         return None
-    version = match.group('version')
+    version = match.group("version")
 
     return ReleasePR(
         version=version,
         number=pr["number"],
-        body=pr['body'],
-        url=pr['html_url'],
+        body=pr["body"],
+        url=pr["html_url"],
     )
 
 
@@ -134,7 +136,7 @@ async def get_unchecked_authors(*, github_access_token, org, repo):
         raise ReleaseException("No release PR found")
     body = release_pr.body
     commits = parse_checkmarks(body)
-    return {commit['author_name'] for commit in commits if not commit['checked']}
+    return {commit["author_name"] for commit in commits if not commit["checked"]}
 
 
 def reformatted_full_name(full_name):
@@ -152,7 +154,7 @@ def reformatted_full_name(full_name):
         return "{} {}".format(pieces[0], pieces[-1])
     elif len(pieces) == 1:
         return pieces[0]
-    return ''
+    return ""
 
 
 def format_user_id(user_id):
@@ -187,7 +189,7 @@ def match_user(slack_users, author_name, threshold=0.8):
 
     def match_for_user(slack_user):
         """Get match ratio for slack user, or 0 if below threshold"""
-        real_name = slack_user['profile']['real_name']
+        real_name = slack_user["profile"]["real_name"]
         lower_name = reformatted_full_name(real_name)
 
         ratio = SequenceMatcher(a=lower_author_name, b=lower_name).ratio()
@@ -202,12 +204,18 @@ def match_user(slack_users, author_name, threshold=0.8):
 
         return 0
 
-    slack_matches = [(slack_user, match_for_user(slack_user)) for slack_user in slack_users]
-    slack_matches = [(slack_user, match) for (slack_user, match) in slack_matches if match >= threshold]
+    slack_matches = [
+        (slack_user, match_for_user(slack_user)) for slack_user in slack_users
+    ]
+    slack_matches = [
+        (slack_user, match)
+        for (slack_user, match) in slack_matches
+        if match >= threshold
+    ]
 
     if slack_matches:
         matched_user = max(slack_matches, key=lambda pair: pair[1])[0]
-        return format_user_id(matched_user['id'])
+        return format_user_id(matched_user["id"])
     else:
         return author_name
 
@@ -255,6 +263,7 @@ def parse_text_matching_options(valid_options):
     Args:
         valid_options (list of str): Valid options for the text
     """
+
     def validate(text):
         """
         Verify that the string matches one of the options, or else raise an exception
@@ -263,7 +272,9 @@ def parse_text_matching_options(valid_options):
             text (str): Some text
         """
         if text not in valid_options:
-            raise Exception(f"Unexpected option {text}. Valid options: {', '.join(valid_options)}")
+            raise Exception(
+                f"Unexpected option {text}. Valid options: {', '.join(valid_options)}"
+            )
         return text
 
     return validate
@@ -275,7 +286,11 @@ async def virtualenv(python_interpreter, env):
     Create a virtualenv and work within its context
     """
     with TemporaryDirectory() as virtualenv_dir:
-        await check_call(["virtualenv", virtualenv_dir, "-p", python_interpreter], env=env, cwd=virtualenv_dir)
+        await check_call(
+            ["virtualenv", virtualenv_dir, "-p", python_interpreter],
+            env=env,
+            cwd=virtualenv_dir,
+        )
 
         # Figure out what environment variables we need to set
         output_bytes = await check_output(
@@ -284,7 +299,9 @@ async def virtualenv(python_interpreter, env):
             cwd=virtualenv_dir,
         )
         output = output_bytes.decode()
-        yield virtualenv_dir, dict(line.split("=", 1) for line in output.splitlines() if "=" in line)
+        yield virtualenv_dir, dict(
+            line.split("=", 1) for line in output.splitlines() if "=" in line
+        )
 
 
 def load_repos_info(channel_lookup):
@@ -302,32 +319,44 @@ def load_repos_info(channel_lookup):
 
     infos = [
         RepoInfo(
-            name=repo_info['name'],
-            repo_url=repo_info['repo_url'],
+            name=repo_info["name"],
+            repo_url=repo_info["repo_url"],
             ci_hash_url=(
-                repo_info["ci_hash_url"] if repo_info.get("project_type") == WEB_APPLICATION_TYPE else None
+                repo_info["ci_hash_url"]
+                if repo_info.get("project_type") == WEB_APPLICATION_TYPE
+                else None
             ),
             rc_hash_url=(
-                repo_info['rc_hash_url'] if repo_info.get('project_type') == WEB_APPLICATION_TYPE else None
+                repo_info["rc_hash_url"]
+                if repo_info.get("project_type") == WEB_APPLICATION_TYPE
+                else None
             ),
             prod_hash_url=(
-                repo_info['prod_hash_url'] if repo_info.get('project_type') == WEB_APPLICATION_TYPE else None
+                repo_info["prod_hash_url"]
+                if repo_info.get("project_type") == WEB_APPLICATION_TYPE
+                else None
             ),
-            channel_id=channel_lookup[repo_info['channel_name']],
-            project_type=repo_info.get('project_type'),
-            web_application_type=repo_info.get('web_application_type'),
-            packaging_tool=repo_info.get('packaging_tool'),
-        ) for repo_info in repos_info['repos'] if repo_info.get("repo_url")
+            channel_id=channel_lookup[repo_info["channel_name"]],
+            project_type=repo_info.get("project_type"),
+            web_application_type=repo_info.get("web_application_type"),
+            packaging_tool=repo_info.get("packaging_tool"),
+        )
+        for repo_info in repos_info["repos"]
+        if repo_info.get("repo_url")
     ]
 
     # some basic validation for sanity checking
     for info in infos:
         if info.project_type == WEB_APPLICATION_TYPE:
             if info.web_application_type not in VALID_WEB_APPLICATION_TYPES:
-                raise Exception(f"Unexpected web application type {info.web_application_type} for {info.name}")
+                raise Exception(
+                    f"Unexpected web application type {info.web_application_type} for {info.name}"
+                )
         elif info.project_type == LIBRARY_TYPE:
             if info.packaging_tool not in VALID_PACKAGING_TOOL_TYPES:
-                raise Exception(f"Unexpected packaging tool {info.packaging_tool} for {info.name}")
+                raise Exception(
+                    f"Unexpected packaging tool {info.packaging_tool} for {info.name}"
+                )
 
     return infos
 
@@ -355,7 +384,9 @@ async def get_default_branch(repository_path):
     Args:
         repository_path (str): The path of the repository
     """
-    output = (await check_output(["git", "remote", "show", "origin"], cwd=repository_path)).decode()
+    output = (
+        await check_output(["git", "remote", "show", "origin"], cwd=repository_path)
+    ).decode()
     head_branch_line = [line for line in output.splitlines() if "HEAD branch" in line]
     return head_branch_line[0].rsplit(": ", maxsplit=1)[1]
 

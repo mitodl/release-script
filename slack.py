@@ -14,10 +14,13 @@ async def iterate_cursor(fetch, key, url, *, data):
     """
     next_cursor = None
     while True:
-        resp = await fetch(url, data={
-            **({"cursor": next_cursor} if next_cursor is not None else {}),
-            **data,
-        })
+        resp = await fetch(
+            url,
+            data={
+                **({"cursor": next_cursor} if next_cursor is not None else {}),
+                **data,
+            },
+        )
         resp.raise_for_status()
         resp_json = resp.json()
         for item in resp_json[key]:
@@ -43,15 +46,15 @@ async def get_channels_info(slack_access_token):
     channels = {}
 
     async for channel in iterate_cursor(
-            client.post,
-            "channels",
-            "https://slack.com/api/conversations.list",
-            data={
-                "token": slack_access_token,
-                "types": "public_channel,private_channel",
-            }
+        client.post,
+        "channels",
+        "https://slack.com/api/conversations.list",
+        data={
+            "token": slack_access_token,
+            "types": "public_channel,private_channel",
+        },
     ):
-        channels[channel['name']] = channel['id']
+        channels[channel["name"]] = channel["id"]
 
     return channels
 
@@ -66,14 +69,12 @@ async def get_doofs_id(slack_access_token):
     client = ClientWrapper()
 
     async for member in iterate_cursor(
-            client.post,
-            "members",
-            "https://slack.com/api/users.list",
-            data={
-                "token": slack_access_token
-            }
+        client.post,
+        "members",
+        "https://slack.com/api/users.list",
+        data={"token": slack_access_token},
     ):
-        if member['name'] == 'doof':
-            return member['id']
+        if member["name"] == "doof":
+            return member["id"]
 
     raise Exception("Unable to find Doof's user id")

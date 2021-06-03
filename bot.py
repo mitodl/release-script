@@ -80,31 +80,36 @@ from web import make_app
 log = logging.getLogger(__name__)
 
 
-Task = namedtuple('Task', ['channel_id', 'task'])
-CommandArgs = namedtuple('CommandArgs', ['channel_id', 'repo_info', 'args', 'manager'])
-Command = namedtuple('Command', ['command', 'parsers', 'command_func', 'description', 'supported_project_types'])
-Parser = namedtuple('Parser', ['func', 'description'])
+Task = namedtuple("Task", ["channel_id", "task"])
+CommandArgs = namedtuple("CommandArgs", ["channel_id", "repo_info", "args", "manager"])
+Command = namedtuple(
+    "Command",
+    ["command", "parsers", "command_func", "description", "supported_project_types"],
+)
+Parser = namedtuple("Parser", ["func", "description"])
 
 
 def get_envs():
     """Get required environment variables"""
     required_keys = (
-        'SLACK_ACCESS_TOKEN',
-        'BOT_ACCESS_TOKEN',
-        'GITHUB_ACCESS_TOKEN',
-        'NPM_TOKEN',
-        'SLACK_SECRET',
-        'TIMEZONE',
-        'PORT',
-        'PYPI_USERNAME',
-        'PYPI_PASSWORD',
-        'PYPITEST_USERNAME',
-        'PYPITEST_PASSWORD',
+        "SLACK_ACCESS_TOKEN",
+        "BOT_ACCESS_TOKEN",
+        "GITHUB_ACCESS_TOKEN",
+        "NPM_TOKEN",
+        "SLACK_SECRET",
+        "TIMEZONE",
+        "PORT",
+        "PYPI_USERNAME",
+        "PYPI_PASSWORD",
+        "PYPITEST_USERNAME",
+        "PYPITEST_PASSWORD",
     )
     env_dict = {key: os.environ.get(key, None) for key in required_keys}
     missing_env_keys = [k for k, v in env_dict.items() if v is None]
     if missing_env_keys:
-        raise Exception("Missing required env variable(s): {}".format(', '.join(missing_env_keys)))
+        raise Exception(
+            "Missing required env variable(s): {}".format(", ".join(missing_env_keys))
+        )
     return env_dict
 
 
@@ -112,7 +117,17 @@ def get_envs():
 class Bot:
     """Slack bot used to manage the release"""
 
-    def __init__(self, *, doof_id, slack_access_token, github_access_token, npm_token, timezone, repos_info, loop):
+    def __init__(
+        self,
+        *,
+        doof_id,
+        slack_access_token,
+        github_access_token,
+        npm_token,
+        timezone,
+        repos_info,
+        loop,
+    ):
         """
         Create the slack bot
 
@@ -141,11 +156,11 @@ class Bot:
         Get users list from slack
         """
         client = ClientWrapper()
-        resp = await client.post("https://slack.com/api/users.list", data={
-            "token": self.slack_access_token
-        })
+        resp = await client.post(
+            "https://slack.com/api/users.list", data={"token": self.slack_access_token}
+        )
         resp.raise_for_status()
-        return resp.json()['members']
+        return resp.json()["members"]
 
     async def translate_slack_usernames(self, names):
         """
@@ -163,7 +178,9 @@ class Bot:
             return {match_user(slack_users, author) for author in names}
 
         except:  # pylint: disable=bare-except
-            log.exception("Exception during translate_slack_usernames, continuing with untranslated names...")
+            log.exception(
+                "Exception during translate_slack_usernames, continuing with untranslated names..."
+            )
             return set(names)
 
     def get_repo_info(self, channel_id):
@@ -188,18 +205,23 @@ class Bot:
             attachments (list of dict): Attachment information
             message_type (str): The type of message
         """
-        attachments_dict = {"attachments": json.dumps(attachments)} if attachments else {}
+        attachments_dict = (
+            {"attachments": json.dumps(attachments)} if attachments else {}
+        )
         text_dict = {"text": text} if text else {}
         message_type_dict = {"type": message_type} if message_type else {}
 
         client = ClientWrapper()
-        resp = await client.post('https://slack.com/api/chat.postMessage', data={
-            "token": self.slack_access_token,
-            "channel": channel_id,
-            **text_dict,
-            **attachments_dict,
-            **message_type_dict,
-        })
+        resp = await client.post(
+            "https://slack.com/api/chat.postMessage",
+            data={
+                "token": self.slack_access_token,
+                "channel": channel_id,
+                **text_dict,
+                **attachments_dict,
+                **message_type_dict,
+            },
+        )
         resp.raise_for_status()
 
     async def say(self, *, channel_id, text=None, attachments=None, message_type=None):
@@ -219,7 +241,9 @@ class Bot:
             message_type=message_type,
         )
 
-    async def update_message(self, *, channel_id, timestamp, text=None, attachments=None):
+    async def update_message(
+        self, *, channel_id, timestamp, text=None, attachments=None
+    ):
         """
         Update an existing message in slack
 
@@ -229,17 +253,22 @@ class Bot:
             text (str): New text for the message
             attachments (list of dict): New attachments for the message
         """
-        attachments_dict = {"attachments": json.dumps(attachments)} if attachments else {}
+        attachments_dict = (
+            {"attachments": json.dumps(attachments)} if attachments else {}
+        )
         text_dict = {"text": text} if text else {}
 
         client = ClientWrapper()
-        resp = await client.post('https://slack.com/api/chat.update', data={
-            "token": self.slack_access_token,
-            "channel": channel_id,
-            "ts": timestamp,
-            **text_dict,
-            **attachments_dict,
-        })
+        resp = await client.post(
+            "https://slack.com/api/chat.update",
+            data={
+                "token": self.slack_access_token,
+                "channel": channel_id,
+                "ts": timestamp,
+                **text_dict,
+                **attachments_dict,
+            },
+        )
         resp.raise_for_status()
 
     async def delete_message(self, *, channel_id, timestamp):
@@ -251,11 +280,14 @@ class Bot:
             timestamp (str): The timestamp of the message to update
         """
         client = ClientWrapper()
-        resp = await client.post("https://slack.com/api/chat.delete", data={
-            "token": self.slack_access_token,
-            "channel": channel_id,
-            "ts": timestamp
-        })
+        resp = await client.post(
+            "https://slack.com/api/chat.delete",
+            data={
+                "token": self.slack_access_token,
+                "channel": channel_id,
+                "ts": timestamp,
+            },
+        )
         resp.raise_for_status()
 
     async def say_with_attachment(self, *, channel_id, title, text, message_type=None):
@@ -271,11 +303,7 @@ class Bot:
         await self.say(
             channel_id=channel_id,
             text=title,
-            attachments=[{
-                "fallback": title,
-                "text": text,
-                "mrkdwn_in": ['text']
-            }],
+            attachments=[{"fallback": title, "text": text, "mrkdwn_in": ["text"]}],
             message_type=message_type,
         )
 
@@ -322,7 +350,9 @@ class Bot:
             manager (str): Release manager
             release_pr (ReleasePR): Release pull request
         """
-        label = await self._get_release_label(repo_url=repo_info.repo_url, pr_number=release_pr.number)
+        label = await self._get_release_label(
+            repo_url=repo_info.repo_url, pr_number=release_pr.number
+        )
 
         # In general these functions should put things in this order:
         #  - polling and waiting at the beginning of the function
@@ -333,14 +363,20 @@ class Bot:
         # The intention is that if a function terminates unexpectedly it
         # can start over with as little repeated speech/actions as possible.
         if label == DEPLOYING_TO_RC:
-            await self._wait_for_deploy_rc(repo_info=repo_info, manager=manager, release_pr=release_pr)
+            await self._wait_for_deploy_rc(
+                repo_info=repo_info, manager=manager, release_pr=release_pr
+            )
         elif label == WAITING_FOR_CHECKBOXES:
-            await self.wait_for_checkboxes(repo_info=repo_info, manager=manager, release_pr=release_pr)
+            await self.wait_for_checkboxes(
+                repo_info=repo_info, manager=manager, release_pr=release_pr
+            )
         elif label == ALL_CHECKBOXES_CHECKED:
             # Done, waiting for the release to finish
             return
         elif label == DEPLOYING_TO_PROD:
-            await self._wait_for_deploy_prod(repo_info=repo_info, manager=manager, release_pr=release_pr)
+            await self._wait_for_deploy_prod(
+                repo_info=repo_info, manager=manager, release_pr=release_pr
+            )
         elif label == DEPLOYED_TO_PROD:
             # all done
             return
@@ -379,14 +415,16 @@ class Bot:
                                 "title": "Are you sure?",
                                 "ok_text": "Finish the release",
                                 "dismiss_text": "Cancel",
-                            }
+                            },
                         }
-                    ]
+                    ],
                 }
-            ]
+            ],
         )
 
-    async def _web_application_release(self, *, repo_info, version, hotfix_hash, manager):
+    async def _web_application_release(
+        self, *, repo_info, version, hotfix_hash, manager
+    ):
         """
         Do a web application release
 
@@ -405,13 +443,13 @@ class Bot:
                 github_access_token=self.github_access_token,
                 repo_info=repo_info,
                 new_version=version,
-                branch='release',
+                branch="release",
                 commit_hash=hotfix_hash,
             )
             await self.say(
                 channel_id=channel_id,
                 text=f"Behold, my new evil scheme - hotfix release {version} "
-                     f"with commit {hotfix_hash}! Now deploying to RC..."
+                f"with commit {hotfix_hash}! Now deploying to RC...",
             )
         else:
             await release(
@@ -421,10 +459,12 @@ class Bot:
             )
             await self.say(
                 channel_id=channel_id,
-                text=f"Behold, my new evil scheme - release {version} for {repo_info.name}! Now deploying to RC..."
+                text=f"Behold, my new evil scheme - release {version} for {repo_info.name}! Now deploying to RC...",
             )
 
-        release_pr = await get_release_pr(github_access_token=self.github_access_token, org=org, repo=repo)
+        release_pr = await get_release_pr(
+            github_access_token=self.github_access_token, org=org, repo=repo
+        )
         await self._set_release_label(
             repo_url=repo_info.repo_url,
             pr_number=release_pr.number,
@@ -434,9 +474,7 @@ class Bot:
             repo_info=repo_info, manager=manager, release_pr=release_pr
         )
 
-    async def _wait_for_deploy_rc(
-        self, *, repo_info, manager, release_pr
-    ):
+    async def _wait_for_deploy_rc(self, *, repo_info, manager, release_pr):
         """
         Check hash values to wait for deployment for RC
         """
@@ -461,8 +499,12 @@ class Bot:
                 f"Release {release_pr.version} for {repo_info.name} was deployed at {rc_server}!"
             ),
         )
-        await self._wait_for_checkboxes_initial_message(repo_info=repo_info, release_pr=release_pr)
-        await self.run_release_lifecycle(repo_info=repo_info, manager=manager, release_pr=release_pr)
+        await self._wait_for_checkboxes_initial_message(
+            repo_info=repo_info, release_pr=release_pr
+        )
+        await self.run_release_lifecycle(
+            repo_info=repo_info, manager=manager, release_pr=release_pr
+        )
 
     async def _wait_for_deploy_prod(self, *, repo_info, manager, release_pr):
         """
@@ -494,9 +536,11 @@ class Bot:
             text=(
                 f"My evil scheme {version} for {repo_info.name} has been released to production at {prod_server}. "
                 "And by 'released', I mean completely...um...leased."
-            )
+            ),
         )
-        await self.run_release_lifecycle(repo_info=repo_info, manager=manager, release_pr=release_pr)
+        await self.run_release_lifecycle(
+            repo_info=repo_info, manager=manager, release_pr=release_pr
+        )
 
     async def _new_release(self, *, repo_info, version, manager):
         """
@@ -514,7 +558,11 @@ class Bot:
                 repo_info=repo_info, version=version, hotfix_hash=None, manager=manager
             )
         else:
-            raise Exception("Configuration error: unknown project type {}".format(repo_info.project_type))
+            raise Exception(
+                "Configuration error: unknown project type {}".format(
+                    repo_info.project_type
+                )
+            )
 
     async def release_command(self, command_args):
         """
@@ -533,9 +581,13 @@ class Bot:
             repo=repo,
         )
         if pr:
-            raise ReleaseException("A release is already in progress: {}".format(pr.url))
+            raise ReleaseException(
+                "A release is already in progress: {}".format(pr.url)
+            )
 
-        await self._new_release(repo_info=repo_info, version=version, manager=command_args.manager)
+        await self._new_release(
+            repo_info=repo_info, version=version, manager=command_args.manager
+        )
 
     async def hotfix_command(self, command_args):
         """
@@ -549,21 +601,32 @@ class Bot:
         repo_url = repo_info.repo_url
         org, repo = get_org_and_repo(repo_url)
 
-        release_pr = await get_release_pr(github_access_token=self.github_access_token, org=org, repo=repo)
+        release_pr = await get_release_pr(
+            github_access_token=self.github_access_token, org=org, repo=repo
+        )
         if release_pr:
             await self.say(
                 channel_id=repo_info.channel_id,
-                text=f"There is a release already in progress: {release_pr.url}. Close that first!"
+                text=f"There is a release already in progress: {release_pr.url}. Close that first!",
             )
-            raise ReleaseException(f"There is a release already in progress: {release_pr.url}. Close that first!")
+            raise ReleaseException(
+                f"There is a release already in progress: {release_pr.url}. Close that first!"
+            )
 
-        async with init_working_dir(self.github_access_token, repo_info.repo_url) as working_dir:
-            last_version = await get_project_version(repo_info=repo_info, working_dir=working_dir)
+        async with init_working_dir(
+            self.github_access_token, repo_info.repo_url
+        ) as working_dir:
+            last_version = await get_project_version(
+                repo_info=repo_info, working_dir=working_dir
+            )
 
         _, new_patch = next_versions(last_version)
 
         await self._web_application_release(
-            repo_info=repo_info, version=new_patch, hotfix_hash=hotfix_hash, manager=command_args.manager
+            repo_info=repo_info,
+            version=new_patch,
+            hotfix_hash=hotfix_hash,
+            manager=command_args.manager,
         )
 
     async def wait_for_checkboxes_command(self, command_args):
@@ -585,9 +648,13 @@ class Bot:
             pr_number=release_pr.number,
             label=WAITING_FOR_CHECKBOXES,
         )
-        await self._wait_for_checkboxes_initial_message(repo_info=repo_info, release_pr=release_pr)
+        await self._wait_for_checkboxes_initial_message(
+            repo_info=repo_info, release_pr=release_pr
+        )
         await self.run_release_lifecycle(
-            repo_info=command_args.repo_info, manager=command_args.manager, release_pr=release_pr
+            repo_info=command_args.repo_info,
+            manager=command_args.manager,
+            release_pr=release_pr,
         )
 
     async def _wait_for_checkboxes_initial_message(self, *, repo_info, release_pr):
@@ -618,7 +685,7 @@ class Bot:
             text=(
                 f"Wait, wait. Time out. My evil plan for {repo_info.name} isn't evil enough "
                 "until all the checkboxes are checked..."
-            )
+            ),
         )
 
     async def wait_for_checkboxes(self, *, repo_info, manager, release_pr):
@@ -671,7 +738,7 @@ class Bot:
             channel_id=channel_id,
             text="All checkboxes checked off. Release {version} is ready for the Merginator{name}!".format(
                 name=" " + format_user_id(manager) if manager else "",
-                version=pr.version
+                version=pr.version,
             ),
             attachments=[
                 {
@@ -686,11 +753,11 @@ class Bot:
                                 "title": "Are you sure?",
                                 "ok_text": "Finish the release",
                                 "dismiss_text": "Cancel",
-                            }
+                            },
                         }
-                    ]
+                    ],
                 }
-            ]
+            ],
         )
 
     async def publish(self, command_args):
@@ -708,7 +775,9 @@ class Bot:
         elif repo_info.packaging_tool == SETUPTOOLS:
             server = "PyPI"
         else:
-            raise Exception(f"Unexpected packaging tool {repo_info.packaging_tool} for {repo_info.name}")
+            raise Exception(
+                f"Unexpected packaging tool {repo_info.packaging_tool} for {repo_info.name}"
+            )
 
         await self.say(
             channel_id=command_args.channel_id,
@@ -718,12 +787,12 @@ class Bot:
             repo_info=repo_info,
             version=version,
             github_access_token=self.github_access_token,
-            npm_token=self.npm_token
+            npm_token=self.npm_token,
         )
 
         await self.say(
             channel_id=command_args.channel_id,
-            text=f'Successfully uploaded {version} to {server}.',
+            text=f"Successfully uploaded {version} to {server}.",
         )
 
     async def finish_release(self, command_args):
@@ -743,7 +812,11 @@ class Bot:
             repo=repo,
         )
         if not pr:
-            raise ReleaseException("No release currently in progress for {project}".format(project=repo_info.name))
+            raise ReleaseException(
+                "No release currently in progress for {project}".format(
+                    project=repo_info.name
+                )
+            )
         version = pr.version
 
         await finish_release(
@@ -798,7 +871,9 @@ class Bot:
         )
         await self.say(
             channel_id=channel_id,
-            text="Wait a minute! My evil scheme is at version {version}!".format(version=version[1:])
+            text="Wait a minute! My evil scheme is at version {version}!".format(
+                version=version[1:]
+            ),
         )
 
     async def report_hash(self, command_args):
@@ -830,7 +905,7 @@ class Bot:
         )
         await self.say(
             channel_id=channel_id,
-            text=f"Oh, Perry the Platypus, look what you've done on {deployment_server_type}! {message}"
+            text=f"Oh, Perry the Platypus, look what you've done on {deployment_server_type}! {message}",
         )
 
     async def commits_since_last_release(self, command_args):
@@ -841,14 +916,23 @@ class Bot:
             command_args (CommandArgs): The arguments for this command
         """
         repo_info = command_args.repo_info
-        async with init_working_dir(self.github_access_token, repo_info.repo_url) as working_dir:
+        async with init_working_dir(
+            self.github_access_token, repo_info.repo_url
+        ) as working_dir:
             default_branch = await get_default_branch(working_dir)
-            last_version = await get_project_version(repo_info=repo_info, working_dir=working_dir)
+            last_version = await get_project_version(
+                repo_info=repo_info, working_dir=working_dir
+            )
 
             release_notes = await create_release_notes(
-                last_version, with_checkboxes=False, base_branch=default_branch, root=working_dir
+                last_version,
+                with_checkboxes=False,
+                base_branch=default_branch,
+                root=working_dir,
             )
-            has_new_commits = await any_new_commits(last_version, base_branch=default_branch, root=working_dir)
+            has_new_commits = await any_new_commits(
+                last_version, base_branch=default_branch, root=working_dir
+            )
 
         await self.say_with_attachment(
             channel_id=repo_info.channel_id,
@@ -857,11 +941,13 @@ class Bot:
         )
 
         org, repo = get_org_and_repo(repo_info.repo_url)
-        release_pr = await get_release_pr(github_access_token=self.github_access_token, org=org, repo=repo)
+        release_pr = await get_release_pr(
+            github_access_token=self.github_access_token, org=org, repo=repo
+        )
         if release_pr:
             await self.say(
                 channel_id=repo_info.channel_id,
-                text=f"And also! There is a release already in progress: {release_pr.url}"
+                text=f"And also! There is a release already in progress: {release_pr.url}",
             )
         elif has_new_commits:
             new_minor, new_patch = next_versions(last_version)
@@ -892,9 +978,9 @@ class Bot:
                                 "style": "danger",
                                 "type": "button",
                             },
-                        ]
+                        ],
                     }
-                ]
+                ],
             )
 
     async def start_new_releases(self, command_args):  # pylint: disable=too-many-locals
@@ -906,7 +992,9 @@ class Bot:
         """
         new_release_type = command_args.args[0]
 
-        await self.say(channel_id=command_args.channel_id, text="Starting new releases...")
+        await self.say(
+            channel_id=command_args.channel_id, text="Starting new releases..."
+        )
         new_release_repos = []
         for repo_info in self.repos_info:
             org, repo = get_org_and_repo(repo_info.repo_url)
@@ -919,15 +1007,24 @@ class Bot:
                 # release already in progress, skip
                 continue
 
-            async with init_working_dir(self.github_access_token, repo_info.repo_url) as working_dir:
-                last_version = await get_project_version(repo_info=repo_info, working_dir=working_dir)
+            async with init_working_dir(
+                self.github_access_token, repo_info.repo_url
+            ) as working_dir:
+                last_version = await get_project_version(
+                    repo_info=repo_info, working_dir=working_dir
+                )
                 default_branch = await get_default_branch(working_dir)
-                has_new_commits = await any_new_commits(last_version, base_branch=default_branch, root=working_dir)
+                has_new_commits = await any_new_commits(
+                    last_version, base_branch=default_branch, root=working_dir
+                )
                 if not has_new_commits:
                     # Nothing to release
                     continue
                 release_notes = await create_release_notes(
-                    last_version, with_checkboxes=False, base_branch=default_branch, root=working_dir
+                    last_version,
+                    with_checkboxes=False,
+                    base_branch=default_branch,
+                    root=working_dir,
                 )
 
             new_release_repos.append(repo_info.name)
@@ -939,17 +1036,18 @@ class Bot:
                 text=release_notes,
             )
             self.loop.create_task(
-                self._new_release(repo_info=repo_info, version=version, manager=command_args.manager)
+                self._new_release(
+                    repo_info=repo_info, version=version, manager=command_args.manager
+                )
             )
         if new_release_repos:
             await self.say(
                 channel_id=command_args.channel_id,
-                text=f"Started new releases for {', '.join(new_release_repos)}"
+                text=f"Started new releases for {', '.join(new_release_repos)}",
             )
         else:
             await self.say(
-                channel_id=command_args.channel_id,
-                text="No new releases needed"
+                channel_id=command_args.channel_id, text="No new releases needed"
             )
 
     async def needs_review(self, command_args):
@@ -969,9 +1067,9 @@ class Bot:
                     repo=repo,
                     title=title,
                     url=url,
-                ) for repo, title, url in
-                await needs_review(self.github_access_token)
-            )
+                )
+                for repo, title, url in await needs_review(self.github_access_token)
+            ),
         )
 
     async def uptime(self, command_args):
@@ -985,7 +1083,7 @@ class Bot:
         await self.say(
             channel_id=command_args.channel_id,
             text=f"Awake for {int(uptime)} minutes. "
-                 f"Oh, man. This had better be a dream because I don't like where this is going.",
+            f"Oh, man. This had better be a dream because I don't like where this is going.",
         )
 
     async def hi(self, command_args):
@@ -999,7 +1097,7 @@ class Bot:
         await self.say(
             channel_id=channel_id,
             text="A Mongol army? Really? Uh, I must have had the dial set for"
-            " 'Hun.' Oh, well, you don't look a gift horde in the mouth, so... hello! "
+            " 'Hun.' Oh, well, you don't look a gift horde in the mouth, so... hello! ",
         )
 
     async def help(self, command_args):
@@ -1010,12 +1108,17 @@ class Bot:
             command_args (CommandArgs): The arguments for this command
         """
         channel_id = command_args.channel_id
-        text = "\n".join("*{command}*{join}{parsers}: {description}".format(
-            command=command.command,
-            parsers=" ".join("*<{}>*".format(parser.description) for parser in command.parsers),
-            join=" " if command.parsers else "",
-            description=command.description,
-        ) for command in sorted(self.make_commands()))
+        text = "\n".join(
+            "*{command}*{join}{parsers}: {description}".format(
+                command=command.command,
+                parsers=" ".join(
+                    "*<{}>*".format(parser.description) for parser in command.parsers
+                ),
+                join=" " if command.parsers else "",
+                description=command.description,
+            )
+            for command in sorted(self.make_commands())
+        )
         title = (
             "Come on, Perry the Platypus. Let's go home. I talk to you enough, right? "
             "Yeah, you're right. Maybe too much."
@@ -1036,94 +1139,109 @@ class Bot:
         """
         return [
             Command(
-                command='release notes',
+                command="release notes",
                 parsers=[],
                 command_func=self.commits_since_last_release,
                 description="Release notes since last release",
                 supported_project_types=[LIBRARY_TYPE, WEB_APPLICATION_TYPE],
             ),
             Command(
-                command='start release',
-                parsers=[Parser(func=get_version_number, description='new version number')],
+                command="start release",
+                parsers=[
+                    Parser(func=get_version_number, description="new version number")
+                ],
                 command_func=self.release_command,
-                description='Start a new release',
+                description="Start a new release",
                 supported_project_types=[LIBRARY_TYPE, WEB_APPLICATION_TYPE],
             ),
             Command(
-                command='start new releases',
-                parsers=[Parser(
-                    func=parse_text_matching_options(VALID_RELEASE_ALL_TYPES),
-                    description="how to increment version for the next release (either 'minor' or 'patch')",
-                )],
+                command="start new releases",
+                parsers=[
+                    Parser(
+                        func=parse_text_matching_options(VALID_RELEASE_ALL_TYPES),
+                        description="how to increment version for the next release (either 'minor' or 'patch')",
+                    )
+                ],
                 command_func=self.start_new_releases,
                 description="Start new releases for all projects which have new commits",
-                supported_project_types=None
+                supported_project_types=None,
             ),
             Command(
-                command='release',
-                parsers=[Parser(func=get_version_number, description='new version number')],
+                command="release",
+                parsers=[
+                    Parser(func=get_version_number, description="new version number")
+                ],
                 command_func=self.release_command,
-                description='Start a new release',
+                description="Start a new release",
                 supported_project_types=[LIBRARY_TYPE, WEB_APPLICATION_TYPE],
             ),
             Command(
-                command='hotfix',
-                parsers=[Parser(func=get_commit_hash, description='commit hash to cherry-pick')],
+                command="hotfix",
+                parsers=[
+                    Parser(
+                        func=get_commit_hash, description="commit hash to cherry-pick"
+                    )
+                ],
                 command_func=self.hotfix_command,
-                description='Start a hotfix release',
+                description="Start a hotfix release",
                 supported_project_types=[WEB_APPLICATION_TYPE],
             ),
             Command(
-                command='finish release',
+                command="finish release",
                 parsers=[],
                 command_func=self.finish_release,
-                description='Finish a release',
+                description="Finish a release",
                 supported_project_types=[WEB_APPLICATION_TYPE, LIBRARY_TYPE],
             ),
             Command(
-                command='wait for checkboxes',
+                command="wait for checkboxes",
                 parsers=[],
                 command_func=self.wait_for_checkboxes_command,
-                description='Wait for committers to check off their boxes',
+                description="Wait for committers to check off their boxes",
                 supported_project_types=[WEB_APPLICATION_TYPE],
             ),
             Command(
-                command='publish',
-                parsers=[Parser(func=get_version_number, description='version number of package to publish')],
+                command="publish",
+                parsers=[
+                    Parser(
+                        func=get_version_number,
+                        description="version number of package to publish",
+                    )
+                ],
                 command_func=self.publish,
-                description='Publish a package to PyPI or NPM',
+                description="Publish a package to PyPI or NPM",
                 supported_project_types=[LIBRARY_TYPE],
             ),
             Command(
-                command='hi',
+                command="hi",
                 parsers=[],
                 command_func=self.hi,
-                description='Say hi to doof',
+                description="Say hi to doof",
                 supported_project_types=None,
             ),
             Command(
-                command='what needs review',
+                command="what needs review",
                 parsers=[],
                 command_func=self.needs_review,
-                description='List pull requests which need review and are unassigned',
+                description="List pull requests which need review and are unassigned",
                 supported_project_types=None,
             ),
             Command(
-                command='uptime',
+                command="uptime",
                 parsers=[],
                 command_func=self.uptime,
-                description='Shows how long this bot has been running',
+                description="Shows how long this bot has been running",
                 supported_project_types=None,
             ),
             Command(
-                command='version',
+                command="version",
                 parsers=[],
                 command_func=self.report_version,
-                description='Show the version of the latest merged release',
+                description="Show the version of the latest merged release",
                 supported_project_types=[WEB_APPLICATION_TYPE],
             ),
             Command(
-                command='hash',
+                command="hash",
                 parsers=[
                     Parser(
                         func=parse_text_matching_options(VALID_DEPLOYMENT_SERVER_TYPES),
@@ -1131,14 +1249,14 @@ class Bot:
                     )
                 ],
                 command_func=self.report_hash,
-                description='Show the latest commit deployed on a server',
+                description="Show the latest commit deployed on a server",
                 supported_project_types=[WEB_APPLICATION_TYPE],
             ),
             Command(
-                command='help',
+                command="help",
                 parsers=[],
                 command_func=self.help,
-                description='Show available commands',
+                description="Show available commands",
                 supported_project_types=None,
             ),
         ]
@@ -1156,14 +1274,14 @@ class Bot:
         for command in self.make_commands():
             command_words = command.command.split()
             if has_command(command_words, words):
-                args = words[len(command_words):]
+                args = words[len(command_words) :]
                 if len(args) != len(command.parsers):
                     await self.say(
                         channel_id=channel_id,
                         text="Careful, careful. I expected {expected_num} words but you said {actual_num}.".format(
                             expected_num=len(command.parsers),
                             actual_num=len(args),
-                        )
+                        ),
                     )
                     return
 
@@ -1179,7 +1297,7 @@ class Bot:
                                 " figuring out what that means.".format(
                                     word=arg,
                                 )
-                            )
+                            ),
                         )
                         return
 
@@ -1188,7 +1306,7 @@ class Bot:
                     if repo_info is None:
                         await self.say(
                             channel_id=channel_id,
-                            text='That command requires a repo but this channel is not attached to any project.',
+                            text="That command requires a repo but this channel is not attached to any project.",
                         )
                         return
 
@@ -1198,7 +1316,7 @@ class Bot:
                             text=(
                                 f"That command is only for {', '.join(command.supported_project_types)} projects but "
                                 f"this is a {repo_info.project_type} project."
-                            )
+                            ),
                         )
                         return
                 await command.command_func(
@@ -1216,7 +1334,7 @@ class Bot:
             channel_id=channel_id,
             text="You're both persistent, I'll give ya that, but the security system "
             "is offline and there's nothing you or your little dog friend can do about it!"
-            " Y'know, unless, one of you happens to be really good with computers."
+            " Y'know, unless, one of you happens to be really good with computers.",
         )
 
     async def handle_message(self, *, manager, channel_id, words):
@@ -1242,7 +1360,7 @@ class Bot:
             await self.say(
                 channel_id=channel_id,
                 text="No! Perry the Platypus, don't do it! "
-                     "Don't push the self-destruct button. This one right here.",
+                "Don't push the self-destruct button. This one right here.",
             )
 
     async def handle_webhook(self, webhook_dict):
@@ -1252,11 +1370,11 @@ class Bot:
         Args:
             webhook_dict (dict): The dict from Slack containing the webhook information
         """
-        channel_id = webhook_dict['channel']['id']
-        user_id = webhook_dict['user']['id']
-        callback_id = webhook_dict['callback_id']
-        timestamp = webhook_dict['message_ts']
-        original_text = webhook_dict['original_message']['text']
+        channel_id = webhook_dict["channel"]["id"]
+        user_id = webhook_dict["user"]["id"]
+        callback_id = webhook_dict["callback_id"]
+        timestamp = webhook_dict["message_ts"]
+        original_text = webhook_dict["original_message"]["text"]
 
         if callback_id == FINISH_RELEASE_ID:
             repo_info = self.get_repo_info(channel_id)
@@ -1264,31 +1382,29 @@ class Bot:
                 channel_id=channel_id,
                 timestamp=timestamp,
                 text=original_text,
-                attachments=[{
-                    "title": "Merging..."
-                }],
+                attachments=[{"title": "Merging..."}],
             )
             try:
-                await self.finish_release(CommandArgs(
-                    channel_id=channel_id,
-                    repo_info=repo_info,
-                    args=[],
-                    manager=user_id,
-                ))
+                await self.finish_release(
+                    CommandArgs(
+                        channel_id=channel_id,
+                        repo_info=repo_info,
+                        args=[],
+                        manager=user_id,
+                    )
+                )
             except:
                 await self.update_message(
                     channel_id=channel_id,
                     timestamp=timestamp,
                     text=original_text,
-                    attachments=[{
-                        "title": "Error merging release"
-                    }],
+                    attachments=[{"title": "Error merging release"}],
                 )
                 raise
 
         elif callback_id == NEW_RELEASE_ID:
             repo_info = self.get_repo_info(channel_id)
-            name = webhook_dict['actions'][0]['name']
+            name = webhook_dict["actions"][0]["name"]
             if name == "cancel":
                 await self.delete_message(
                     channel_id=channel_id,
@@ -1296,30 +1412,28 @@ class Bot:
                 )
                 return
 
-            version = webhook_dict['actions'][0]['value']
+            version = webhook_dict["actions"][0]["value"]
             await self.update_message(
                 channel_id=channel_id,
                 timestamp=timestamp,
                 text=original_text,
-                attachments=[{
-                    "title": f"Starting release {version}..."
-                }],
+                attachments=[{"title": f"Starting release {version}..."}],
             )
             try:
-                await self.release_command(CommandArgs(
-                    channel_id=channel_id,
-                    repo_info=repo_info,
-                    args=[version],
-                    manager=user_id,
-                ))
+                await self.release_command(
+                    CommandArgs(
+                        channel_id=channel_id,
+                        repo_info=repo_info,
+                        args=[version],
+                        manager=user_id,
+                    )
+                )
             except:
                 await self.update_message(
                     channel_id=channel_id,
                     timestamp=timestamp,
                     text=original_text,
-                    attachments=[{
-                        "title": "Error starting release"
-                    }],
+                    attachments=[{"title": "Error starting release"}],
                 )
                 raise
         else:
@@ -1332,33 +1446,36 @@ class Bot:
         Args:
             webhook_dict (dict): Arguments for the event
         """
-        if webhook_dict.get('type') != 'event_callback':
-            log.info("Received event other than event callback or challenge: %s", webhook_dict)
+        if webhook_dict.get("type") != "event_callback":
+            log.info(
+                "Received event other than event callback or challenge: %s",
+                webhook_dict,
+            )
             return
 
-        message = webhook_dict['event']
-        if message['type'] != "message":
+        message = webhook_dict["event"]
+        if message["type"] != "message":
             log.info("Received event other than message: %s", webhook_dict)
             return
 
-        if message.get('subtype') == 'message_changed':
+        if message.get("subtype") == "message_changed":
             # A user edits their message
             # content = message.get('message', {}).get('text')
             content = None
         else:
-            content = message.get('text')
+            content = message.get("text")
 
         if content is None:
             return
 
-        channel_id = message.get('channel')
+        channel_id = message.get("channel")
 
         all_words = content.strip().split()
         if len(all_words) > 0:
             message_handle, *words = all_words
             if message_handle in ("<@{}>".format(self.doof_id), "@doof"):
                 await self.handle_message(
-                    manager=message['user'],
+                    manager=message["user"],
                     channel_id=channel_id,
                     words=words,
                 )
@@ -1381,9 +1498,11 @@ class Bot:
             if not release_pr:
                 continue
 
-            self.loop.create_task(self.run_release_lifecycle(
-                repo_info=repo_info, manager=None, release_pr=release_pr
-            ))
+            self.loop.create_task(
+                self.run_release_lifecycle(
+                    repo_info=repo_info, manager=None, release_pr=release_pr
+                )
+            )
 
 
 def get_version_number(text):
@@ -1436,31 +1555,31 @@ def has_command(command_words, input_words):
     """
     command_words = [word.lower() for word in command_words]
     input_words = [word.lower() for word in input_words]
-    return command_words == input_words[:len(command_words)]
+    return command_words == input_words[: len(command_words)]
 
 
 async def async_main():
     """async function for bot"""
     envs = get_envs()
 
-    channels_info = await get_channels_info(envs['SLACK_ACCESS_TOKEN'])
-    doof_id = await get_doofs_id(envs['SLACK_ACCESS_TOKEN'])
+    channels_info = await get_channels_info(envs["SLACK_ACCESS_TOKEN"])
+    doof_id = await get_doofs_id(envs["SLACK_ACCESS_TOKEN"])
     repos_info = load_repos_info(channels_info)
     try:
-        port = int(envs['PORT'])
+        port = int(envs["PORT"])
     except ValueError as ex:
         raise Exception("PORT is invalid") from ex
 
     bot = Bot(
-        slack_access_token=envs['SLACK_ACCESS_TOKEN'],
-        github_access_token=envs['GITHUB_ACCESS_TOKEN'],
-        npm_token=envs['NPM_TOKEN'],
-        timezone=pytz.timezone(envs['TIMEZONE']),
+        slack_access_token=envs["SLACK_ACCESS_TOKEN"],
+        github_access_token=envs["GITHUB_ACCESS_TOKEN"],
+        npm_token=envs["NPM_TOKEN"],
+        timezone=pytz.timezone(envs["TIMEZONE"]),
         repos_info=repos_info,
         loop=asyncio.get_event_loop(),
         doof_id=doof_id,
     )
-    app = make_app(secret=envs['SLACK_SECRET'], bot=bot)
+    app = make_app(secret=envs["SLACK_SECRET"], bot=bot)
     app.listen(port)
 
     await bot.startup()

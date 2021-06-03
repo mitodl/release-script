@@ -60,9 +60,11 @@ async def run_query(*, github_access_token, query):
     endpoint = "https://api.github.com/graphql"
     query = json.dumps({"query": query})
     client = ClientWrapper()
-    resp = await client.post(endpoint, data=query, headers={
-        "Authorization": "Bearer {}".format(github_access_token)
-    })
+    resp = await client.post(
+        endpoint,
+        data=query,
+        headers={"Authorization": "Bearer {}".format(github_access_token)},
+    )
     resp.raise_for_status()
     return resp.json()
 
@@ -84,7 +86,9 @@ def github_auth_headers(github_access_token):
     }
 
 
-async def create_pr(*, github_access_token, repo_url, title, body, head, base):  # pylint: disable=too-many-arguments
+async def create_pr(
+    *, github_access_token, repo_url, title, body, head, base
+):  # pylint: disable=too-many-arguments
     """
     Create a pull request
 
@@ -110,12 +114,14 @@ async def create_pr(*, github_access_token, repo_url, title, body, head, base): 
     resp = await client.post(
         endpoint,
         headers=github_auth_headers(github_access_token),
-        data=json.dumps({
-            'title': title,
-            'body': body,
-            'head': head,
-            'base': base,
-        })
+        data=json.dumps(
+            {
+                "title": title,
+                "body": body,
+                "head": head,
+                "base": base,
+            }
+        ),
     )
     resp.raise_for_status()
 
@@ -165,13 +171,13 @@ async def needs_review(github_access_token):
     )
     prs_needing_review = []
     # Query will show all open PRs, we need to filter on assignee and label
-    for repository in data['data']['organization']['repositories']['nodes']:
-        for pull_request in repository['pullRequests']['nodes']:
+    for repository in data["data"]["organization"]["repositories"]["nodes"]:
+        for pull_request in repository["pullRequests"]["nodes"]:
             has_needs_review = False
 
             # Check for needs review label
-            for label in pull_request['labels']['nodes']:
-                if label['name'].lower() == 'needs review':
+            for label in pull_request["labels"]["nodes"]:
+                if label["name"].lower() == "needs review":
                     has_needs_review = True
                     break
 
@@ -179,9 +185,9 @@ async def needs_review(github_access_token):
                 continue
 
             # Check for no assignee
-            if not pull_request['assignees']['nodes']:
+            if not pull_request["assignees"]["nodes"]:
                 prs_needing_review.append(
-                    (repository['name'], pull_request['title'], pull_request['url'])
+                    (repository["name"], pull_request["title"], pull_request["url"])
                 )
 
     return prs_needing_review
@@ -197,7 +203,7 @@ def get_org_and_repo(repo_url):
     Returns:
         tuple: (org, repo)
     """
-    org, repo = re.match(r'^.*github\.com[:|/](.+)/(.+)\.git', repo_url).groups()
+    org, repo = re.match(r"^.*github\.com[:|/](.+)/(.+)\.git", repo_url).groups()
     return org, repo
 
 
@@ -216,7 +222,9 @@ async def get_labels(*, github_access_token, repo_url, pr_number):
     org, repo = get_org_and_repo(repo_url)
     endpoint = f"https://api.github.com/repos/{org}/{repo}/issues/{pr_number}/labels"
     client = ClientWrapper()
-    response = await client.get(endpoint, headers=github_auth_headers(github_access_token))
+    response = await client.get(
+        endpoint, headers=github_auth_headers(github_access_token)
+    )
     response.raise_for_status()
     return [item["name"] for item in response.json()]
 
@@ -234,10 +242,10 @@ async def add_label(*, github_access_token, repo_url, pr_number, label):
     org, repo = get_org_and_repo(repo_url)
     endpoint = f"https://api.github.com/repos/{org}/{repo}/issues/{pr_number}/labels"
     client = ClientWrapper()
-    payload = {
-        "labels": [label]
-    }
-    response = await client.post(endpoint, json=payload, headers=github_auth_headers(github_access_token))
+    payload = {"labels": [label]}
+    response = await client.post(
+        endpoint, json=payload, headers=github_auth_headers(github_access_token)
+    )
     response.raise_for_status()
 
 
@@ -254,7 +262,9 @@ async def delete_label(*, github_access_token, repo_url, pr_number, label):
     org, repo = get_org_and_repo(repo_url)
     endpoint = f"https://api.github.com/repos/{org}/{repo}/issues/{pr_number}/labels/{quote(label)}"
     client = ClientWrapper()
-    response = await client.delete(endpoint, headers=github_auth_headers(github_access_token))
+    response = await client.delete(
+        endpoint, headers=github_auth_headers(github_access_token)
+    )
     if response.status_code != 404:
         response.raise_for_status()
 
@@ -275,8 +285,14 @@ async def set_release_label(*, github_access_token, repo_url, pr_number, label):
     for _label in labels:
         if _label in RELEASE_LABELS:
             await delete_label(
-                github_access_token=github_access_token, repo_url=repo_url, pr_number=pr_number, label=_label
+                github_access_token=github_access_token,
+                repo_url=repo_url,
+                pr_number=pr_number,
+                label=_label,
             )
     await add_label(
-        github_access_token=github_access_token, repo_url=repo_url, pr_number=pr_number, label=label
+        github_access_token=github_access_token,
+        repo_url=repo_url,
+        pr_number=pr_number,
+        label=label,
     )

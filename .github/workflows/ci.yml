@@ -29,6 +29,9 @@ jobs:
       - name: Lint
         run: pylint *.py
 
+      - name: Black
+        run: black . --check
+
       - name: Tests
         run: pytest . && coverage xml
 

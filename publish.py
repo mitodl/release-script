@@ -31,13 +31,17 @@ async def upload_to_pypi(project_dir):
             pip_path = os.path.join(virtualenv_dir, "bin", "pip")
 
             # Install dependencies. wheel is needed for Python 2. twine uploads the package.
-            await check_call([pip_path, "install", "twine"], env=environ, cwd=project_dir)
+            await check_call(
+                [pip_path, "install", "twine"], env=environ, cwd=project_dir
+            )
             await upload_with_twine(
                 project_dir=project_dir, virtualenv_dir=virtualenv_dir, environ=environ
             )
 
 
-async def upload_with_twine(*, project_dir, virtualenv_dir, environ):  # pylint: disable=too-many-locals
+async def upload_with_twine(
+    *, project_dir, virtualenv_dir, environ
+):  # pylint: disable=too-many-locals
     """
     Upload a version of a project to PYPI
 
@@ -48,8 +52,8 @@ async def upload_with_twine(*, project_dir, virtualenv_dir, environ):  # pylint:
     """
     # Set up environment variables for uploading to pypi or pypitest
     twine_env = {
-        'TWINE_USERNAME': os.environ['PYPI_USERNAME'],
-        'TWINE_PASSWORD': os.environ['PYPI_PASSWORD'],
+        "TWINE_USERNAME": os.environ["PYPI_USERNAME"],
+        "TWINE_PASSWORD": os.environ["PYPI_PASSWORD"],
     }
 
     python_path = os.path.join(virtualenv_dir, "bin", "python")
@@ -69,7 +73,8 @@ async def upload_with_twine(*, project_dir, virtualenv_dir, environ):  # pylint:
         env={
             **environ,
             **twine_env,
-        }, cwd=project_dir
+        },
+        cwd=project_dir,
     )
 
 
@@ -99,7 +104,9 @@ async def publish(*, repo_info, version, github_access_token, npm_token):
         npm_token (str): The NPM token
     """
     branch = f"v{version}"
-    async with init_working_dir(github_access_token, repo_info.repo_url, branch=branch) as working_dir:
+    async with init_working_dir(
+        github_access_token, repo_info.repo_url, branch=branch
+    ) as working_dir:
         if repo_info.packaging_tool == NPM:
             await upload_to_npm(
                 npm_token=npm_token,
@@ -110,4 +117,6 @@ async def publish(*, repo_info, version, github_access_token, npm_token):
                 project_dir=working_dir,
             )
         else:
-            raise Exception(f"Unexpected value for packaging tool {repo_info.packaging_tool} for {repo_info.name}")
+            raise Exception(
+                f"Unexpected value for packaging tool {repo_info.packaging_tool} for {repo_info.name}"
+            )
