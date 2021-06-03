@@ -34,19 +34,19 @@ async def test_parse_checkmarks():
     """parse_checkmarks should look up the Release PR body and return a list of commits"""
     assert parse_checkmarks(FAKE_RELEASE_PR_BODY) == [
         {
-            'checked': True,
-            'author_name': 'Alice Pote',
-            'title': 'Implemented AutomaticEmail API'
+            "checked": True,
+            "author_name": "Alice Pote",
+            "title": "Implemented AutomaticEmail API",
         },
         {
-            'checked': False,
-            'author_name': 'Alice Pote',
-            'title': 'Unmarked some files as executable'
+            "checked": False,
+            "author_name": "Alice Pote",
+            "title": "Unmarked some files as executable",
         },
         {
-            'checked': True,
-            'author_name': 'Nathan Levesque',
-            'title': 'Fixed seed data for naive timestamps (#2712)'
+            "checked": True,
+            "author_name": "Nathan Levesque",
+            "title": "Fixed seed data for naive timestamps (#2712)",
         },
     ]
 
@@ -56,35 +56,31 @@ async def test_parse_checkmarks():
 @pytest.mark.parametrize("wrong_title", [True, False])
 async def test_get_release_pr(mocker, all_prs, has_pr, wrong_title):
     """get_release_pr should grab a release from GitHub's API"""
-    org = 'org'
-    repo = 'repo'
-    access_token = 'access'
+    org = "org"
+    repo = "repo"
+    access_token = "access"
 
     if wrong_title:
-        release_pr_json = {
-            **RELEASE_PR,
-            "title": "Some other title"
-        }
+        release_pr_json = {**RELEASE_PR, "title": "Some other title"}
     else:
         release_pr_json = RELEASE_PR
-    get_pull_request_mock = mocker.async_patch("lib.get_pull_request", return_value=release_pr_json if has_pr else None)
+    get_pull_request_mock = mocker.async_patch(
+        "lib.get_pull_request", return_value=release_pr_json if has_pr else None
+    )
     pr = await get_release_pr(
-        github_access_token=access_token,
-        org=org,
-        repo=repo,
-        all_prs=all_prs
+        github_access_token=access_token, org=org, repo=repo, all_prs=all_prs
     )
     get_pull_request_mock.assert_called_once_with(
         github_access_token=access_token,
         org=org,
         repo=repo,
-        branch='release-candidate',
+        branch="release-candidate",
         all_prs=all_prs,
     )
     if has_pr and not wrong_title:
-        assert pr.body == RELEASE_PR['body']
-        assert pr.url == RELEASE_PR['html_url']
-        assert pr.version == '0.53.3'
+        assert pr.body == RELEASE_PR["body"]
+        assert pr.url == RELEASE_PR["html_url"]
+        assert pr.version == "0.53.3"
         assert pr.number == 234
     else:
         assert pr is None
@@ -94,14 +90,12 @@ async def test_no_release_wrong_repo(mocker):
     """If there is no repo accessible, an exception should be raised"""
     response_404 = Response()
     response_404.status_code = 404
-    mocker.async_patch(
-        'client_wrapper.ClientWrapper.get', return_value=response_404
-    )
+    mocker.async_patch("client_wrapper.ClientWrapper.get", return_value=response_404)
     with pytest.raises(HTTPError) as ex:
         await get_release_pr(
-            github_access_token='access_token',
-            org='org',
-            repo='repo',
+            github_access_token="access_token",
+            org="org",
+            repo="repo",
         )
 
     assert ex.value.response.status_code == 404
@@ -112,16 +106,19 @@ async def test_get_unchecked_authors(mocker):
     get_unchecked_authors should download the PR body, parse it,
     filter out checked authors and leave only unchecked ones
     """
-    org = 'org'
-    repo = 'repo'
-    access_token = 'all-access'
+    org = "org"
+    repo = "repo"
+    access_token = "all-access"
 
-    get_release_pr_mock = mocker.async_patch('lib.get_release_pr', return_value=ReleasePR(
-        body=FAKE_RELEASE_PR_BODY,
-        version='1.2.3',
-        url='http://url',
-        number=234,
-    ))
+    get_release_pr_mock = mocker.async_patch(
+        "lib.get_release_pr",
+        return_value=ReleasePR(
+            body=FAKE_RELEASE_PR_BODY,
+            version="1.2.3",
+            url="http://url",
+            number=234,
+        ),
+    )
     unchecked = await get_unchecked_authors(
         github_access_token=access_token,
         org=org,
@@ -144,29 +141,14 @@ async def test_reformatted_full_name():
 
 FAKE_SLACK_USERS = [
     {
-        'profile': {
-            'real_name': 'George Schneeloch',
+        "profile": {
+            "real_name": "George Schneeloch",
         },
-        'id': 'U12345',
+        "id": "U12345",
     },
-    {
-        'profile': {
-            'real_name': 'Sar Haidar'
-        },
-        'id': 'U65432'
-    },
-    {
-        'profile': {
-            'real_name': 'Sarah H'
-        },
-        'id': 'U13986'
-    },
-    {
-        'profile': {
-            'real_name': 'Tasawer Nawaz'
-        },
-        'id': 'U9876'
-    }
+    {"profile": {"real_name": "Sar Haidar"}, "id": "U65432"},
+    {"profile": {"real_name": "Sarah H"}, "id": "U13986"},
+    {"profile": {"real_name": "Tasawer Nawaz"}, "id": "U9876"},
 ]
 
 
@@ -175,72 +157,80 @@ async def test_match_users():
     assert match_user(FAKE_SLACK_USERS, "George Schneeloch") == "<@U12345>"
     assert match_user(FAKE_SLACK_USERS, "George Schneelock") == "<@U12345>"
     assert match_user(FAKE_SLACK_USERS, "George") == "<@U12345>"
-    assert match_user(FAKE_SLACK_USERS, 'sar') == '<@U65432>'
-    assert match_user(FAKE_SLACK_USERS, 'tasawernawaz') == '<@U9876>'
+    assert match_user(FAKE_SLACK_USERS, "sar") == "<@U65432>"
+    assert match_user(FAKE_SLACK_USERS, "tasawernawaz") == "<@U9876>"
 
 
 async def test_url_with_access_token():
     """url_with_access_token should insert the access token into the url"""
-    assert url_with_access_token(
-        "access", "http://github.com/mitodl/release-script.git"
-    ) == "https://access@github.com/mitodl/release-script.git"
+    assert (
+        url_with_access_token("access", "http://github.com/mitodl/release-script.git")
+        == "https://access@github.com/mitodl/release-script.git"
+    )
 
 
 async def test_load_repos_info(mocker):
     """
     load_repos_info should match channels with repositories
     """
-    json_load = mocker.patch('lib.json.load', autospec=True, return_value={
-        'repos': [
-            {
-                "name": "bootcamp-ecommerce",
-                "repo_url": "https://github.com/mitodl/bootcamp-ecommerce.git",
-                "ci_hash_url": "https://bootcamp-ecommerce-ci.herokuapp.com/static/hash.txt",
-                "rc_hash_url": "https://bootcamp-ecommerce-rc.herokuapp.com/static/hash.txt",
-                "prod_hash_url": "https://bootcamp-ecommerce.herokuapp.com/static/hash.txt",
-                "channel_name": "bootcamp-eng",
-                "project_type": WEB_APPLICATION_TYPE,
-                "web_application_type": DJANGO
-            },
-            {
-                "name": "bootcamp-ecommerce-library",
-                "repo_url": "https://github.com/mitodl/bootcamp-ecommerce-library.git",
-                "channel_name": "bootcamp-library",
-                "project_type": LIBRARY_TYPE,
-                "packaging_tool": NPM,
-            },
-        ]
-    })
+    json_load = mocker.patch(
+        "lib.json.load",
+        autospec=True,
+        return_value={
+            "repos": [
+                {
+                    "name": "bootcamp-ecommerce",
+                    "repo_url": "https://github.com/mitodl/bootcamp-ecommerce.git",
+                    "ci_hash_url": "https://bootcamp-ecommerce-ci.herokuapp.com/static/hash.txt",
+                    "rc_hash_url": "https://bootcamp-ecommerce-rc.herokuapp.com/static/hash.txt",
+                    "prod_hash_url": "https://bootcamp-ecommerce.herokuapp.com/static/hash.txt",
+                    "channel_name": "bootcamp-eng",
+                    "project_type": WEB_APPLICATION_TYPE,
+                    "web_application_type": DJANGO,
+                },
+                {
+                    "name": "bootcamp-ecommerce-library",
+                    "repo_url": "https://github.com/mitodl/bootcamp-ecommerce-library.git",
+                    "channel_name": "bootcamp-library",
+                    "project_type": LIBRARY_TYPE,
+                    "packaging_tool": NPM,
+                },
+            ]
+        },
+    )
 
     expected_web_application = RepoInfo(
-        name='bootcamp-ecommerce',
-        repo_url='https://github.com/mitodl/bootcamp-ecommerce.git',
+        name="bootcamp-ecommerce",
+        repo_url="https://github.com/mitodl/bootcamp-ecommerce.git",
         ci_hash_url="https://bootcamp-ecommerce-ci.herokuapp.com/static/hash.txt",
         rc_hash_url="https://bootcamp-ecommerce-rc.herokuapp.com/static/hash.txt",
         prod_hash_url="https://bootcamp-ecommerce.herokuapp.com/static/hash.txt",
-        channel_id='bootcamp_channel_id',
+        channel_id="bootcamp_channel_id",
         project_type=WEB_APPLICATION_TYPE,
         web_application_type=DJANGO,
         packaging_tool=None,
     )
     expected_library = RepoInfo(
-        name='bootcamp-ecommerce-library',
-        repo_url='https://github.com/mitodl/bootcamp-ecommerce-library.git',
+        name="bootcamp-ecommerce-library",
+        repo_url="https://github.com/mitodl/bootcamp-ecommerce-library.git",
         ci_hash_url=None,
         rc_hash_url=None,
         prod_hash_url=None,
-        channel_id='bootcamp_library_channel_id',
+        channel_id="bootcamp_library_channel_id",
         project_type=LIBRARY_TYPE,
         web_application_type=None,
         packaging_tool=NPM,
     )
 
-    assert load_repos_info({
-        'bootcamp-eng': 'bootcamp_channel_id',
-        'bootcamp-library': 'bootcamp_library_channel_id',
-    }) == [
-        expected_web_application, expected_library
-    ]
+    assert (
+        load_repos_info(
+            {
+                "bootcamp-eng": "bootcamp_channel_id",
+                "bootcamp-library": "bootcamp_library_channel_id",
+            }
+        )
+        == [expected_web_application, expected_library]
+    )
     assert json_load.call_count == 1
 
 
@@ -260,17 +250,20 @@ async def test_async_wrapper(mocker):
 
 async def test_async_patch(mocker):
     """async_patch should patch with an async function"""
-    mocked = mocker.async_patch('lib_test.call')
+    mocked = mocker.async_patch("lib_test.call")
     mocked.return_value = 123
     assert await call(["ls"], cwd="/") == 123
     assert await call(["ls"], cwd="/") == 123
 
 
-@pytest.mark.parametrize("url,expected", [
-    ["https://www.example.com", "https://www.example.com"],
-    ["http://mit.edu/a/path", "http://mit.edu"],
-    ["http://example.com:5678/?query=params#included", "http://example.com:5678"]
-])
+@pytest.mark.parametrize(
+    "url,expected",
+    [
+        ["https://www.example.com", "https://www.example.com"],
+        ["http://mit.edu/a/path", "http://mit.edu"],
+        ["http://example.com:5678/?query=params#included", "http://example.com:5678"],
+    ],
+)
 def test_remove_path_from_url(url, expected):
     """remove_path_from_url should only keep the scheme, port, and host parts of the URL"""
     assert remove_path_from_url(url) == expected

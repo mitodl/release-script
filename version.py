@@ -30,8 +30,7 @@ async def get_version_tag(*, github_access_token, repo_url, commit_hash):
     """
     async with init_working_dir(github_access_token, repo_url) as working_dir:
         output = await check_output(
-            ["git", "tag", "-l", "--points-at", commit_hash],
-            cwd=working_dir
+            ["git", "tag", "-l", "--points-at", commit_hash], cwd=working_dir
         )
         return output.decode().strip()
 
@@ -48,7 +47,7 @@ async def get_commit_oneline_message(*, github_access_token, repo_url, commit_ha
     async with init_working_dir(github_access_token, repo_url) as working_dir:
         output = await check_output(
             ["git", "log", "--oneline", f"{commit_hash}^1..{commit_hash}", "--"],
-            cwd=working_dir
+            cwd=working_dir,
         )
         return output.decode().strip()
 
@@ -82,21 +81,21 @@ def update_python_version_in_file(*, root, filename, new_version, readonly):
                 match = re.match(regex, line)
                 if match:
                     update_count += 1
-                    old_version = match.group('version').strip()
-                    updated_line = re.sub(regex, f"VERSION = \"{new_version}\"", line)
+                    old_version = match.group("version").strip()
+                    updated_line = re.sub(regex, f'VERSION = "{new_version}"', line)
             elif filename == "__init__.py":
                 regex = fr"^__version__ ?=.*(?P<version>{VERSION_RE}).*"
                 match = re.match(regex, line)
                 if match:
                     update_count += 1
-                    old_version = match.group('version').strip()
-                    updated_line = re.sub(regex, f"__version__ = \"{new_version}\"", line)
+                    old_version = match.group("version").strip()
+                    updated_line = re.sub(regex, f'__version__ = "{new_version}"', line)
             elif filename == "setup.py":
                 regex = fr"(?P<spaces>\s*)version=(?P<quote>.*)(?P<version>{VERSION_RE})(?P<after>.*)"
                 match = re.match(regex, line)
                 if match:
                     update_count += 1
-                    old_version = match.group('version').strip()
+                    old_version = match.group("version").strip()
                     updated_line = re.sub(
                         regex,
                         f"{match.group('spaces')}version={match.group('quote')}{new_version}{match.group('after')}",
@@ -113,10 +112,12 @@ def update_python_version_in_file(*, root, filename, new_version, readonly):
                     f.write(line)
         return old_version
     elif update_count > 1:
-        raise UpdateVersionException("Expected only one version for {file} but found {count}".format(
-            file=filename,
-            count=update_count,
-        ))
+        raise UpdateVersionException(
+            "Expected only one version for {file} but found {count}".format(
+                file=filename,
+                count=update_count,
+            )
+        )
 
     # Unable to find old version for this file, but maybe there's another one
     return None
@@ -136,8 +137,12 @@ def update_python_version(*, new_version, working_dir, readonly):
             If the right file was found, replace the old version with the new one, then return the old version.
             If no file is found, or if two or more files match, raise an exception.
     """
-    exclude_dirs = ('.cache', '.git', '.settings', )
-    version_files = ('settings.py', '__init__.py', 'setup.py')
+    exclude_dirs = (
+        ".cache",
+        ".git",
+        ".settings",
+    )
+    version_files = ("settings.py", "__init__.py", "setup.py")
     found_version_filename = None
     old_version = None
     for version_filename in version_files:
@@ -145,7 +150,10 @@ def update_python_version(*, new_version, working_dir, readonly):
             dirs[:] = [d for d in dirs if d not in exclude_dirs]
             if version_filename in filenames:
                 version = update_python_version_in_file(
-                    root=root, filename=version_filename, new_version=new_version, readonly=readonly
+                    root=root,
+                    filename=version_filename,
+                    new_version=new_version,
+                    readonly=readonly,
                 )
                 if version:
                     if not found_version_filename:
@@ -182,7 +190,9 @@ async def update_npm_version(*, new_version, working_dir, readonly):
     with open(Path(working_dir) / "package.json", "r") as f:
         old_version = json.load(f)["version"]
     if not readonly:
-        await check_output(["npm", "--no-git-tag-version", "version", new_version], cwd=working_dir)
+        await check_output(
+            ["npm", "--no-git-tag-version", "version", new_version], cwd=working_dir
+        )
     return old_version
 
 
@@ -194,7 +204,9 @@ async def get_project_version(*, repo_info, working_dir):
         repo_info (RepoInfo): Repository info
         working_dir (str or Path): Where the project was recently checked out
     """
-    return await update_version(repo_info=repo_info, new_version="9.9.9", working_dir=working_dir, readonly=True)
+    return await update_version(
+        repo_info=repo_info, new_version="9.9.9", working_dir=working_dir, readonly=True
+    )
 
 
 async def update_version(*, repo_info, new_version, working_dir, readonly):
@@ -214,11 +226,19 @@ async def update_version(*, repo_info, new_version, working_dir, readonly):
     """
     if repo_info.project_type == WEB_APPLICATION_TYPE:
         if repo_info.web_application_type == DJANGO:
-            return update_python_version(new_version=new_version, working_dir=working_dir, readonly=readonly)
+            return update_python_version(
+                new_version=new_version, working_dir=working_dir, readonly=readonly
+            )
         elif repo_info.web_application_type == HUGO:
-            return await update_npm_version(new_version=new_version, working_dir=working_dir, readonly=readonly)
+            return await update_npm_version(
+                new_version=new_version, working_dir=working_dir, readonly=readonly
+            )
     elif repo_info.project_type == LIBRARY_TYPE:
         if repo_info.packaging_tool == SETUPTOOLS:
-            return update_python_version(new_version=new_version, working_dir=working_dir, readonly=readonly)
+            return update_python_version(
+                new_version=new_version, working_dir=working_dir, readonly=readonly
+            )
         elif repo_info.packaging_tool == NPM:
-            return await update_npm_version(new_version=new_version, working_dir=working_dir, readonly=readonly)
+            return await update_npm_version(
+                new_version=new_version, working_dir=working_dir, readonly=readonly
+            )

@@ -16,18 +16,14 @@ OTHER_PR = {
     "html_url": "https://github.com/mitodl/micromasters/pull/2985",
     "body": "not a release",
     "title": "not a release",
-    "head": {
-        "ref": "other-branch"
-    },
-    "number": 345
+    "head": {"ref": "other-branch"},
+    "number": 345,
 }
 RELEASE_PR = {
     "url": "https://api.github.com/repos/mitodl/micromasters/pulls/2993",
     "html_url": "https://github.com/mitodl/micromasters/pull/2993",
     "body": FAKE_RELEASE_PR_BODY,
     "title": "Release 0.53.3",
-    "head": {
-        "ref": "release-candidate"
-    },
+    "head": {"ref": "release-candidate"},
     "number": 234,
 }

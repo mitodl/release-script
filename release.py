@@ -36,15 +36,17 @@ async def dependency_exists(command):
 async def validate_dependencies():
     """Error if a dependency is missing or invalid"""
     if not await dependency_exists("git"):
-        raise DependencyException('Please install git https://git-scm.com/downloads')
+        raise DependencyException("Please install git https://git-scm.com/downloads")
     if not await dependency_exists("node"):
-        raise DependencyException('Please install node.js https://nodejs.org/')
-    if not await dependency_exists(GIT_RELEASE_NOTES_PATH) or not await dependency_exists(YARN_PATH):
+        raise DependencyException("Please install node.js https://nodejs.org/")
+    if not await dependency_exists(
+        GIT_RELEASE_NOTES_PATH
+    ) or not await dependency_exists(YARN_PATH):
         raise DependencyException("Please run 'npm install' first")
 
     version_output = await check_output(["node", "--version"], cwd="/")
     version = version_output.decode()
-    major_version = int(re.match(r'^v(\d+)\.', version).group(1))
+    major_version = int(re.match(r"^v(\d+)\.", version).group(1))
     if major_version < 6:
         raise DependencyException("node.js must be version 6.x or higher")
 
@@ -61,7 +63,9 @@ async def any_new_commits(version, *, base_branch, root):
     Returns:
         bool: True if there are new commits
     """
-    output = await check_output(["git", "rev-list", "--count", f"v{version}..{base_branch}", "--"], cwd=root)
+    output = await check_output(
+        ["git", "rev-list", "--count", f"v{version}..{base_branch}", "--"], cwd=root
+    )
     return int(output) != 0
 
 
@@ -86,11 +90,14 @@ async def create_release_notes(old_version, with_checkboxes, *, base_branch, roo
     if not await any_new_commits(old_version, base_branch=base_branch, root=root):
         return "No new commits"
 
-    output = await check_output([
-        GIT_RELEASE_NOTES_PATH,
-        f"v{old_version}..{base_branch}",
-        os.path.join(SCRIPT_DIR, "util", filename),
-    ], cwd=root)
+    output = await check_output(
+        [
+            GIT_RELEASE_NOTES_PATH,
+            f"v{old_version}..{base_branch}",
+            os.path.join(SCRIPT_DIR, "util", filename),
+        ],
+        cwd=root,
+    )
     return "{}\n".format(output.decode().strip())
 
 
@@ -102,7 +109,9 @@ async def verify_new_commits(old_version, *, base_branch, root):
 
 async def update_release_notes(old_version, new_version, *, base_branch, root):
     """Updates RELEASE.rst and commits it"""
-    release_notes = await create_release_notes(old_version, with_checkboxes=False, base_branch=base_branch, root=root)
+    release_notes = await create_release_notes(
+        old_version, with_checkboxes=False, base_branch=base_branch, root=root
+    )
 
     release_filename = os.path.join(root, "RELEASE.rst")
     try:
@@ -127,15 +136,30 @@ async def update_release_notes(old_version, new_version, *, base_branch, root):
             f.write(old_line)
 
     await check_call(["git", "add", release_filename], cwd=root)
-    await check_call(["git", "commit", "-q", "--all", "--message", f"Release {new_version}"], cwd=root)
+    await check_call(
+        ["git", "commit", "-q", "--all", "--message", f"Release {new_version}"],
+        cwd=root,
+    )
 
 
 async def build_release(*, root):
     """Deploy the release candidate"""
-    await check_call(["git", "push", "--force", "-q", "origin", "release-candidate:release-candidate"], cwd=root)
+    await check_call(
+        [
+            "git",
+            "push",
+            "--force",
+            "-q",
+            "origin",
+            "release-candidate:release-candidate",
+        ],
+        cwd=root,
+    )
 
 
-async def generate_release_pr(*, github_access_token, repo_url, old_version, new_version, base_branch, root):
+async def generate_release_pr(
+    *, github_access_token, repo_url, old_version, new_version, base_branch, root
+):
     """
     Make a release pull request for the deployed release-candidate branch
 
@@ -151,13 +175,17 @@ async def generate_release_pr(*, github_access_token, repo_url, old_version, new
         github_access_token=github_access_token,
         repo_url=repo_url,
         title="Release {version}".format(version=new_version),
-        body=await create_release_notes(old_version, with_checkboxes=True, base_branch=base_branch, root=root),
+        body=await create_release_notes(
+            old_version, with_checkboxes=True, base_branch=base_branch, root=root
+        ),
         head="release-candidate",
         base="release",
     )
 
 
-async def release(*, github_access_token, repo_info, new_version, branch=None, commit_hash=None):
+async def release(
+    *, github_access_token, repo_info, new_version, branch=None, commit_hash=None
+):
     """
     Run a release
 
@@ -170,25 +198,38 @@ async def release(*, github_access_token, repo_info, new_version, branch=None, c
     """
 
     await validate_dependencies()
-    async with init_working_dir(github_access_token, repo_info.repo_url, branch=branch) as working_dir:
+    async with init_working_dir(
+        github_access_token, repo_info.repo_url, branch=branch
+    ) as working_dir:
         default_branch = await get_default_branch(working_dir)
-        await check_call(["git", "checkout", "-qb", "release-candidate"], cwd=working_dir)
+        await check_call(
+            ["git", "checkout", "-qb", "release-candidate"], cwd=working_dir
+        )
         if commit_hash:
             try:
                 await check_call(["git", "cherry-pick", commit_hash], cwd=working_dir)
             except CalledProcessError as ex:
-                raise ReleaseException(f"Cherry pick failed for the given hash {commit_hash}") from ex
+                raise ReleaseException(
+                    f"Cherry pick failed for the given hash {commit_hash}"
+                ) from ex
         old_version = await update_version(
-            repo_info=repo_info, new_version=new_version, working_dir=working_dir, readonly=False
+            repo_info=repo_info,
+            new_version=new_version,
+            working_dir=working_dir,
+            readonly=False,
         )
         if parse_version(old_version) >= parse_version(new_version):
-            raise ReleaseException("old version is {old} but the new version {new} is not newer".format(
-                old=old_version,
-                new=new_version,
-            ))
+            raise ReleaseException(
+                "old version is {old} but the new version {new} is not newer".format(
+                    old=old_version,
+                    new=new_version,
+                )
+            )
         base_branch = "release-candidate" if commit_hash else default_branch
         await verify_new_commits(old_version, base_branch=base_branch, root=working_dir)
-        await update_release_notes(old_version, new_version, base_branch=base_branch, root=working_dir)
+        await update_release_notes(
+            old_version, new_version, base_branch=base_branch, root=working_dir
+        )
         await build_release(root=working_dir)
         return await generate_release_pr(
             github_access_token=github_access_token,

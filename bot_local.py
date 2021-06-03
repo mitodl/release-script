@@ -13,13 +13,14 @@ from bot import (
 
 class ConsoleBot(Bot):
     """Fake console bot"""
+
     async def say(
-            self, *, channel_id, text='', attachments=None, message_type=''
+        self, *, channel_id, text="", attachments=None, message_type=""
     ):  # pylint: disable=unused-argument
         """Print messages to stdout"""
-        attachment_text = ''
+        attachment_text = ""
         if attachments is not None:
-            attachment_text = attachments[0].get('text', '')
+            attachment_text = attachments[0].get("text", "")
         line = f"{' '.join(word for word in [text, attachment_text, message_type] if word)} "
         print("\033[92m{}\033[0m".format(line))
 
@@ -33,19 +34,21 @@ async def async_main():
 
     _, channel_name, *words = sys.argv
 
-    channels_info = await get_channels_info(envs['SLACK_ACCESS_TOKEN'])
+    channels_info = await get_channels_info(envs["SLACK_ACCESS_TOKEN"])
     try:
         channel_id = channels_info[channel_name]
     except KeyError as ex:
-        raise Exception("Unable to find channel by name {}".format(channel_name)) from ex
+        raise Exception(
+            "Unable to find channel by name {}".format(channel_name)
+        ) from ex
 
     repos_info = load_repos_info(channels_info)
 
     bot = ConsoleBot(
         doof_id="console",
-        slack_access_token=envs['SLACK_ACCESS_TOKEN'],
-        github_access_token=envs['GITHUB_ACCESS_TOKEN'],
-        timezone=envs['TIMEZONE'],
+        slack_access_token=envs["SLACK_ACCESS_TOKEN"],
+        github_access_token=envs["GITHUB_ACCESS_TOKEN"],
+        timezone=envs["TIMEZONE"],
         npm_token=envs["NPM_TOKEN"],
         repos_info=repos_info,
         loop=asyncio.get_event_loop(),
@@ -54,7 +57,7 @@ async def async_main():
     await bot.startup()
 
     await bot.handle_message(
-        manager='mitodl_user',
+        manager="mitodl_user",
         channel_id=channel_id,
         words=words,
     )
@@ -63,9 +66,7 @@ async def async_main():
 def main():
     """Main function"""
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(
-        async_main()
-    )
+    loop.run_until_complete(async_main())
 
 
 if __name__ == "__main__":

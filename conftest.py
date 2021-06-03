@@ -42,15 +42,15 @@ setup(
 
 
 WEB_TEST_REPO_INFO = RepoInfo(
-    name='doof_repo',
-    repo_url='http://github.com/mitodl/doof.git',
-    prod_hash_url='http://doof.example.com/hash.txt',
-    rc_hash_url='http://doof-rc.example.com/hash.txt',
-    ci_hash_url='http://doof-ci.example.com/hash.txt',
-    channel_id='doof',
+    name="doof_repo",
+    repo_url="http://github.com/mitodl/doof.git",
+    prod_hash_url="http://doof.example.com/hash.txt",
+    rc_hash_url="http://doof-rc.example.com/hash.txt",
+    ci_hash_url="http://doof-ci.example.com/hash.txt",
+    channel_id="doof",
     project_type=WEB_APPLICATION_TYPE,
     web_application_type=DJANGO,
-    packaging_tool=None
+    packaging_tool=None,
 )
 
 
@@ -69,23 +69,23 @@ def test_repo(test_repo_directory):
 
 
 NPM_TEST_REPO_INFO = RepoInfo(
-    name='node_doof',
-    repo_url='http://github.com/mitodl/doof-node.git',
+    name="node_doof",
+    repo_url="http://github.com/mitodl/doof-node.git",
     prod_hash_url=None,
     rc_hash_url=None,
     ci_hash_url=None,
-    channel_id='doof-node',
+    channel_id="doof-node",
     project_type=LIBRARY_TYPE,
     packaging_tool=NPM,
     web_application_type=None,
 )
 LIBRARY_TEST_REPO_INFO = RepoInfo(
-    name='lib_repo',
-    repo_url='http://github.com/mitodl/doof-lib.git',
+    name="lib_repo",
+    repo_url="http://github.com/mitodl/doof-lib.git",
     prod_hash_url=None,
     rc_hash_url=None,
     ci_hash_url=None,
-    channel_id='doof-lib',
+    channel_id="doof-lib",
     project_type=LIBRARY_TYPE,
     packaging_tool=SETUPTOOLS,
     web_application_type=None,
@@ -117,8 +117,8 @@ def npm_library_test_repo(library_test_repo):
 
 @pytest.fixture
 def timezone():
-    """ Return a timezone object """
-    yield pytz.timezone('America/New_York')
+    """Return a timezone object"""
+    yield pytz.timezone("America/New_York")
 
 
 @pytest.fixture
@@ -143,5 +143,5 @@ def _raiser(message):
 @pytest.fixture(autouse=True)
 def log_exception(mocker):
     """Patch log.error and log.exception to raise an exception so tests do not silence it"""
-    mocker.patch('bot.log.exception', side_effect=_raiser)
-    mocker.patch('bot.log.error', side_effect=_raiser)
+    mocker.patch("bot.log.exception", side_effect=_raiser)
+    mocker.patch("bot.log.error", side_effect=_raiser)

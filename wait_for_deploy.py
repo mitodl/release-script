@@ -13,10 +13,12 @@ async def fetch_release_hash(hash_url):
     response.raise_for_status()
     release_hash = response.content.decode().strip()
     if len(release_hash) != 40:
-        raise Exception("Expected release hash from {hash_url} but got: {hash}".format(
-            hash_url=hash_url,
-            hash=release_hash,
-        ))
+        raise Exception(
+            "Expected release hash from {hash_url} but got: {hash}".format(
+                hash_url=hash_url,
+                hash=release_hash,
+            )
+        )
     return release_hash
 
 
@@ -35,7 +37,9 @@ async def wait_for_deploy(*, github_access_token, repo_url, hash_url, watch_bran
             True if the hashes matched immediately on checking, False if hashes matched only after checking
     """
     async with init_working_dir(github_access_token, repo_url) as working_dir:
-        output = await check_output(["git", "rev-parse", "origin/{}".format(watch_branch)], cwd=working_dir)
+        output = await check_output(
+            ["git", "rev-parse", "origin/{}".format(watch_branch)], cwd=working_dir
+        )
         latest_hash = output.decode().strip()
     while await fetch_release_hash(hash_url) != latest_hash:
         await asyncio.sleep(30)
