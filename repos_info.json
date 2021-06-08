@@ -58,6 +58,13 @@
       "packaging_tool": "setuptools"
     },
     {
+      "name": "edx-sysadmin",
+      "repo_url": "https://github.com/mitodl/edx-sysadmin.git",
+      "channel_name": "edx-sysadmin",
+      "project_type": "library",
+      "packaging_tool": "setuptools"
+    },
+    {
       "name": "rapid-response-xblock",
       "repo_url": "https://github.com/mitodl/rapid-response-xblock.git",
       "channel_name": "rapid-response-doof",
