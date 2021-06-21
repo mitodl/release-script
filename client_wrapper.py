@@ -9,7 +9,7 @@ class ClientWrapper:
 
     def __init__(self):
         self.session = requests.Session()
-        adapter = HTTPAdapter(max_retries=Retry())
+        adapter = HTTPAdapter(max_retries=Retry(status_forcelist=[502, 503]))
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
 
