@@ -198,6 +198,19 @@ async def update_npm_version(*, new_version, working_dir, readonly):
 
 
 async def update_version_file(*, new_version, working_dir, readonly):
+    """
+    Update a VERSION file.
+
+    Args:
+        new_version (str): The new version
+        working_dir (str): The directory of the library
+        readonly (bool): If true, return the old version if found but don't actually write changes to any files
+
+    Returns:
+        str:
+            The old version which has been successfully replaced with the new version.
+            On error, an exception will raise.
+    """
     with open(Path(working_dir) / "VERSION", "r") as f:
         old_version = f.readline()
     if not readonly:
