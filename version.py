@@ -215,7 +215,7 @@ async def update_version_file(*, new_version, working_dir, readonly):
         old_version = f.readline()
     if not readonly:
         await check_output(
-            ["sed", "-n", "/^#{new_version}/p;q", "VERSION"], cwd=working_dir
+            ["sed", "-n", "/^#{}/p;q".format(new_version), "VERSION"], cwd=working_dir
         )
     return old_version
 
