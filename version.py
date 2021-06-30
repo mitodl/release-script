@@ -211,12 +211,13 @@ async def update_version_file(*, new_version, working_dir, readonly):
             The old version which has been successfully replaced with the new version.
             On error, an exception will raise.
     """
-    with open(Path(working_dir) / "VERSION", "r") as f:
+    old_version = None
+    version_file = Path(working_dir) / "VERSION"
+    with open(version_file, "r") as f:
         old_version = f.readline()
     if not readonly:
-        await check_output(
-            ["sed", "-n", "/^#{}/p;q".format(new_version), "VERSION"], cwd=working_dir
-        )
+        with open(version_file, "w") as f:
+            f.write(new_version)
     return old_version
 
 

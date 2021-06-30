@@ -1,3 +1,4 @@
+# pylint: disable=consider-using-with
 """Tests for release script"""
 import os
 from subprocess import CalledProcessError

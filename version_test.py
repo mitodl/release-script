@@ -1,3 +1,4 @@
+# pylint: disable=consider-using-with
 """Test version functions"""
 import json
 import os
@@ -292,7 +293,7 @@ async def test_update_npm_version(readonly):
 
 @pytest.mark.parametrize("readonly", [True, False])
 async def test_update_version_file(readonly):
-    """update version for an npm package"""
+    """update version for a version file"""
     old_version = "0.76.54"
     new_version = "0.99.99"
 
