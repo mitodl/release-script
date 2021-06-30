@@ -11,6 +11,7 @@ from constants import (
     DJANGO,
     HUGO,
     LIBRARY_TYPE,
+    NONE,
     NPM,
     SETUPTOOLS,
     WEB_APPLICATION_TYPE,
@@ -313,12 +314,13 @@ async def test_update_version_file(readonly):
 # pylint: disable=too-many-arguments
 @pytest.mark.parametrize("readonly", [True, False])
 @pytest.mark.parametrize(
-    "project_type, packaging_tool, web_application_type, expected_python, expected_js",
+    "project_type, packaging_tool, web_application_type, expected_python, expected_js, expected_version_file",
     [
-        [WEB_APPLICATION_TYPE, None, DJANGO, True, False],
-        [WEB_APPLICATION_TYPE, None, HUGO, False, True],
-        [LIBRARY_TYPE, SETUPTOOLS, None, True, False],
-        [LIBRARY_TYPE, NPM, None, False, True],
+        [WEB_APPLICATION_TYPE, None, DJANGO, True, False, False],
+        [WEB_APPLICATION_TYPE, None, HUGO, False, True, False],
+        [LIBRARY_TYPE, SETUPTOOLS, None, True, False, False],
+        [LIBRARY_TYPE, NPM, None, False, True, False],
+        [LIBRARY_TYPE, NONE, None, False, False, True],
     ],
 )
 async def test_update_version(
@@ -329,6 +331,7 @@ async def test_update_version(
     web_application_type,
     expected_python,
     expected_js,
+    expected_version_file,
     readonly,
 ):
     """Call update_version on project"""
@@ -345,6 +348,7 @@ async def test_update_version(
 
     update_py_mock = mocker.patch("version.update_python_version")
     update_js_mock = mocker.async_patch("version.update_npm_version")
+    update_version_file_mock = mocker.async_patch("version.update_version_file")
 
     await update_version(
         repo_info=repo_info,
@@ -370,6 +374,15 @@ async def test_update_version(
         )
     else:
         assert update_js_mock.called is False
+
+    if expected_version_file:
+        update_version_file_mock.assert_called_once_with(
+            new_version=new_version,
+            working_dir=working_dir,
+            readonly=readonly,
+        )
+    else:
+        assert update_version_file_mock.called is False
 
 
 async def test_get_project_version(mocker, test_repo):
