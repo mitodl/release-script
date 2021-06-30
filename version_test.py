@@ -23,6 +23,7 @@ from version import (
     update_version,
     update_python_version_in_file,
     update_npm_version,
+    update_version_file,
 )
 
 
@@ -287,6 +288,25 @@ async def test_update_npm_version(readonly):
         assert received == old_version
         with open(package_json_path) as f:
             assert json.load(f) == {"version": old_version if readonly else new_version}
+
+
+@pytest.mark.parametrize("readonly", [True, False])
+async def test_update_version_file(readonly):
+    """update version for an npm package"""
+    old_version = "0.76.54"
+    new_version = "0.99.99"
+
+    with TemporaryDirectory() as working_dir:
+        version_file_path = Path(working_dir) / "VERSION"
+        with open(version_file_path, "w") as f:
+            f.write(old_version)
+
+        received = await update_version_file(
+            new_version=new_version, working_dir=working_dir, readonly=readonly
+        )
+        assert received == old_version
+        with open(version_file_path) as f:
+            assert f.readline() == old_version if readonly else new_version
 
 
 # pylint: disable=too-many-arguments

@@ -16,10 +16,11 @@ HUGO = "hugo"
 VALID_WEB_APPLICATION_TYPES = [DJANGO, HUGO]
 
 # packaging tool types
+NONE = "none"
 NPM = "npm"
 SETUPTOOLS = "setuptools"
 GO = "go"
-VALID_PACKAGING_TOOL_TYPES = [NPM, SETUPTOOLS, GO]
+VALID_PACKAGING_TOOL_TYPES = [NONE, NPM, SETUPTOOLS, GO]
 
 # deployment server types
 RC = "rc"
