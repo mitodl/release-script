@@ -144,6 +144,13 @@
       "prod_hash_url": "https://ocwnext.odl.mit.edu/static/ocw-hugo-themes-hash.txt"
     },
     {
+      "name": "ocw-hugo-projects",
+      "repo_url": "https://github.com/mitodl/ocw-hugo-projects.git",
+      "channel_name": "ocw-hugo-projects",
+      "project_type": "library",
+      "packaging_tool": "none"
+    },
+    {
       "name": "course-search-utils",
       "repo_url": "https://github.com/mitodl/course-search-utils.git",
       "channel_name": "course-search-utils",
