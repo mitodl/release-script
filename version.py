@@ -11,6 +11,7 @@ from constants import (
     DJANGO,
     HUGO,
     LIBRARY_TYPE,
+    NONE,
     NPM,
     SETUPTOOLS,
     WEB_APPLICATION_TYPE,
@@ -196,6 +197,31 @@ async def update_npm_version(*, new_version, working_dir, readonly):
     return old_version
 
 
+async def update_version_file(*, new_version, working_dir, readonly):
+    """
+    Update a VERSION file.
+
+    Args:
+        new_version (str): The new version
+        working_dir (str): The directory of the library
+        readonly (bool): If true, return the old version if found but don't actually write changes to any files
+
+    Returns:
+        str:
+            The old version which has been successfully replaced with the new version.
+            On error, an exception will raise.
+    """
+    old_version = None
+    version_file = Path(working_dir) / "VERSION"
+    if version_file.is_file():
+        with open(version_file, "r") as f:
+            old_version = f.readline()
+        if not readonly:
+            with open(version_file, "w") as f:
+                f.write(new_version)
+    return old_version
+
+
 async def get_project_version(*, repo_info, working_dir):
     """
     Look up the version of a project from the project instance in the working directory
@@ -240,5 +266,9 @@ async def update_version(*, repo_info, new_version, working_dir, readonly):
             )
         elif repo_info.packaging_tool == NPM:
             return await update_npm_version(
+                new_version=new_version, working_dir=working_dir, readonly=readonly
+            )
+        elif repo_info.packaging_tool == NONE:
+            return await update_version_file(
                 new_version=new_version, working_dir=working_dir, readonly=readonly
             )
