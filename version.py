@@ -215,7 +215,7 @@ async def update_version_file(*, new_version, working_dir, readonly):
     version_file = Path(working_dir) / "VERSION"
     if version_file.is_file():
         with open(version_file, "r") as f:
-            old_version = f.readline()
+            old_version = f.readline().strip()
         if not readonly:
             with open(version_file, "w") as f:
                 f.write(new_version)

@@ -301,14 +301,14 @@ async def test_update_version_file(readonly):
     with TemporaryDirectory() as working_dir:
         version_file_path = Path(working_dir) / "VERSION"
         with open(version_file_path, "w") as f:
-            f.write(old_version)
+            f.write(f"{old_version}\n")
 
         received = await update_version_file(
             new_version=new_version, working_dir=working_dir, readonly=readonly
         )
         assert received == old_version
         with open(version_file_path) as f:
-            assert f.readline() == old_version if readonly else new_version
+            assert f.readline().strip() == old_version if readonly else new_version
 
 
 # pylint: disable=too-many-arguments
