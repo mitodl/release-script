@@ -165,7 +165,7 @@
       "packaging_tool": "setuptools"
     },
     {
-      "name": "mixonline",
+      "name": "mitxonline",
       "repo_url": "https://github.com/mitodl/mitxonline.git",
       "ci_hash_url": "https://mitxonline-ci.odl.mit.edu/static/hash.txt",
       "rc_hash_url": "https://mitxonline-rc.odl.mit.edu/static/hash.txt",
