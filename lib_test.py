@@ -117,6 +117,7 @@ async def test_get_unchecked_authors(mocker):
             version="1.2.3",
             url="http://url",
             number=234,
+            open=False,
         ),
     )
     unchecked = await get_unchecked_authors(
