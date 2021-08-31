@@ -66,7 +66,7 @@ async def status_for_repo_last_pr(*, github_access_token, repo_info):
             # BLOCKER_LABELS must go first so it overrides other labels
             for label in [*BLOCKER_LABELS, *RELEASE_LABELS]:
                 if label.lower() in labels:
-                    return label
+                    return label.lower()
 
     return None
 
