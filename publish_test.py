@@ -64,7 +64,7 @@ async def test_upload_to_npm(mocker, test_repo_directory, library_test_repo):
 
     def _call(command, *, cwd, **kwargs):
         """check that the token was written correctly"""
-        with open(Path(cwd) / ".npmrc") as f:
+        with open(Path(cwd) / ".npmrc", "r", encoding="utf-8") as f:
             assert f.read() == f"//registry.npmjs.org/:_authToken={npm_token}"
 
         recorded_commands.append(command)

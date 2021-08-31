@@ -115,12 +115,12 @@ async def update_release_notes(old_version, new_version, *, base_branch, root):
 
     release_filename = os.path.join(root, "RELEASE.rst")
     try:
-        with open(release_filename) as f:
+        with open(release_filename, "r", encoding="utf-8") as f:
             existing_note_lines = f.readlines()
     except FileNotFoundError:
         existing_note_lines = []
 
-    with open(release_filename, "w") as f:
+    with open(release_filename, "w", encoding="utf-8") as f:
         f.write("Release Notes\n")
         f.write("=============\n")
         f.write("\n")

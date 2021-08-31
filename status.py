@@ -101,7 +101,7 @@ def format_status_for_repo(*, current_status, has_new_commits):
         current_status (str): The status of the most recent PR for the repo
         has_new_commits (bool): Whether there are new commits to release
     """
-    new_status_string = f"*new commits*" if has_new_commits else ""
+    new_status_string = "*new commits*" if has_new_commits else ""
     current_status_string = (
         current_status if current_status and current_status != DEPLOYED_TO_PROD else ""
     )

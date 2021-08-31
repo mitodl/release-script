@@ -315,7 +315,7 @@ def load_repos_info(channel_lookup):
     Returns:
         list of RepoInfo: Information about the repositories
     """
-    with open(os.path.join(SCRIPT_DIR, "repos_info.json")) as f:
+    with open(os.path.join(SCRIPT_DIR, "repos_info.json"), "r", encoding="utf-8") as f:
         repos_info = json.load(f)
 
     infos = [

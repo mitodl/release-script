@@ -35,12 +35,12 @@ GITHUB_TOKEN = "github-token"
 @pytest.mark.parametrize(
     "has_new_commits, status, expected",
     [
-        [True, None, f"*new commits*"],
-        [False, None, f""],
+        [True, None, "*new commits*"],
+        [False, None, ""],
         [True, ALL_CHECKBOXES_CHECKED, f"{ALL_CHECKBOXES_CHECKED}🔔 *new commits*"],
         [False, ALL_CHECKBOXES_CHECKED, f"{ALL_CHECKBOXES_CHECKED}🔔"],
-        [True, DEPLOYED_TO_PROD, f"*new commits*"],
-        [False, DEPLOYED_TO_PROD, f""],
+        [True, DEPLOYED_TO_PROD, "*new commits*"],
+        [False, DEPLOYED_TO_PROD, ""],
         [True, DEPLOYING_TO_PROD, f"{DEPLOYING_TO_PROD}🕰️ *new commits*"],
         [False, DEPLOYING_TO_PROD, f"{DEPLOYING_TO_PROD}🕰️"],
         [True, DEPLOYING_TO_RC, f"{DEPLOYING_TO_RC}🕰️ *new commits*"],
@@ -95,7 +95,7 @@ async def test_status_for_repo_last_pr(
     is_open,
     labels,
     expected,
-):
+):  # pylint: disable=too-many-arguments
     """status_for_repo_last_pr should get the status for the most recent PR for a project"""
     release_pr = ReleasePR("1.2.3", "http://example.com", "body", 12, is_open)
     get_release_pr_mock = mocker.async_patch(

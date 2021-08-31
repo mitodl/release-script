@@ -54,10 +54,10 @@ async def set_release_date(version, timezone, *, root):
     await check_call(["git", "fetch", "--tags"], cwd=root)
     await check_call(["git", "checkout", "release-candidate"], cwd=root)
 
-    with open(release_filename) as f:
+    with open(release_filename, "r", encoding="utf-8") as f:
         existing_note_lines = f.readlines()
 
-    with open(release_filename, "w") as f:
+    with open(release_filename, "w", encoding="utf-8") as f:
         for line in existing_note_lines:
             if line.startswith("Version ") and "Released" not in line:
                 version_match = re.search(r"[0-9\.]+", line)

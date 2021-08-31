@@ -72,7 +72,7 @@ def update_python_version_in_file(*, root, filename, new_version, readonly):
     file_lines = []
     update_count = 0
     old_version = None
-    with open(version_filepath) as f:
+    with open(version_filepath, "r", encoding="utf-8") as f:
         for line in f.readlines():
             line = line.strip("\n")
             updated_line = line
@@ -108,7 +108,7 @@ def update_python_version_in_file(*, root, filename, new_version, readonly):
     if update_count == 1:
         # Replace contents of file with updated version
         if not readonly:
-            with open(version_filepath, "w") as f:
+            with open(version_filepath, "w", encoding="utf-8") as f:
                 for line in file_lines:
                     f.write(line)
         return old_version
@@ -188,7 +188,7 @@ async def update_npm_version(*, new_version, working_dir, readonly):
             The old version which has been successfully replaced with the new version.
             On error, an exception will raise.
     """
-    with open(Path(working_dir) / "package.json", "r") as f:
+    with open(Path(working_dir) / "package.json", "r", encoding="utf-8") as f:
         old_version = json.load(f)["version"]
     if not readonly:
         await check_output(
@@ -214,10 +214,10 @@ async def update_version_file(*, new_version, working_dir, readonly):
     old_version = None
     version_file = Path(working_dir) / "VERSION"
     if version_file.is_file():
-        with open(version_file, "r") as f:
+        with open(version_file, "r", encoding="utf-8") as f:
             old_version = f.readline().strip()
         if not readonly:
-            with open(version_file, "w") as f:
+            with open(version_file, "w", encoding="utf-8") as f:
                 f.write(new_version)
     return old_version
 

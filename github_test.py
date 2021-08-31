@@ -25,7 +25,11 @@ pytestmark = pytest.mark.asyncio
 
 async def test_needs_review(mocker):
     """Assert behavior of needs review"""
-    with open(os.path.join(SCRIPT_DIR, "test_needs_review_response.json")) as f:
+    with open(
+        os.path.join(SCRIPT_DIR, "test_needs_review_response.json"),
+        "r",
+        encoding="utf-8",
+    ) as f:
         payload = json.load(f)
     github_access_token = "token"
 

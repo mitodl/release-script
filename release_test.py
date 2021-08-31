@@ -1,4 +1,3 @@
-# pylint: disable=consider-using-with
 """Tests for release script"""
 import os
 from subprocess import CalledProcessError
@@ -241,9 +240,12 @@ async def test_update_release_notes(test_repo_directory):
         "0.3.0", "0.4.0", base_branch="master", root=test_repo_directory
     )
 
-    assert (
-        open(os.path.join(test_repo_directory, "RELEASE.rst")).read()
-        == """Release Notes
+    with open(
+        os.path.join(test_repo_directory, "RELEASE.rst"), "r", encoding="utf-8"
+    ) as f:
+        assert (
+            f.read()
+            == """Release Notes
 =============
 
 Version 0.4.0
@@ -285,7 +287,7 @@ Version 0.1.0
 
 - Initial release
 """
-    )
+        )
 
 
 async def test_update_release_notes_initial(test_repo_directory):
@@ -300,9 +302,12 @@ async def test_update_release_notes_initial(test_repo_directory):
         "0.2.0", "0.3.0", base_branch="master", root=test_repo_directory
     )
 
-    assert (
-        open(os.path.join(test_repo_directory, "RELEASE.rst")).read()
-        == """Release Notes
+    with open(
+        os.path.join(test_repo_directory, "RELEASE.rst"), "r", encoding="utf-8"
+    ) as f:
+        assert (
+            f.read()
+            == """Release Notes
 =============
 
 Version 0.3.0
@@ -311,7 +316,7 @@ Version 0.3.0
 - A commit between 2 and 3
 
 """
-    )
+        )
 
 
 async def test_verify_new_commits(test_repo_directory):

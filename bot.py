@@ -1058,7 +1058,7 @@ class Bot:
 
         await self.say_with_attachment(
             channel_id=command_args.channel_id,
-            title=f"Release statuses:",
+            title="Release statuses:",
             text=text,
         )
 

@@ -102,7 +102,9 @@ def library_test_repo_directory():
 @pytest.fixture
 def library_test_repo(library_test_repo_directory):
     """Initialize the library test repo from the gzipped file"""
-    with open(os.path.join(library_test_repo_directory, "setup.py"), "w") as f:
+    with open(
+        os.path.join(library_test_repo_directory, "setup.py"), "w", encoding="utf-8"
+    ) as f:
         # Hacky way to convert a web application project to a library
         f.write(SETUP_PY)
 
