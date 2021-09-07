@@ -38,6 +38,7 @@ GIT_RELEASE_NOTES_PATH = os.path.join(
 )
 YARN_PATH = os.path.join(SCRIPT_DIR, "./node_modules/.bin/yarn")
 
+# github labels
 ALL_CHECKBOXES_CHECKED = "all checkboxes checked"
 DEPLOYING_TO_RC = "deploying to rc"
 WAITING_FOR_CHECKBOXES = "waiting for checkboxes"
@@ -51,3 +52,25 @@ RELEASE_LABELS = [
     DEPLOYED_TO_PROD,
 ]
 FREEZE_RELEASE = "freeze release"
+BLOCKER = "blocker"
+BLOCKED = "blocked"
+RELEASE_BLOCKER = "release blocker"
+BLOCKER_LABELS = [
+    FREEZE_RELEASE,
+    BLOCKED,
+    BLOCKER,
+    RELEASE_BLOCKER,
+]
+
+# not github labels but used internally when calculating release statuses
+LIBRARY_PR_WAITING_FOR_MERGE = "library PR waiting for merge"
+
+STATUS_EMOJIS = {
+    WAITING_FOR_CHECKBOXES: "🕰️",
+    DEPLOYING_TO_PROD: "🕰️",
+    DEPLOYING_TO_RC: "🕰️",
+    ALL_CHECKBOXES_CHECKED: "🔔",
+    LIBRARY_PR_WAITING_FOR_MERGE: "🔔",
+}
+for label in BLOCKER_LABELS:
+    STATUS_EMOJIS[label] = "❌"

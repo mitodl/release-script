@@ -1,4 +1,3 @@
-# pylint: disable=consider-using-with
 """Test version functions"""
 import json
 import os
@@ -40,7 +39,8 @@ async def test_update_python_version_settings(test_repo, test_repo_directory, re
     new_version = "9.9.99"
     path = os.path.join(test_repo_directory, "ccxcon/settings.py")
 
-    old_lines = open(path).readlines()
+    with open(path, "r", encoding="utf-8") as f:
+        old_lines = f.readlines()
 
     old_version = await update_version(
         repo_info=test_repo,
@@ -49,7 +49,8 @@ async def test_update_python_version_settings(test_repo, test_repo_directory, re
         readonly=readonly,
     )
     assert old_version == "0.2.0"
-    new_lines = open(path).readlines()
+    with open(path, "r", encoding="utf-8") as f:
+        new_lines = f.readlines()
 
     assert len(old_lines) == len(new_lines)
 
@@ -61,7 +62,7 @@ async def test_update_python_version_settings(test_repo, test_repo_directory, re
     assert diff_count == (0 if readonly else 1)
 
     found_new_version = False
-    with open(path) as f:
+    with open(path, "r", encoding="utf-8") as f:
         for line in f.readlines():
             if line == 'VERSION = "{}"\n'.format(new_version):
                 found_new_version = True
@@ -75,7 +76,9 @@ async def test_update_python_version_init(test_repo_directory, test_repo, readon
     old_version = "1.2.3"
     test_repo_directory = Path(test_repo_directory)
     os.unlink(test_repo_directory / "ccxcon" / "settings.py")
-    with open(test_repo_directory / "ccxcon" / "__init__.py", "w") as f:
+    with open(
+        test_repo_directory / "ccxcon" / "__init__.py", "w", encoding="utf-8"
+    ) as f:
         f.write("__version__ = '{}'".format(old_version))
     new_version = "4.5.6"
     assert (
@@ -89,7 +92,9 @@ async def test_update_python_version_init(test_repo_directory, test_repo, readon
     )
 
     found_new_version = False
-    with open(test_repo_directory / "ccxcon" / "__init__.py") as f:
+    with open(
+        test_repo_directory / "ccxcon" / "__init__.py", "r", encoding="utf-8"
+    ) as f:
         for line in f.readlines():
             if line.strip() == f'__version__ = "{new_version}"':
                 found_new_version = True
@@ -102,7 +107,9 @@ async def test_update_python_version_setup(test_repo_directory, test_repo, reado
     """If we detect a version in setup.py we should update it properly, if readonly is set"""
     old_version = "0.2.0"
     os.unlink(os.path.join(test_repo_directory, "ccxcon/settings.py"))
-    with open(os.path.join(test_repo_directory, "setup.py"), "w") as f:
+    with open(
+        os.path.join(test_repo_directory, "setup.py"), "w", encoding="utf-8"
+    ) as f:
         f.write(
             """
 setup(
@@ -125,7 +132,9 @@ setup(
     )
 
     found_new_version = False
-    with open(os.path.join(test_repo_directory, "setup.py")) as f:
+    with open(
+        os.path.join(test_repo_directory, "setup.py"), "r", encoding="utf-8"
+    ) as f:
         for line in f.readlines():
             if line.strip() == "version='{}',".format(new_version):
                 found_new_version = True
@@ -141,7 +150,9 @@ async def test_update_python_version_missing(test_repo_directory, test_repo, rea
 setup(
     name='pylmod',
 )        """
-    with open(os.path.join(test_repo_directory, "setup.py"), "w") as f:
+    with open(
+        os.path.join(test_repo_directory, "setup.py"), "w", encoding="utf-8"
+    ) as f:
         f.write(contents)
     with pytest.raises(UpdateVersionException) as ex:
         await update_version(
@@ -163,7 +174,9 @@ setup(
     name='pylmod',
     version='1.2.3',
 )        """
-    with open(os.path.join(test_repo_directory, "setup.py"), "w") as f:
+    with open(
+        os.path.join(test_repo_directory, "setup.py"), "w", encoding="utf-8"
+    ) as f:
         f.write(contents)
     with pytest.raises(UpdateVersionException) as ex:
         await update_version(
@@ -189,7 +202,9 @@ setup(
     version='1.2.3',
     version='4.5.6',
 )        """
-    with open(os.path.join(test_repo_directory, "setup.py"), "w") as f:
+    with open(
+        os.path.join(test_repo_directory, "setup.py"), "w", encoding="utf-8"
+    ) as f:
         f.write(contents)
     with pytest.raises(UpdateVersionException) as ex:
         await update_version(
@@ -248,14 +263,14 @@ async def test_update_python_version_in_file(filename, line, expected_output, re
     new_version = "0.123.456"
     with TemporaryDirectory() as base:
         path = Path(base) / filename
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             f.write("text")
         retrieved_version = update_python_version_in_file(
             root=base, filename=filename, new_version=new_version, readonly=readonly
         )
         assert retrieved_version is None
 
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             f.write(line)
 
         retrieved_version = update_python_version_in_file(
@@ -263,7 +278,7 @@ async def test_update_python_version_in_file(filename, line, expected_output, re
         )
         assert retrieved_version == old_version
 
-        with open(path) as f:
+        with open(path, "r", encoding="utf-8") as f:
             lines = f.readlines()
 
         if readonly:
@@ -281,14 +296,14 @@ async def test_update_npm_version(readonly):
 
     with TemporaryDirectory() as working_dir:
         package_json_path = Path(working_dir) / "package.json"
-        with open(package_json_path, "w") as f:
+        with open(package_json_path, "w", encoding="utf-8") as f:
             json.dump({"version": old_version}, f)
 
         received = await update_npm_version(
             new_version=new_version, working_dir=working_dir, readonly=readonly
         )
         assert received == old_version
-        with open(package_json_path) as f:
+        with open(package_json_path, "r", encoding="utf-8") as f:
             assert json.load(f) == {"version": old_version if readonly else new_version}
 
 
@@ -300,14 +315,14 @@ async def test_update_version_file(readonly):
 
     with TemporaryDirectory() as working_dir:
         version_file_path = Path(working_dir) / "VERSION"
-        with open(version_file_path, "w") as f:
+        with open(version_file_path, "w", encoding="utf-8") as f:
             f.write(f"{old_version}\n")
 
         received = await update_version_file(
             new_version=new_version, working_dir=working_dir, readonly=readonly
         )
         assert received == old_version
-        with open(version_file_path) as f:
+        with open(version_file_path, "r", encoding="utf-8") as f:
             assert f.readline().strip() == old_version if readonly else new_version
 
 

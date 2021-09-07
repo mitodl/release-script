@@ -27,7 +27,7 @@ from github import (
 from repo_info import RepoInfo
 
 
-ReleasePR = namedtuple("ReleasePR", ["version", "url", "body", "number"])
+ReleasePR = namedtuple("ReleasePR", ["version", "url", "body", "number", "open"])
 
 
 VERSION_RE = r"\d+\.\d+\.\d+"
@@ -112,6 +112,7 @@ async def get_release_pr(*, github_access_token, org, repo, all_prs=False):
         number=pr["number"],
         body=pr["body"],
         url=pr["html_url"],
+        open=pr["state"] == "open",
     )
 
 
@@ -314,7 +315,7 @@ def load_repos_info(channel_lookup):
     Returns:
         list of RepoInfo: Information about the repositories
     """
-    with open(os.path.join(SCRIPT_DIR, "repos_info.json")) as f:
+    with open(os.path.join(SCRIPT_DIR, "repos_info.json"), "r", encoding="utf-8") as f:
         repos_info = json.load(f)
 
     infos = [

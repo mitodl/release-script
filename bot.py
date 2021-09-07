@@ -18,8 +18,6 @@ from constants import (
     DEPLOYING_TO_PROD,
     DEPLOYING_TO_RC,
     WAITING_FOR_CHECKBOXES,
-    RELEASE_LABELS,
-    FREEZE_RELEASE,
     FINISH_RELEASE_ID,
     NEW_RELEASE_ID,
     LIBRARY_TYPE,
@@ -38,7 +36,6 @@ from exception import (
 )
 from finish_release import finish_release
 from github import (
-    get_labels,
     get_org_and_repo,
     needs_review,
     set_release_label,
@@ -65,6 +62,11 @@ from lib import (
 )
 from publish import publish
 from slack import get_channels_info, get_doofs_id
+from status import (
+    format_status_for_repo,
+    status_for_repo_last_pr,
+    status_for_repo_new_commits,
+)
 from version import (
     get_commit_oneline_message,
     get_project_version,
@@ -307,40 +309,6 @@ class Bot:
             message_type=message_type,
         )
 
-    async def _get_release_label(self, *, repo_url, pr_number):
-        """
-        Helper function to get release labels on a repo. If there is a merge freeze label, a None is returned as if
-        there were no labels at all (which means ignore the repository).
-
-        Args:
-            repo_url (str): URL for a repository
-            pr_number (int): Pull request number
-        """
-        labels = await get_labels(
-            github_access_token=self.github_access_token,
-            repo_url=repo_url,
-            pr_number=pr_number,
-        )
-        if FREEZE_RELEASE in labels:
-            return None
-
-        labels = [label for label in labels if label in RELEASE_LABELS]
-        if len(labels) > 1:
-            raise Exception(f"Multiple release labels found for {repo_url}: {labels}")
-        if len(labels) == 0:
-            # A library release, or maybe a release made before these changes were made
-            return None
-        return labels[0]
-
-    async def _set_release_label(self, *, repo_url, pr_number, label):
-        """Helper function to set a release PR label (and make mocking easier)"""
-        await set_release_label(
-            github_access_token=self.github_access_token,
-            repo_url=repo_url,
-            pr_number=pr_number,
-            label=label,
-        )
-
     async def run_release_lifecycle(self, *, repo_info, manager, release_pr):
         """
         Look up the release step from the label, then continue release from that step
@@ -350,8 +318,8 @@ class Bot:
             manager (str): Release manager
             release_pr (ReleasePR): Release pull request
         """
-        label = await self._get_release_label(
-            repo_url=repo_info.repo_url, pr_number=release_pr.number
+        status = await status_for_repo_last_pr(
+            repo_info=repo_info, github_access_token=self.github_access_token
         )
 
         # In general these functions should put things in this order:
@@ -362,22 +330,22 @@ class Bot:
         #  - call this function again to decide on the next step
         # The intention is that if a function terminates unexpectedly it
         # can start over with as little repeated speech/actions as possible.
-        if label == DEPLOYING_TO_RC:
+        if status == DEPLOYING_TO_RC:
             await self._wait_for_deploy_rc(
                 repo_info=repo_info, manager=manager, release_pr=release_pr
             )
-        elif label == WAITING_FOR_CHECKBOXES:
+        elif status == WAITING_FOR_CHECKBOXES:
             await self.wait_for_checkboxes(
                 repo_info=repo_info, manager=manager, release_pr=release_pr
             )
-        elif label == ALL_CHECKBOXES_CHECKED:
+        elif status == ALL_CHECKBOXES_CHECKED:
             # Done, waiting for the release to finish
             return
-        elif label == DEPLOYING_TO_PROD:
+        elif status == DEPLOYING_TO_PROD:
             await self._wait_for_deploy_prod(
                 repo_info=repo_info, manager=manager, release_pr=release_pr
             )
-        elif label == DEPLOYED_TO_PROD:
+        elif status == DEPLOYED_TO_PROD:
             # all done
             return
 
@@ -465,7 +433,8 @@ class Bot:
         release_pr = await get_release_pr(
             github_access_token=self.github_access_token, org=org, repo=repo
         )
-        await self._set_release_label(
+        await set_release_label(
+            github_access_token=self.github_access_token,
             repo_url=repo_info.repo_url,
             pr_number=release_pr.number,
             label=DEPLOYING_TO_RC,
@@ -488,7 +457,8 @@ class Bot:
         )
         rc_server = remove_path_from_url(repo_info.rc_hash_url)
 
-        await self._set_release_label(
+        await set_release_label(
+            github_access_token=self.github_access_token,
             repo_url=repo_url,
             pr_number=release_pr.number,
             label=WAITING_FOR_CHECKBOXES,
@@ -524,7 +494,8 @@ class Bot:
             hash_url=repo_info.prod_hash_url,
             watch_branch="release",
         )
-        await self._set_release_label(
+        await set_release_label(
+            github_access_token=self.github_access_token,
             repo_url=repo_url,
             pr_number=release_pr.number,
             label=DEPLOYED_TO_PROD,
@@ -643,7 +614,8 @@ class Bot:
             org=org,
             repo=repo,
         )
-        await self._set_release_label(
+        await set_release_label(
+            github_access_token=self.github_access_token,
             repo_url=command_args.repo_info.repo_url,
             pr_number=release_pr.number,
             label=WAITING_FOR_CHECKBOXES,
@@ -724,7 +696,8 @@ class Bot:
                 )
             prev_unchecked_authors = new_unchecked_authors
 
-        await self._set_release_label(
+        await set_release_label(
+            github_access_token=self.github_access_token,
             repo_url=repo_url,
             pr_number=release_pr.number,
             label=ALL_CHECKBOXES_CHECKED,
@@ -834,7 +807,8 @@ class Bot:
                     project=repo_info.name,
                 ),
             )
-            await self._set_release_label(
+            await set_release_label(
+                github_access_token=self.github_access_token,
                 repo_url=repo_url,
                 pr_number=pr.number,
                 label=DEPLOYING_TO_PROD,
@@ -1050,6 +1024,44 @@ class Bot:
                 channel_id=command_args.channel_id, text="No new releases needed"
             )
 
+    async def status(self, command_args):
+        """Show the status of all repos"""
+        await self.say(
+            channel_id=command_args.channel_id, text="Calculating release statuses..."
+        )
+
+        sorted_repos_info = sorted(
+            self.repos_info, key=lambda _repo_info: _repo_info.name
+        )
+
+        no_news = []
+        text = ""
+        for repo_info in sorted_repos_info:
+            status = await status_for_repo_last_pr(
+                github_access_token=self.github_access_token,
+                repo_info=repo_info,
+            )
+            has_new_commits = await status_for_repo_new_commits(
+                github_access_token=self.github_access_token,
+                repo_info=repo_info,
+            )
+            status_string = format_status_for_repo(
+                current_status=status, has_new_commits=has_new_commits
+            )
+            if status_string:
+                text += f"*{repo_info.name}*: {status_string}\n"
+            else:
+                no_news.append(repo_info.name)
+
+        if no_news:
+            text += f"Nothing new for {', '.join(no_news)}"
+
+        await self.say_with_attachment(
+            channel_id=command_args.channel_id,
+            title="Release statuses:",
+            text=text,
+        )
+
     async def needs_review(self, command_args):
         """
         Print out what PRs need review
@@ -1211,6 +1223,13 @@ class Bot:
                 command_func=self.publish,
                 description="Publish a package to PyPI or NPM",
                 supported_project_types=[LIBRARY_TYPE],
+            ),
+            Command(
+                command="status",
+                parsers=[],
+                command_func=self.status,
+                description="Show the status of repos managed by doof",
+                supported_project_types=None,
             ),
             Command(
                 command="hi",

@@ -17,6 +17,7 @@ OTHER_PR = {
     "body": "not a release",
     "title": "not a release",
     "head": {"ref": "other-branch"},
+    "state": "open",
     "number": 345,
 }
 RELEASE_PR = {
@@ -26,4 +27,5 @@ RELEASE_PR = {
     "title": "Release 0.53.3",
     "head": {"ref": "release-candidate"},
     "number": 234,
+    "state": "open",
 }

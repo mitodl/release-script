@@ -150,7 +150,9 @@ async def test_set_release_date(test_repo_directory, timezone, mocker):
         root=test_repo_directory,
     )
     await set_release_date("0.2.0", timezone, root=test_repo_directory)
-    with open(os.path.join(test_repo_directory, "RELEASE.rst"), "r") as release_file:
+    with open(
+        os.path.join(test_repo_directory, "RELEASE.rst"), "r", encoding="utf-8"
+    ) as release_file:
         content = release_file.read()
     assert re.search(r"Version 0.1.0 \(Released April 27, 2018\)", content) is not None
     today = datetime.now().strftime("%B %d, %Y")
