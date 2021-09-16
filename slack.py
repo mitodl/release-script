@@ -48,10 +48,13 @@ async def get_channels_info(slack_access_token):
     async for channel in iterate_cursor(
         client.post,
         "channels",
+        # see https://api.slack.com/methods/conversations.list
         "https://slack.com/api/conversations.list",
         data={
             "token": slack_access_token,
             "types": "public_channel,private_channel",
+            "limit": 200,  # increase from default of 100
+            "exclude_archived": "true",
         },
     ):
         channels[channel["name"]] = channel["id"]

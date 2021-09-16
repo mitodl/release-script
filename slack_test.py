@@ -42,6 +42,8 @@ async def test_get_channels_info(mocker):
         data={
             "token": token,
             "types": "public_channel,private_channel",
+            "limit": 200,
+            "exclude_archived": "true",
         },
     )
     post_patch.assert_any_call(
@@ -50,7 +52,9 @@ async def test_get_channels_info(mocker):
         data={
             "token": token,
             "types": "public_channel,private_channel",
+            "limit": 200,
             "cursor": next_cursor,
+            "exclude_archived": "true",
         },
     )
 
