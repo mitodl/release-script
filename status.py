@@ -1,7 +1,6 @@
 """Get release status of a repository"""
 from constants import (
     BLOCKER_LABELS,
-    BLOCKER,
     DEPLOYED_TO_PROD,
     LIBRARY_TYPE,
     LIBRARY_PR_WAITING_FOR_MERGE,

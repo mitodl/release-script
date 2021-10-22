@@ -129,7 +129,7 @@ def sleep_sync_mock(mocker):
 
 
 @pytest.fixture
-def doof(mocker, event_loop, sleep_sync_mock):
+def doof(event_loop, sleep_sync_mock):  # pylint: disable=unused-argument
     """Create a Doof"""
     yield DoofSpoof(loop=event_loop)
 
@@ -1113,7 +1113,7 @@ async def test_wait_for_checkboxes_no_pr(
 ):  # pylint: disable=unused-argument
     """wait_for_checkboxes should exit without error if the PR doesn't exist"""
     org, repo = get_org_and_repo(test_repo.repo_url)
-    mock_set, mock_get = mock_labels
+    mock_set, mock_get = mock_labels  # pylint: disable=unused-variable
     mock_set(label=WAITING_FOR_CHECKBOXES)
 
     pr = ReleasePR(

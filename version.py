@@ -159,10 +159,7 @@ def update_python_version(*, new_version, working_dir, readonly):
                         old_version = version
                     else:
                         raise UpdateVersionException(
-                            "Found at least two files with updatable versions: {} and {}".format(
-                                found_version_filename,
-                                version_filename,
-                            )
+                            f"Found at least two files with updatable versions: {found_version_filename} and {version_filename}"
                         )
 
     if not found_version_filename:
