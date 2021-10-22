@@ -23,6 +23,7 @@ from constants import (
     RC,
     SETUPTOOLS,
     NPM,
+    WAITING_FOR_CHECKBOXES,
 )
 from exception import ReleaseException
 from github import get_org_and_repo
@@ -122,7 +123,13 @@ class DoofSpoof(Bot):
 
 
 @pytest.fixture
-def doof(event_loop):
+def sleep_sync_mock(mocker):
+    """Mock asyncio.sleep so we don't spend time waiting during the release lifecycle"""
+    yield mocker.async_patch("asyncio.sleep")
+
+
+@pytest.fixture
+def doof(mocker, event_loop, sleep_sync_mock):
     """Create a Doof"""
     yield DoofSpoof(loop=event_loop)
 
@@ -1020,7 +1027,7 @@ async def test_help(doof):
 
 @pytest.mark.parametrize("has_checkboxes", [True, False])
 async def test_wait_for_checkboxes(
-    mocker, doof, test_repo, has_checkboxes, mock_labels
+    mocker, doof, sleep_sync_mock, test_repo, has_checkboxes, mock_labels
 ):  # pylint: disable=unused-argument
     """wait_for_checkboxes should poll github, parse checkboxes and see if all are checked"""
     org, repo = get_org_and_repo(test_repo.repo_url)
@@ -1052,8 +1059,6 @@ async def test_wait_for_checkboxes(
             ("Author 3", "author3"),
         ]
     ]
-
-    sleep_sync_mock = mocker.async_patch("asyncio.sleep")
 
     me = "mitodl_user"
     await doof.wait_for_checkboxes(manager=me, repo_info=test_repo, release_pr=pr)
@@ -1101,6 +1106,33 @@ async def test_wait_for_checkboxes(
         assert doof.said(
             "Thanks for checking off your boxes <@author2>!", channel_id=channel_id
         )
+
+
+async def test_wait_for_checkboxes_no_pr(
+    mocker, doof, test_repo, mock_labels, sleep_sync_mock
+):  # pylint: disable=unused-argument
+    """wait_for_checkboxes should exit without error if the PR doesn't exist"""
+    org, repo = get_org_and_repo(test_repo.repo_url)
+    mock_set, mock_get = mock_labels
+    mock_set(label=WAITING_FOR_CHECKBOXES)
+
+    pr = ReleasePR(
+        "version",
+        f"https://github.com/{org}/{repo}/pulls/123456",
+        "body",
+        123456,
+        False,
+    )
+    mocker.async_patch("bot.get_release_pr", side_effect=ReleaseException())
+    mocker.async_patch("lib.get_release_pr", side_effect=ReleaseException())
+
+    me = "mitodl_user"
+    await doof.run_release_lifecycle(
+        manager=me,
+        repo_info=test_repo,
+        release_pr=pr,
+    )
+    sleep_sync_mock.assert_called_once_with(10)
 
 
 # pylint: disable=too-many-arguments

@@ -1,6 +1,7 @@
 """Get release status of a repository"""
 from constants import (
     BLOCKER_LABELS,
+    BLOCKER,
     DEPLOYED_TO_PROD,
     LIBRARY_TYPE,
     LIBRARY_PR_WAITING_FOR_MERGE,
@@ -64,13 +65,16 @@ async def status_for_repo_last_pr(*, github_access_token, repo_info):
                     pr_number=release_pr.number,
                 )
             }
+            for label in BLOCKER_LABELS:
+                if label.lower() in labels:
+                    return label.lower() if release_pr.open else None
+
             if not release_pr.open and WAITING_FOR_CHECKBOXES.lower() in labels:
                 # If a PR is closed and the label is 'waiting for checkboxes', just ignore it
                 # Maybe a user closed the PR, or the label was incorrectly updated
                 return None
 
-            # BLOCKER_LABELS must go first so it overrides other labels
-            for label in [*BLOCKER_LABELS, *RELEASE_LABELS]:
+            for label in RELEASE_LABELS:
                 if label.lower() in labels:
                     return label.lower()
 
