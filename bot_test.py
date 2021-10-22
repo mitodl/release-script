@@ -125,7 +125,7 @@ class DoofSpoof(Bot):
 @pytest.fixture
 def sleep_sync_mock(mocker):
     """Mock asyncio.sleep so we don't spend time waiting during the release lifecycle"""
-    yield mocker.async_patch("asyncio.sleep")
+    yield mocker.async_patch("bot.async_sleep")
 
 
 @pytest.fixture

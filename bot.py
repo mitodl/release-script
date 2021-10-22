@@ -2,6 +2,7 @@
 # pylint: disable=too-many-lines
 """Slack bot for managing releases"""
 import asyncio
+from asyncio import sleep as async_sleep  # importing separately for simpler mocking
 from collections import namedtuple
 import os
 import logging
@@ -354,7 +355,7 @@ class Bot:
             pass
 
         # Give github some time to update label state
-        await asyncio.sleep(10)
+        await async_sleep(10)
 
     async def _library_release(self, *, repo_info, version):
         """Do a library release"""
@@ -682,7 +683,7 @@ class Bot:
         )
 
         while prev_unchecked_authors:
-            await asyncio.sleep(60)
+            await async_sleep(60)
 
             new_unchecked_authors = await get_unchecked_authors(
                 github_access_token=self.github_access_token,
