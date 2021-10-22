@@ -110,7 +110,7 @@ def get_envs():
     missing_env_keys = [k for k, v in env_dict.items() if v is None]
     if missing_env_keys:
         raise Exception(
-            "Missing required env variable(s): {}".format(", ".join(missing_env_keys))
+            f"Missing required env variable(s): {', '.join(missing_env_keys)}"
         )
     return env_dict
 
@@ -537,9 +537,7 @@ class Bot:
             )
         else:
             raise Exception(
-                "Configuration error: unknown project type {}".format(
-                    repo_info.project_type
-                )
+                f"Configuration error: unknown project type {repo_info.project_type}"
             )
 
     async def release_command(self, command_args):
@@ -559,9 +557,7 @@ class Bot:
             repo=repo,
         )
         if pr:
-            raise ReleaseException(
-                "A release is already in progress: {}".format(pr.url)
-            )
+            raise ReleaseException(f"A release is already in progress: {pr.url}")
 
         await self._new_release(
             repo_info=repo_info, version=version, manager=command_args.manager
@@ -716,10 +712,7 @@ class Bot:
         )
         await self.say(
             channel_id=channel_id,
-            text="All checkboxes checked off. Release {version} is ready for the Merginator{name}!".format(
-                name=" " + format_user_id(manager) if manager else "",
-                version=pr.version,
-            ),
+            text=f"All checkboxes checked off. Release {pr.version} is ready for the Merginator{' ' + format_user_id(manager) if manager else ''}!",
             attachments=[
                 {
                     "fallback": "Finish the release",
@@ -793,9 +786,7 @@ class Bot:
         )
         if not pr:
             raise ReleaseException(
-                "No release currently in progress for {project}".format(
-                    project=repo_info.name
-                )
+                f"No release currently in progress for {repo_info.name}"
             )
         version = pr.version
 
@@ -809,10 +800,7 @@ class Bot:
         if repo_info.project_type == WEB_APPLICATION_TYPE:
             await self.say(
                 channel_id=channel_id,
-                text="Merged evil scheme {version} for {project}! Now deploying to production...".format(
-                    version=version,
-                    project=repo_info.name,
-                ),
+                text=f"Merged evil scheme {version} for {repo_info.name}! Now deploying to production...",
             )
             await set_release_label(
                 github_access_token=self.github_access_token,
@@ -826,10 +814,7 @@ class Bot:
         elif repo_info.project_type == LIBRARY_TYPE:
             await self.say(
                 channel_id=channel_id,
-                text="Merged evil scheme {version} for {project}!".format(
-                    version=version,
-                    project=repo_info.name,
-                ),
+                text=f"Merged evil scheme {version} for {repo_info.name}!",
             )
 
     async def report_version(self, command_args):
@@ -852,9 +837,7 @@ class Bot:
         )
         await self.say(
             channel_id=channel_id,
-            text="Wait a minute! My evil scheme is at version {version}!".format(
-                version=version[1:]
-            ),
+            text=f"Wait a minute! My evil scheme is at version {version[1:]}!",
         )
 
     async def report_hash(self, command_args):
@@ -917,7 +900,7 @@ class Bot:
 
         await self.say_with_attachment(
             channel_id=repo_info.channel_id,
-            title="Release notes since {}".format(last_version),
+            title=f"Release notes since {last_version}",
             text=release_notes,
         )
 
@@ -1082,11 +1065,7 @@ class Bot:
             channel_id=channel_id,
             title=title,
             text="\n".join(
-                "*{repo}*: {title}\n{url}".format(
-                    repo=repo,
-                    title=title,
-                    url=url,
-                )
+                f"*{repo}*: {title}\n{url}"
                 for repo, title, url in await needs_review(self.github_access_token)
             ),
         )
@@ -1128,14 +1107,7 @@ class Bot:
         """
         channel_id = command_args.channel_id
         text = "\n".join(
-            "*{command}*{join}{parsers}: {description}".format(
-                command=command.command,
-                parsers=" ".join(
-                    "*<{}>*".format(parser.description) for parser in command.parsers
-                ),
-                join=" " if command.parsers else "",
-                description=command.description,
-            )
+            f"*{command.command}*{' ' if command.parsers else ''}{' '.join(f'*<{parser.description}>*' for parser in command.parsers)}: {command.description}"
             for command in sorted(self.make_commands())
         )
         title = (
@@ -1304,10 +1276,7 @@ class Bot:
                 if len(args) != len(command.parsers):
                     await self.say(
                         channel_id=channel_id,
-                        text="Careful, careful. I expected {expected_num} words but you said {actual_num}.".format(
-                            expected_num=len(command.parsers),
-                            actual_num=len(args),
-                        ),
+                        text=f"Careful, careful. I expected {len(command.parsers)} words but you said {len(args)}.",
                     )
                     return
 
@@ -1319,10 +1288,8 @@ class Bot:
                         await self.say(
                             channel_id=channel_id,
                             text=(
-                                "Oh dear! You said `{word}` but I'm having trouble"
-                                " figuring out what that means.".format(
-                                    word=arg,
-                                )
+                                f"Oh dear! You said `{arg}` but I'm having trouble"
+                                " figuring out what that means."
                             ),
                         )
                         return
@@ -1380,7 +1347,7 @@ class Bot:
             )
         except (InputException, ReleaseException) as ex:
             log.exception("A BotException was raised:")
-            await self.say(channel_id=channel_id, text="Oops! {}".format(ex))
+            await self.say(channel_id=channel_id, text=f"Oops! {ex}")
         except:  # pylint: disable=bare-except
             log.exception("Exception found when handling a message")
             await self.say(
@@ -1499,7 +1466,7 @@ class Bot:
         all_words = content.strip().split()
         if len(all_words) > 0:
             message_handle, *words = all_words
-            if message_handle in ("<@{}>".format(self.doof_id), "@doof"):
+            if message_handle in (f"<@{self.doof_id}>", "@doof"):
                 await self.handle_message(
                     manager=message["user"],
                     channel_id=channel_id,

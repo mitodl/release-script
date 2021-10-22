@@ -64,7 +64,7 @@ async def test_update_python_version_settings(test_repo, test_repo_directory, re
     found_new_version = False
     with open(path, "r", encoding="utf-8") as f:
         for line in f.readlines():
-            if line == 'VERSION = "{}"\n'.format(new_version):
+            if line == f'VERSION = "{new_version}"\n':
                 found_new_version = True
                 break
     assert found_new_version is not readonly
@@ -79,7 +79,7 @@ async def test_update_python_version_init(test_repo_directory, test_repo, readon
     with open(
         test_repo_directory / "ccxcon" / "__init__.py", "w", encoding="utf-8"
     ) as f:
-        f.write("__version__ = '{}'".format(old_version))
+        f.write(f"__version__ = '{old_version}'")
     new_version = "4.5.6"
     assert (
         await update_version(
@@ -136,7 +136,7 @@ setup(
         os.path.join(test_repo_directory, "setup.py"), "r", encoding="utf-8"
     ) as f:
         for line in f.readlines():
-            if line.strip() == "version='{}',".format(new_version):
+            if line.strip() == f"version='{new_version}',":
                 found_new_version = True
                 break
     assert found_new_version is not readonly

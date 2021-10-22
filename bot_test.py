@@ -194,7 +194,7 @@ async def test_release_notes(doof, test_repo, test_repo_directory, mocker):
         github_access_token=GITHUB_ACCESS, org=org, repo=repo
     )
 
-    assert doof.said("Release notes since {}".format(old_version))
+    assert doof.said(f"Release notes since {old_version}")
     assert doof.said(notes)
     assert doof.said(
         f"And also! There is a release already in progress: {release_pr.url}"
@@ -241,7 +241,7 @@ async def test_release_notes_no_new_notes(doof, test_repo, test_repo_directory, 
         github_access_token=GITHUB_ACCESS, org=org, repo=repo
     )
 
-    assert doof.said("Release notes since {}".format(old_version))
+    assert doof.said(f"Release notes since {old_version}")
     assert not doof.said("Start a new release?")
 
 
@@ -285,7 +285,7 @@ async def test_release_notes_buttons(doof, test_repo, test_repo_directory, mocke
         github_access_token=GITHUB_ACCESS, org=org, repo=repo
     )
 
-    assert doof.said("Release notes since {}".format(old_version))
+    assert doof.said(f"Release notes since {old_version}")
     assert doof.said(notes)
     minor_version, patch_version = next_versions(old_version)
     assert doof.said(
@@ -331,14 +331,14 @@ async def test_version(doof, test_repo, mocker):
         "bot.fetch_release_hash", return_value=a_hash
     )
     get_version_tag_mock = mocker.async_patch(
-        "bot.get_version_tag", return_value="v{}".format(version)
+        "bot.get_version_tag", return_value=f"v{version}"
     )
     await doof.run_command(
         manager="mitodl_user",
         channel_id=test_repo.channel_id,
         words=["version"],
     )
-    assert doof.said("Wait a minute! My evil scheme is at version {}!".format(version))
+    assert doof.said(f"Wait a minute! My evil scheme is at version {version}!")
 
     fetch_release_hash_mock.assert_called_once_with(test_repo.prod_hash_url)
     get_version_tag_mock.assert_called_once_with(
@@ -540,7 +540,7 @@ async def test_release_in_progress(doof, test_repo, mocker, command):
             channel_id=test_repo.channel_id,
             words=command_words,
         )
-    assert ex.value.args[0] == "A release is already in progress: {}".format(url)
+    assert ex.value.args[0] == f"A release is already in progress: {url}"
 
 
 @pytest.mark.parametrize("command", ["release", "start release"])
@@ -1069,10 +1069,7 @@ async def test_wait_for_checkboxes(
     )
     if has_checkboxes:
         assert doof.said(
-            "All checkboxes checked off. Release {version} is ready for the Merginator {name}".format(
-                version=pr.version,
-                name=format_user_id(me),
-            ),
+            f"All checkboxes checked off. Release {pr.version} is ready for the Merginator {format_user_id(me)}",
             attachments=[
                 {
                     "actions": [
@@ -1206,7 +1203,7 @@ async def test_wait_for_deploy_prod(
     wait_for_deploy_mock = mocker.async_patch("bot.wait_for_deploy")
     version = "1.2.345"
     get_version_tag_mock = mocker.async_patch(
-        "bot.get_version_tag", return_value="v{}".format(version)
+        "bot.get_version_tag", return_value=f"v{version}"
     )
     channel_id = test_repo.channel_id
     release_pr = ReleasePR(

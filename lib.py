@@ -152,7 +152,7 @@ def reformatted_full_name(full_name):
     """
     pieces = full_name.lower().split()
     if len(pieces) >= 2:
-        return "{} {}".format(pieces[0], pieces[-1])
+        return f"{pieces[0]} {pieces[-1]}"
     elif len(pieces) == 1:
         return pieces[0]
     return ""
@@ -168,7 +168,7 @@ def format_user_id(user_id):
     Returns:
         str: A user id in a Slack tag
     """
-    return "<@{id}>".format(id=user_id)
+    return f"<@{user_id}>"
 
 
 def match_user(slack_users, author_name, threshold=0.8):
@@ -237,11 +237,7 @@ def url_with_access_token(github_access_token, repo_url):
         str: The URL formatted with an access token
     """
     org, repo = get_org_and_repo(repo_url)
-    return "https://{token}@github.com/{org}/{repo}.git".format(
-        token=github_access_token,
-        org=org,
-        repo=repo,
-    )
+    return f"https://{github_access_token}@github.com/{org}/{repo}.git"
 
 
 def parse_date(date_string):
@@ -295,7 +291,7 @@ async def virtualenv(python_interpreter, env):
 
         # Figure out what environment variables we need to set
         output_bytes = await check_output(
-            ". {}; env".format(os.path.join(virtualenv_dir, "bin", "activate")),
+            f". {os.path.join(virtualenv_dir, 'bin', 'activate')}; env",
             shell=True,
             cwd=virtualenv_dir,
         )

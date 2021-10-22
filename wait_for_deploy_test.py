@@ -21,7 +21,7 @@ async def test_wait_for_deploy(mocker, test_repo_directory):
     check_output_patch = mocker.async_patch(
         "wait_for_deploy.check_output",
     )
-    check_output_patch.return_value = " {} ".format(matched_hash).encode()
+    check_output_patch.return_value = f" {matched_hash} ".encode()
 
     init_working_dir_mock = mocker.patch(
         "wait_for_deploy.init_working_dir",
@@ -41,7 +41,7 @@ async def test_wait_for_deploy(mocker, test_repo_directory):
     )
 
     check_output_patch.assert_called_once_with(
-        ["git", "rev-parse", "origin/{}".format(watch_branch)], cwd=test_repo_directory
+        ["git", "rev-parse", f"origin/{watch_branch}"], cwd=test_repo_directory
     )
     fetch_release_patch.assert_any_call(hash_url)
     assert fetch_release_patch.call_count == 3

@@ -61,7 +61,7 @@ async def test_validate_dependencies_failure(mocker, dependency):
 @pytest.mark.parametrize("major", [3, 4, 5, 6, 7, 8])
 async def test_validate_node_version(mocker, major):
     """validate_dependencies should check that the major node.js version is new enough"""
-    node_version = "v{}.2.1".format(major).encode()
+    node_version = f"v{major}.2.1".encode()
 
     dependency_exists_stub = mocker.async_patch("release.dependency_exists")
     dependency_exists_stub.return_value = True
@@ -122,7 +122,7 @@ async def test_init_working_dir_real():
 
 def make_empty_commit(user, message, *, cwd):
     """Helper function to create an empty commit as a particular user"""
-    check_call(["git", "config", "user.email", "{}@example.com".format(user)], cwd=cwd)
+    check_call(["git", "config", "user.email", f"{user}@example.com"], cwd=cwd)
     check_call(["git", "config", "user.name", user], cwd=cwd)
     check_call(["git", "commit", "--allow-empty", "-m", message], cwd=cwd)
 
@@ -357,7 +357,7 @@ async def test_generate_release_pr(mocker):
     create_pr_mock.assert_called_once_with(
         github_access_token=access_token,
         repo_url=repo_url,
-        title="Release {}".format(new_version),
+        title=f"Release {new_version}",
         body=body,
         head="release-candidate",
         base="release",
