@@ -78,7 +78,7 @@ def parse_checkmarks(body):
 
 async def get_release_pr(*, github_access_token, org, repo, all_prs=False):
     """
-    Look up the pull request information for a release, or return None if it doesn't exist
+    Look up the pull request information for the most recently created release, or return None if it doesn't exist
 
     Args:
         github_access_token (str): The github access token

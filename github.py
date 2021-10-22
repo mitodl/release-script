@@ -128,7 +128,7 @@ async def create_pr(
 
 async def get_pull_request(*, github_access_token, org, repo, branch, all_prs):
     """
-    Look up the pull request for a branch
+    Look up the most recently created pull request for a branch
 
     Args:
         github_access_token (str): The github access token

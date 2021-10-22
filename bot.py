@@ -335,19 +335,26 @@ class Bot:
                 repo_info=repo_info, manager=manager, release_pr=release_pr
             )
         elif status == WAITING_FOR_CHECKBOXES:
-            await self.wait_for_checkboxes(
-                repo_info=repo_info, manager=manager, release_pr=release_pr
-            )
+            try:
+                await self.wait_for_checkboxes(
+                    repo_info=repo_info, manager=manager, release_pr=release_pr
+                )
+            except ReleaseException:
+                # PR was probably closed
+                pass
         elif status == ALL_CHECKBOXES_CHECKED:
             # Done, waiting for the release to finish
-            return
+            pass
         elif status == DEPLOYING_TO_PROD:
             await self._wait_for_deploy_prod(
                 repo_info=repo_info, manager=manager, release_pr=release_pr
             )
         elif status == DEPLOYED_TO_PROD:
             # all done
-            return
+            pass
+
+        # Give github some time to update label state
+        await asyncio.sleep(10)
 
     async def _library_release(self, *, repo_info, version):
         """Do a library release"""
