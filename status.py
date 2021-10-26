@@ -8,13 +8,9 @@ from constants import (
     STATUS_EMOJIS,
     WAITING_FOR_CHECKBOXES,
 )
-from github import (
-    get_labels,
-    get_org_and_repo,
-)
+from github import get_labels
 from lib import (
     get_default_branch,
-    get_release_pr,
     init_working_dir,
 )
 from release import any_new_commits
