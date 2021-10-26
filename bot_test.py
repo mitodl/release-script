@@ -1475,6 +1475,10 @@ async def test_status(doof, mocker, test_repo, library_test_repo):
     """The status command should list statuses for each repo"""
     status_last_pr_mock = mocker.async_patch("bot.status_for_repo_last_pr")
     status_new_commits_mock = mocker.async_patch("bot.status_for_repo_new_commits")
+    release_pr = ReleasePR("1.2.3", "http://example.com", "body", 12, True)
+    get_release_pr_mock = mocker.async_patch(
+        "bot.get_release_pr", return_value=release_pr
+    )
     description_text = "description"
     format_status_mock = mocker.patch(
         "bot.format_status_for_repo", side_effect=[description_text, ""]
@@ -1490,12 +1494,18 @@ async def test_status(doof, mocker, test_repo, library_test_repo):
         status_last_pr_mock.assert_any_call(
             github_access_token=GITHUB_ACCESS,
             repo_info=repo_info,
+            release_pr=release_pr,
         )
         status_new_commits_mock.assert_any_call(
             github_access_token=GITHUB_ACCESS,
             repo_info=repo_info,
+            release_pr=release_pr,
         )
         format_status_mock.assert_any_call(
             current_status=status_last_pr_mock.return_value,
             has_new_commits=status_new_commits_mock.return_value,
+        )
+        org, repo = get_org_and_repo(repo_info.repo_url)
+        get_release_pr_mock.assert_any_call(
+            github_access_token=GITHUB_ACCESS, org=org, repo=repo, all_prs=True
         )

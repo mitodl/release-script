@@ -21,7 +21,7 @@ from release import any_new_commits
 from version import get_project_version
 
 
-async def status_for_repo_last_pr(*, github_access_token, repo_info):
+async def status_for_repo_last_pr(*, github_access_token, repo_info, release_pr):
     """
     Calculate release status for the most recent PR
 
@@ -40,17 +40,11 @@ async def status_for_repo_last_pr(*, github_access_token, repo_info):
     Args:
         github_access_token (str): The github access token
         repo_info (RepoInfo): Repository info
+        release_pr (ReleasePR): The info for the release PR
 
     Returns:
         str or None: A status string
     """
-    org, repo = get_org_and_repo(repo_info.repo_url)
-    release_pr = await get_release_pr(
-        github_access_token=github_access_token,
-        org=org,
-        repo=repo,
-        all_prs=True,
-    )
     if release_pr:
         if repo_info.project_type == LIBRARY_TYPE:
             if release_pr.open:
@@ -80,13 +74,14 @@ async def status_for_repo_last_pr(*, github_access_token, repo_info):
     return None
 
 
-async def status_for_repo_new_commits(*, github_access_token, repo_info):
+async def status_for_repo_new_commits(*, github_access_token, repo_info, release_pr):
     """
     Check if there are new commits to be part of a release
 
     Args:
         github_access_token (str): The github access token
         repo_info (RepoInfo): Repository info
+        release_pr (ReleasePR): The info for the release PR
 
     Returns:
         bool:
@@ -98,7 +93,11 @@ async def status_for_repo_new_commits(*, github_access_token, repo_info):
         )
         default_branch = await get_default_branch(working_dir)
         return await any_new_commits(
-            last_version, base_branch=default_branch, root=working_dir
+            last_version,
+            base_branch="release-candidate"
+            if release_pr and release_pr.open
+            else default_branch,
+            root=working_dir,
         )
 
 

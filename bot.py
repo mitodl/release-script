@@ -320,7 +320,9 @@ class Bot:
             release_pr (ReleasePR): Release pull request
         """
         status = await status_for_repo_last_pr(
-            repo_info=repo_info, github_access_token=self.github_access_token
+            repo_info=repo_info,
+            github_access_token=self.github_access_token,
+            release_pr=release_pr,
         )
 
         # In general these functions should put things in this order:
@@ -1028,13 +1030,22 @@ class Bot:
         no_news = []
         text = ""
         for repo_info in sorted_repos_info:
+            org, repo = get_org_and_repo(repo_info.repo_url)
+            release_pr = await get_release_pr(
+                github_access_token=self.github_access_token,
+                org=org,
+                repo=repo,
+                all_prs=True,
+            )
             status = await status_for_repo_last_pr(
                 github_access_token=self.github_access_token,
                 repo_info=repo_info,
+                release_pr=release_pr,
             )
             has_new_commits = await status_for_repo_new_commits(
                 github_access_token=self.github_access_token,
                 repo_info=repo_info,
+                release_pr=release_pr,
             )
             status_string = format_status_for_repo(
                 current_status=status, has_new_commits=has_new_commits
