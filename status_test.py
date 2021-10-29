@@ -77,11 +77,13 @@ def test_format_status_for_repo(has_new_commits, status, expected):
         [False, False, False, [], None],
         [True, True, True, [], LIBRARY_PR_WAITING_FOR_MERGE],
         [True, True, False, [], None],
-        [True, False, False, [], None],
-        [True, False, False, [WAITING_FOR_CHECKBOXES, BLOCKED], BLOCKED],
-        [True, False, False, [BLOCKED, WAITING_FOR_CHECKBOXES], BLOCKED],
+        [True, False, True, [], None],
+        [True, False, False, [WAITING_FOR_CHECKBOXES], None],
+        [True, False, True, [WAITING_FOR_CHECKBOXES], WAITING_FOR_CHECKBOXES],
+        [True, False, True, [WAITING_FOR_CHECKBOXES, BLOCKED], BLOCKED],
+        [True, False, True, [BLOCKED, WAITING_FOR_CHECKBOXES], BLOCKED],
         *[
-            [True, False, False, [label], label]
+            [True, False, True, [label], label]
             for label in [*BLOCKER_LABELS, *RELEASE_LABELS]
         ],
     ],

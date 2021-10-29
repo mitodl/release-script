@@ -99,18 +99,18 @@ async def test_create_pr(mocker):
     patched = mocker.async_patch("client_wrapper.ClientWrapper.post")
     await create_pr(
         github_access_token=access_token,
-        repo_url="https://github.com/{}/{}.git".format(org, repo),
+        repo_url=f"https://github.com/{org}/{repo}.git",
         title=title,
         body=body,
         head=head,
         base=base,
     )
-    endpoint = "https://api.github.com/repos/{}/{}/pulls".format(org, repo)
+    endpoint = f"https://api.github.com/repos/{org}/{repo}/pulls"
     patched.assert_called_once_with(
         mocker.ANY,
         endpoint,
         headers={
-            "Authorization": "Bearer {}".format(access_token),
+            "Authorization": f"Bearer {access_token}",
             "Accept": "application/vnd.github.v3+json",
         },
         data=json.dumps(
@@ -128,7 +128,7 @@ async def test_github_auth_headers():
     """github_auth_headers should have appropriate headers for autentication"""
     github_access_token = "access"
     assert github_auth_headers(github_access_token) == {
-        "Authorization": "Bearer {}".format(github_access_token),
+        "Authorization": f"Bearer {github_access_token}",
         "Accept": "application/vnd.github.v3+json",
     }
 

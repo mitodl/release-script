@@ -63,7 +63,7 @@ async def run_query(*, github_access_token, query):
     resp = await client.post(
         endpoint,
         data=query,
-        headers={"Authorization": "Bearer {}".format(github_access_token)},
+        headers={"Authorization": f"Bearer {github_access_token}"},
     )
     resp.raise_for_status()
     return resp.json()
@@ -81,7 +81,7 @@ def github_auth_headers(github_access_token):
             Headers for authenticating a request
     """
     return {
-        "Authorization": "Bearer {}".format(github_access_token),
+        "Authorization": f"Bearer {github_access_token}",
         "Accept": "application/vnd.github.v3+json",
     }
 
@@ -105,10 +105,7 @@ async def create_pr(
     """
 
     org, repo = get_org_and_repo(repo_url)
-    endpoint = "https://api.github.com/repos/{org}/{repo}/pulls".format(
-        org=org,
-        repo=repo,
-    )
+    endpoint = f"https://api.github.com/repos/{org}/{repo}/pulls"
 
     client = ClientWrapper()
     resp = await client.post(
@@ -128,7 +125,7 @@ async def create_pr(
 
 async def get_pull_request(*, github_access_token, org, repo, branch, all_prs):
     """
-    Look up the pull request for a branch
+    Look up the most recently created pull request for a branch
 
     Args:
         github_access_token (str): The github access token

@@ -98,7 +98,7 @@ async def create_release_notes(old_version, with_checkboxes, *, base_branch, roo
         ],
         cwd=root,
     )
-    return "{}\n".format(output.decode().strip())
+    return f"{output.decode().strip()}\n"
 
 
 async def verify_new_commits(old_version, *, base_branch, root):
@@ -124,9 +124,9 @@ async def update_release_notes(old_version, new_version, *, base_branch, root):
         f.write("Release Notes\n")
         f.write("=============\n")
         f.write("\n")
-        version_line = "Version {}".format(new_version)
-        f.write("{}\n".format(version_line))
-        f.write("{}\n".format("-" * len(version_line)))
+        version_line = f"Version {new_version}"
+        f.write(f"{version_line}\n")
+        f.write(f"{'-' * len(version_line)}\n")
         f.write("\n")
         f.write(release_notes)
         f.write("\n")
@@ -174,7 +174,7 @@ async def generate_release_pr(
     await create_pr(
         github_access_token=github_access_token,
         repo_url=repo_url,
-        title="Release {version}".format(version=new_version),
+        title=f"Release {new_version}",
         body=await create_release_notes(
             old_version, with_checkboxes=True, base_branch=base_branch, root=root
         ),
@@ -220,10 +220,7 @@ async def release(
         )
         if parse_version(old_version) >= parse_version(new_version):
             raise ReleaseException(
-                "old version is {old} but the new version {new} is not newer".format(
-                    old=old_version,
-                    new=new_version,
-                )
+                f"old version is {old_version} but the new version {new_version} is not newer"
             )
         base_branch = "release-candidate" if commit_hash else default_branch
         await verify_new_commits(old_version, base_branch=base_branch, root=working_dir)

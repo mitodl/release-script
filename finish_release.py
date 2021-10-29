@@ -27,19 +27,16 @@ async def check_release_tag(version, *, root):
     await check_call(["git", "checkout", "release-candidate"], cwd=root)
     log_output = await check_output(["git", "log", "-1", "--pretty=%B"], cwd=root)
     commit_name = log_output.decode().strip()
-    if commit_name != "Release {}".format(version):
+    if commit_name != f"Release {version}":
         raise VersionMismatchException(
-            "Commit name {commit_name} does not match tag number {version}".format(
-                commit_name=commit_name,
-                version=version,
-            )
+            f"Commit name {commit_name} does not match tag number {version}"
         )
 
 
 async def tag_release(version, *, root):
     """Add git tag for release"""
     await check_call(
-        ["git", "tag", "-a", "-m", "Release {}".format(version), "v{}".format(version)],
+        ["git", "tag", "-a", "-m", f"Release {version}", f"v{version}"],
         cwd=root,
     )
     await check_call(["git", "push", "--follow-tags"], cwd=root)
@@ -72,7 +69,7 @@ async def set_release_date(version, timezone, *, root):
                                 "log",
                                 "-1",
                                 "--format=%ai",
-                                "v{}".format(version_line),
+                                f"v{version_line}",
                             ],
                             cwd=root,
                         )
@@ -84,7 +81,7 @@ async def set_release_date(version, timezone, *, root):
                             .astimezone(timezone)
                             .strftime(date_format)
                         )
-                    line = "Version {} (Released {})\n".format(version_line, localtime)
+                    line = f"Version {version_line} (Released {localtime})\n"
             f.write(line)
 
     await check_call(
@@ -94,7 +91,7 @@ async def set_release_date(version, timezone, *, root):
             "-q",
             release_filename,
             "-m",
-            "Release date for {}".format(version),
+            f"Release date for {version}",
         ],
         cwd=root,
     )

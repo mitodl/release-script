@@ -103,7 +103,7 @@ def update_python_version_in_file(*, root, filename, new_version, readonly):
                         line,
                     )
 
-            file_lines.append("{}\n".format(updated_line))
+            file_lines.append(f"{updated_line}\n")
 
     if update_count == 1:
         # Replace contents of file with updated version
@@ -114,10 +114,7 @@ def update_python_version_in_file(*, root, filename, new_version, readonly):
         return old_version
     elif update_count > 1:
         raise UpdateVersionException(
-            "Expected only one version for {file} but found {count}".format(
-                file=filename,
-                count=update_count,
-            )
+            f"Expected only one version for {filename} but found {update_count}"
         )
 
     # Unable to find old version for this file, but maybe there's another one
@@ -162,10 +159,7 @@ def update_python_version(*, new_version, working_dir, readonly):
                         old_version = version
                     else:
                         raise UpdateVersionException(
-                            "Found at least two files with updatable versions: {} and {}".format(
-                                found_version_filename,
-                                version_filename,
-                            )
+                            f"Found at least two files with updatable versions: {found_version_filename} and {version_filename}"
                         )
 
     if not found_version_filename:

@@ -79,7 +79,7 @@ async def test_tag_release(mocker, test_repo_directory):
     patched_check_call = mocker.async_patch("finish_release.check_call")
     await tag_release(version, root=test_repo_directory)
     patched_check_call.assert_any_call(
-        ["git", "tag", "-a", "-m", "Release {}".format(version), "v{}".format(version)],
+        ["git", "tag", "-a", "-m", f"Release {version}", f"v{version}"],
         cwd=test_repo_directory,
     )
     patched_check_call.assert_any_call(

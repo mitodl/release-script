@@ -22,7 +22,7 @@ class ConsoleBot(Bot):
         if attachments is not None:
             attachment_text = attachments[0].get("text", "")
         line = f"{' '.join(word for word in [text, attachment_text, message_type] if word)} "
-        print("\033[92m{}\033[0m".format(line))
+        print(f"\033[92m{line}\033[0m")
 
 
 async def async_main():
@@ -38,9 +38,7 @@ async def async_main():
     try:
         channel_id = channels_info[channel_name]
     except KeyError as ex:
-        raise Exception(
-            "Unable to find channel by name {}".format(channel_name)
-        ) from ex
+        raise Exception(f"Unable to find channel by name {channel_name}") from ex
 
     repos_info = load_repos_info(channels_info)
 
