@@ -34,6 +34,7 @@ from constants import (
 from exception import (
     InputException,
     ReleaseException,
+    StatusException,
 )
 from finish_release import finish_release
 from github import (
@@ -964,49 +965,56 @@ class Bot:
         )
         new_release_repos = []
         for repo_info in self.repos_info:
-            org, repo = get_org_and_repo(repo_info.repo_url)
-            release_pr = await get_release_pr(
-                github_access_token=self.github_access_token,
-                org=org,
-                repo=repo,
-            )
-            if release_pr:
-                # release already in progress, skip
-                continue
-
-            async with init_working_dir(
-                self.github_access_token, repo_info.repo_url
-            ) as working_dir:
-                last_version = await get_project_version(
-                    repo_info=repo_info, working_dir=working_dir
+            try:
+                org, repo = get_org_and_repo(repo_info.repo_url)
+                release_pr = await get_release_pr(
+                    github_access_token=self.github_access_token,
+                    org=org,
+                    repo=repo,
                 )
-                default_branch = await get_default_branch(working_dir)
-                has_new_commits = await any_new_commits(
-                    last_version, base_branch=default_branch, root=working_dir
-                )
-                if not has_new_commits:
-                    # Nothing to release
+                if release_pr:
+                    # release already in progress, skip
                     continue
-                release_notes = await create_release_notes(
-                    last_version,
-                    with_checkboxes=False,
-                    base_branch=default_branch,
-                    root=working_dir,
-                )
 
-            new_release_repos.append(repo_info.name)
-            minor, patch = next_versions(last_version)
-            version = minor if new_release_type == MINOR else patch
-            await self.say_with_attachment(
-                channel_id=repo_info.channel_id,
-                title=f"Starting release {version} with these commits",
-                text=release_notes,
-            )
-            self.loop.create_task(
-                self._new_release(
-                    repo_info=repo_info, version=version, manager=command_args.manager
+                async with init_working_dir(
+                    self.github_access_token, repo_info.repo_url
+                ) as working_dir:
+                    last_version = await get_project_version(
+                        repo_info=repo_info, working_dir=working_dir
+                    )
+                    default_branch = await get_default_branch(working_dir)
+                    has_new_commits = await any_new_commits(
+                        last_version, base_branch=default_branch, root=working_dir
+                    )
+                    if not has_new_commits:
+                        # Nothing to release
+                        continue
+                    release_notes = await create_release_notes(
+                        last_version,
+                        with_checkboxes=False,
+                        base_branch=default_branch,
+                        root=working_dir,
+                    )
+
+                new_release_repos.append(repo_info.name)
+                minor, patch = next_versions(last_version)
+                version = minor if new_release_type == MINOR else patch
+                await self.say_with_attachment(
+                    channel_id=repo_info.channel_id,
+                    title=f"Starting release {version} with these commits",
+                    text=release_notes,
                 )
-            )
+                self.loop.create_task(
+                    self._new_release(
+                        repo_info=repo_info,
+                        version=version,
+                        manager=command_args.manager,
+                    )
+                )
+            except Exception as ex:
+                raise ReleaseException(
+                    f"Error when identifying release status or starting release for {repo_info.name}"
+                ) from ex
         if new_release_repos:
             await self.say(
                 channel_id=command_args.channel_id,
@@ -1030,31 +1038,35 @@ class Bot:
         no_news = []
         text = ""
         for repo_info in sorted_repos_info:
-            org, repo = get_org_and_repo(repo_info.repo_url)
-            release_pr = await get_release_pr(
-                github_access_token=self.github_access_token,
-                org=org,
-                repo=repo,
-                all_prs=True,
-            )
-            status = await status_for_repo_last_pr(
-                github_access_token=self.github_access_token,
-                repo_info=repo_info,
-                release_pr=release_pr,
-            )
-            has_new_commits = await status_for_repo_new_commits(
-                github_access_token=self.github_access_token,
-                repo_info=repo_info,
-                release_pr=release_pr,
-            )
-            status_string = format_status_for_repo(
-                current_status=status, has_new_commits=has_new_commits
-            )
-            if status_string:
-                text += f"*{repo_info.name}*: {status_string}\n"
-            else:
-                no_news.append(repo_info.name)
-
+            try:
+                org, repo = get_org_and_repo(repo_info.repo_url)
+                release_pr = await get_release_pr(
+                    github_access_token=self.github_access_token,
+                    org=org,
+                    repo=repo,
+                    all_prs=True,
+                )
+                status = await status_for_repo_last_pr(
+                    github_access_token=self.github_access_token,
+                    repo_info=repo_info,
+                    release_pr=release_pr,
+                )
+                has_new_commits = await status_for_repo_new_commits(
+                    github_access_token=self.github_access_token,
+                    repo_info=repo_info,
+                    release_pr=release_pr,
+                )
+                status_string = format_status_for_repo(
+                    current_status=status, has_new_commits=has_new_commits
+                )
+                if status_string:
+                    text += f"*{repo_info.name}*: {status_string}\n"
+                else:
+                    no_news.append(repo_info.name)
+            except Exception as ex:
+                raise StatusException(
+                    f"Error calculating release status for {repo_info.name}"
+                ) from ex
         if no_news:
             text += f"Nothing new for {', '.join(no_news)}"
 

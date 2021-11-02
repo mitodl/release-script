@@ -63,8 +63,25 @@ async def any_new_commits(version, *, base_branch, root):
     Returns:
         bool: True if there are new commits
     """
+    return await any_commits_between_branches(
+        branch1=f"v{version}", branch2=base_branch, root=root
+    )
+
+
+async def any_commits_between_branches(*, branch1, branch2, root):
+    """
+    Return true if there are any commits between two branches
+
+    Args:
+        branch1 (str): The first branch to compare against
+        branch2 (str): The second, more recent branch to compare against
+        root (str): The project root directory
+
+    Returns:
+        bool: True if there are new commits
+    """
     output = await check_output(
-        ["git", "rev-list", "--count", f"v{version}..{base_branch}", "--"], cwd=root
+        ["git", "rev-list", "--count", f"{branch1}..{branch2}", "--"], cwd=root
     )
     return int(output) != 0
 

@@ -22,6 +22,10 @@ class VersionMismatchException(Exception):
     """Error if the version is unexpected"""
 
 
+class StatusException(Exception):
+    """Error if something happened when calculating the status"""
+
+
 class AsyncCalledProcessError(CalledProcessError):
     """Extend CalledProcessError to print the stdout as well"""
 

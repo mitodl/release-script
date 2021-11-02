@@ -141,8 +141,8 @@ async def test_status_for_repo_new_commits(  # pylint: disable=too-many-argument
     )
     get_project_version_mock = mocker.async_patch("status.get_project_version")
     get_default_branch_mock = mocker.async_patch("status.get_default_branch")
-    new_commits_mock = mocker.async_patch(
-        "status.any_new_commits", return_value=has_commits
+    any_commits_mock = mocker.async_patch(
+        "status.any_commits_between_branches", return_value=has_commits
     )
     assert (
         await status_for_repo_new_commits(
@@ -158,10 +158,10 @@ async def test_status_for_repo_new_commits(  # pylint: disable=too-many-argument
         repo_info=test_repo, working_dir=test_repo_directory
     )
     get_default_branch_mock.assert_called_once_with(test_repo_directory)
-    new_commits_mock.assert_called_once_with(
-        get_project_version_mock.return_value,
-        base_branch="release-candidate"
+    any_commits_mock.assert_called_once_with(
+        branch1="origin/release-candidate"
         if has_release_pr and is_open
-        else get_default_branch_mock.return_value,
+        else f"v{get_project_version_mock.return_value}",
+        branch2=get_default_branch_mock.return_value,
         root=test_repo_directory,
     )

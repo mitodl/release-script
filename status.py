@@ -13,7 +13,7 @@ from lib import (
     get_default_branch,
     init_working_dir,
 )
-from release import any_new_commits
+from release import any_commits_between_branches
 from version import get_project_version
 
 
@@ -88,11 +88,11 @@ async def status_for_repo_new_commits(*, github_access_token, repo_info, release
             repo_info=repo_info, working_dir=working_dir
         )
         default_branch = await get_default_branch(working_dir)
-        return await any_new_commits(
-            last_version,
-            base_branch="release-candidate"
+        return await any_commits_between_branches(
+            branch1="origin/release-candidate"
             if release_pr and release_pr.open
-            else default_branch,
+            else f"v{last_version}",
+            branch2=default_branch,
             root=working_dir,
         )
 
