@@ -16,7 +16,6 @@ from constants import (
     RELEASE_LABELS,
     WAITING_FOR_CHECKBOXES,
 )
-from github import get_org_and_repo
 from lib import ReleasePR
 from status import (
     status_for_repo_last_pr,
@@ -99,27 +98,21 @@ async def test_status_for_repo_last_pr(
     expected,
 ):  # pylint: disable=too-many-arguments
     """status_for_repo_last_pr should get the status for the most recent PR for a project"""
-    release_pr = ReleasePR("1.2.3", "http://example.com", "body", 12, is_open)
-    get_release_pr_mock = mocker.async_patch(
-        "status.get_release_pr", return_value=release_pr if has_release_pr else None
+    release_pr = (
+        ReleasePR("1.2.3", "http://example.com", "body", 12, is_open)
+        if has_release_pr
+        else None
     )
     get_labels_mock = mocker.async_patch("status.get_labels", return_value=labels)
 
     repo_info = library_test_repo if is_library_project else test_repo
-    org, repo = get_org_and_repo(repo_info.repo_url)
     assert (
         await status_for_repo_last_pr(
-            github_access_token=GITHUB_TOKEN, repo_info=repo_info
+            github_access_token=GITHUB_TOKEN, repo_info=repo_info, release_pr=release_pr
         )
         == expected
     )
 
-    get_release_pr_mock.assert_called_once_with(
-        github_access_token=GITHUB_TOKEN,
-        org=org,
-        repo=repo,
-        all_prs=True,
-    )
     if not is_library_project and has_release_pr:
         get_labels_mock.assert_called_once_with(
             github_access_token=GITHUB_TOKEN,
@@ -131,10 +124,17 @@ async def test_status_for_repo_last_pr(
 
 
 @pytest.mark.parametrize("has_commits", [True, False])
-async def test_status_for_repo_new_commits(
-    mocker, test_repo, test_repo_directory, has_commits
+@pytest.mark.parametrize("has_release_pr", [True, False])
+@pytest.mark.parametrize("is_open", [True, False])
+async def test_status_for_repo_new_commits(  # pylint: disable=too-many-arguments
+    mocker, test_repo, test_repo_directory, has_commits, has_release_pr, is_open
 ):
     """status_for_repo_new_commits should check if there are new commits"""
+    release_pr = (
+        ReleasePR("1.2.3", "http://example.com", "body", 12, is_open)
+        if has_release_pr
+        else None
+    )
     init_mock = mocker.patch(
         "status.init_working_dir",
         side_effect=async_context_manager_yielder(test_repo_directory),
@@ -148,6 +148,7 @@ async def test_status_for_repo_new_commits(
         await status_for_repo_new_commits(
             github_access_token=GITHUB_TOKEN,
             repo_info=test_repo,
+            release_pr=release_pr,
         )
         == has_commits
     )
@@ -159,6 +160,8 @@ async def test_status_for_repo_new_commits(
     get_default_branch_mock.assert_called_once_with(test_repo_directory)
     new_commits_mock.assert_called_once_with(
         get_project_version_mock.return_value,
-        base_branch=get_default_branch_mock.return_value,
+        base_branch="release-candidate"
+        if has_release_pr and is_open
+        else get_default_branch_mock.return_value,
         root=test_repo_directory,
     )
