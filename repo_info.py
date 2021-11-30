@@ -13,5 +13,6 @@ RepoInfo = namedtuple(
         "project_type",
         "web_application_type",
         "packaging_tool",
+        "versioning_strategy",
     ],
 )

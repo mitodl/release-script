@@ -8,7 +8,8 @@
       "prod_hash_url": "https://micromasters.mit.edu/static/hash.txt",
       "channel_name": "micromasters-eng",
       "project_type": "web_application",
-      "web_application_type": "django"
+      "web_application_type": "django",
+      "versioning_strategy": "python"
     },
     {
       "name": "bootcamp-ecommerce",
@@ -18,7 +19,8 @@
       "prod_hash_url": "https://bootcamp.odl.mit.edu/static/hash.txt",
       "channel_name": "bootcamp-eng",
       "project_type": "web_application",
-      "web_application_type": "django"
+      "web_application_type": "django",
+      "versioning_strategy": "python"
     },
     {
       "name": "open-discussions",
@@ -28,7 +30,8 @@
       "prod_hash_url": "https://discussions.odl.mit.edu/static/hash.txt",
       "channel_name": "mit-open-eng",
       "project_type": "web_application",
-      "web_application_type": "django"
+      "web_application_type": "django",
+      "versioning_strategy": "python"
     },
     {
       "name": "mitxpro",
@@ -38,7 +41,8 @@
       "prod_hash_url": "https://xpro.mit.edu/static/hash.txt",
       "channel_name": "mitxpro-eng",
       "project_type": "web_application",
-      "web_application_type": "django"
+      "web_application_type": "django",
+      "versioning_strategy": "python"
     },
     {
       "name": "odl-video-service",
@@ -48,70 +52,80 @@
       "prod_hash_url": "https://video.odl.mit.edu/static/hash.txt",
       "channel_name": "odl-video-service-eng",
       "project_type": "web_application",
-      "web_application_type": "django"
+      "web_application_type": "django",
+      "versioning_strategy": "python"
     },
     {
       "name": "edx-sga",
       "repo_url": "https://github.com/mitodl/edx-sga.git",
       "channel_name": "edx-sga-doof",
       "project_type": "library",
-      "packaging_tool": "setuptools"
+      "packaging_tool": "setuptools",
+      "versioning_strategy": "python"
     },
     {
       "name": "edx-sysadmin",
       "repo_url": "https://github.com/mitodl/edx-sysadmin.git",
       "channel_name": "edx-sysadmin",
       "project_type": "library",
-      "packaging_tool": "setuptools"
+      "packaging_tool": "setuptools",
+      "versioning_strategy": "python"
     },
     {
       "name": "rapid-response-xblock",
       "repo_url": "https://github.com/mitodl/rapid-response-xblock.git",
       "channel_name": "rapid-response-doof",
       "project_type": "library",
-      "packaging_tool": "setuptools"
+      "packaging_tool": "setuptools",
+      "versioning_strategy": "python"
     },
     {
       "name": "open-discussions-client",
       "repo_url": "https://github.com/mitodl/open-discussions-client.git",
       "channel_name": "discussions-client",
       "project_type": "library",
-      "packaging_tool": "setuptools"
+      "packaging_tool": "setuptools",
+      "versioning_strategy": "python"
     },
     {
       "name": "edx-api-client",
       "repo_url": "https://github.com/mitodl/edx-api-client.git",
       "channel_name": "edx-api-client-doof",
       "project_type": "library",
-      "packaging_tool": "setuptools"
+      "packaging_tool": "setuptools",
+      "versioning_strategy": "python"
     },
     {
       "name": "mit-moira",
       "repo_url": "https://github.com/mitodl/mit-moira.git",
       "channel_name": "mit-moira",
       "project_type": "library",
-      "packaging_tool": "setuptools"
+      "packaging_tool": "setuptools",
+      "versioning_strategy": "python"
     },
     {
       "name": "ocw-data-parser",
       "repo_url": "https://github.com/mitodl/ocw-data-parser.git",
       "channel_name": "ocw-data-parser",
       "project_type": "library",
-      "packaging_tool": "setuptools"
+      "packaging_tool": "setuptools",
+      "versioning_strategy": "python"
     },
     {
       "name": "django-server-status",
       "repo_url": "https://github.com/mitodl/django-server-status.git",
       "channel_name": "django-server-status",
       "project_type": "library",
-      "packaging_tool": "setuptools"
+      "packaging_tool": "setuptools",
+      "versioning_strategy": "python"
     },
     {
       "name": "ocw-to-hugo",
       "repo_url": "https://github.com/mitodl/ocw-to-hugo.git",
       "channel_name": "ocw-to-hugo",
       "project_type": "library",
-      "packaging_tool": "npm"
+      "packaging_tool": "npm",
+      "versioning_strategy": "npm"
     },
     {
       "name": "ocw-www",
@@ -121,7 +135,8 @@
       "web_application_type": "hugo",
       "ci_hash_url": "https://ocw-next.netlify.app/static/ocw-www-hash.txt",
       "rc_hash_url": "https://ocwnext-rc.odl.mit.edu/static/ocw-www-hash.txt",
-      "prod_hash_url": "https://ocwnext.odl.mit.edu/static/ocw-www-hash.txt"
+      "prod_hash_url": "https://ocwnext.odl.mit.edu/static/ocw-www-hash.txt",
+      "versioning_strategy": "npm"
     },
     {
       "name": "ocw-studio",
@@ -131,7 +146,8 @@
       "web_application_type": "django",
       "ci_hash_url": "https://ocw-studio-ci.odl.mit.edu/static/hash.txt",
       "rc_hash_url": "https://ocw-studio-rc.odl.mit.edu/static/hash.txt",
-      "prod_hash_url": "https://ocw-studio.odl.mit.edu/static/hash.txt"
+      "prod_hash_url": "https://ocw-studio.odl.mit.edu/static/hash.txt",
+      "versioning_strategy": "python"
     },
     {
       "name": "ocw-hugo-themes",
@@ -141,28 +157,32 @@
       "web_application_type": "hugo",
       "ci_hash_url": "https://ocw-next.netlify.app/static/ocw-hugo-themes-hash.txt",
       "rc_hash_url": "https://ocwnext-rc.odl.mit.edu/static/ocw-hugo-themes-hash.txt",
-      "prod_hash_url": "https://ocwnext.odl.mit.edu/static/ocw-hugo-themes-hash.txt"
+      "prod_hash_url": "https://ocwnext.odl.mit.edu/static/ocw-hugo-themes-hash.txt",
+      "versioning_strategy": "npm"
     },
     {
       "name": "ocw-hugo-projects",
       "repo_url": "https://github.com/mitodl/ocw-hugo-projects.git",
       "channel_name": "ocw-hugo-projects",
       "project_type": "library",
-      "packaging_tool": "none"
+      "packaging_tool": "none",
+      "versioning_strategy": "file"
     },
     {
       "name": "course-search-utils",
       "repo_url": "https://github.com/mitodl/course-search-utils.git",
       "channel_name": "course-search-utils",
       "project_type": "library",
-      "packaging_tool": "npm"
+      "packaging_tool": "npm",
+      "versioning_strategy": "npm"
     },
     {
       "name": "edx-username-changer",
       "repo_url": "https://github.com/mitodl/edx-username-changer.git",
       "channel_name": "edx-username-changer-doof",
       "project_type": "library",
-      "packaging_tool": "setuptools"
+      "packaging_tool": "setuptools",
+      "versioning_strategy": "python"
     },
     {
       "name": "mitxonline",
@@ -172,7 +192,8 @@
       "prod_hash_url": "https://mitxonline.mit.edu/static/hash.txt",
       "channel_name": "mitxonline-eng",
       "project_type": "web_application",
-      "web_application_type": "django"
+      "web_application_type": "django",
+      "versioning_strategy": "python"
     }
   ]
 }

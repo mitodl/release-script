@@ -7,13 +7,9 @@ from tempfile import TemporaryDirectory
 import pytest
 
 from constants import (
-    DJANGO,
-    HUGO,
-    LIBRARY_TYPE,
-    NONE,
-    NPM,
-    SETUPTOOLS,
-    WEB_APPLICATION_TYPE,
+    FILE_VERSION,
+    NPM_VERSION,
+    PYTHON_VERSION,
 )
 from repo_info import RepoInfo
 from version import (
@@ -329,21 +325,17 @@ async def test_update_version_file(readonly):
 # pylint: disable=too-many-arguments
 @pytest.mark.parametrize("readonly", [True, False])
 @pytest.mark.parametrize(
-    "project_type, packaging_tool, web_application_type, expected_python, expected_js, expected_version_file",
+    "versioning_strategy, expected_python, expected_js, expected_version_file",
     [
-        [WEB_APPLICATION_TYPE, None, DJANGO, True, False, False],
-        [WEB_APPLICATION_TYPE, None, HUGO, False, True, False],
-        [LIBRARY_TYPE, SETUPTOOLS, None, True, False, False],
-        [LIBRARY_TYPE, NPM, None, False, True, False],
-        [LIBRARY_TYPE, NONE, None, False, False, True],
+        [PYTHON_VERSION, True, False, False],
+        [NPM_VERSION, False, True, False],
+        [FILE_VERSION, False, False, True],
     ],
 )
 async def test_update_version(
     mocker,
     test_repo,
-    project_type,
-    packaging_tool,
-    web_application_type,
+    versioning_strategy,
     expected_python,
     expected_js,
     expected_version_file,
@@ -353,9 +345,7 @@ async def test_update_version(
     repo_info = RepoInfo(
         **{
             **test_repo._asdict(),
-            "project_type": project_type,
-            "packaging_tool": packaging_tool,
-            "web_application_type": web_application_type,
+            "versioning_strategy": versioning_strategy,
         }
     )
     new_version = "12.34.56"

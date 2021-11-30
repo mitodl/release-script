@@ -11,3 +11,4 @@ htmlcov/
 package-lock.json
 node_modules/
 .envrc
+.python-version

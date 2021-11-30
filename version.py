@@ -8,13 +8,9 @@ import re
 
 from async_subprocess import check_output
 from constants import (
-    DJANGO,
-    HUGO,
-    LIBRARY_TYPE,
-    NONE,
-    NPM,
-    SETUPTOOLS,
-    WEB_APPLICATION_TYPE,
+    FILE_VERSION,
+    NPM_VERSION,
+    PYTHON_VERSION,
 )
 from exception import UpdateVersionException
 from lib import init_working_dir, VERSION_RE
@@ -244,25 +240,15 @@ async def update_version(*, repo_info, new_version, working_dir, readonly):
             The old version which has been successfully replaced with the new version.
             On failure, an exception will be raised.
     """
-    if repo_info.project_type == WEB_APPLICATION_TYPE:
-        if repo_info.web_application_type == DJANGO:
-            return update_python_version(
-                new_version=new_version, working_dir=working_dir, readonly=readonly
-            )
-        elif repo_info.web_application_type == HUGO:
-            return await update_npm_version(
-                new_version=new_version, working_dir=working_dir, readonly=readonly
-            )
-    elif repo_info.project_type == LIBRARY_TYPE:
-        if repo_info.packaging_tool == SETUPTOOLS:
-            return update_python_version(
-                new_version=new_version, working_dir=working_dir, readonly=readonly
-            )
-        elif repo_info.packaging_tool == NPM:
-            return await update_npm_version(
-                new_version=new_version, working_dir=working_dir, readonly=readonly
-            )
-        elif repo_info.packaging_tool == NONE:
-            return await update_version_file(
-                new_version=new_version, working_dir=working_dir, readonly=readonly
-            )
+    if repo_info.versioning_strategy == PYTHON_VERSION:
+        return update_python_version(
+            new_version=new_version, working_dir=working_dir, readonly=readonly
+        )
+    elif repo_info.versioning_strategy == NPM_VERSION:
+        return await update_npm_version(
+            new_version=new_version, working_dir=working_dir, readonly=readonly
+        )
+    elif repo_info.versioning_strategy == FILE_VERSION:
+        return await update_version_file(
+            new_version=new_version, working_dir=working_dir, readonly=readonly
+        )

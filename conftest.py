@@ -8,6 +8,8 @@ from constants import (
     DJANGO,
     LIBRARY_TYPE,
     NPM,
+    PYTHON_VERSION,
+    NPM_VERSION,
     SETUPTOOLS,
     WEB_APPLICATION_TYPE,
 )
@@ -51,6 +53,7 @@ WEB_TEST_REPO_INFO = RepoInfo(
     project_type=WEB_APPLICATION_TYPE,
     web_application_type=DJANGO,
     packaging_tool=None,
+    versioning_strategy=PYTHON_VERSION,
 )
 
 
@@ -78,6 +81,7 @@ NPM_TEST_REPO_INFO = RepoInfo(
     project_type=LIBRARY_TYPE,
     packaging_tool=NPM,
     web_application_type=None,
+    versioning_strategy=NPM_VERSION,
 )
 LIBRARY_TEST_REPO_INFO = RepoInfo(
     name="lib_repo",
@@ -89,6 +93,7 @@ LIBRARY_TEST_REPO_INFO = RepoInfo(
     project_type=LIBRARY_TYPE,
     packaging_tool=SETUPTOOLS,
     web_application_type=None,
+    versioning_strategy=PYTHON_VERSION,
 )
 
 
