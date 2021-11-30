@@ -30,7 +30,7 @@ jobs:
         run: pylint *.py
 
       - name: Black
-        run: black . --check
+        run: black --version && black . --check
 
       - name: Tests
         run: pytest . && coverage xml

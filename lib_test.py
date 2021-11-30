@@ -4,8 +4,12 @@ import pytest
 
 from constants import (
     DJANGO,
+    FILE_VERSION,
     LIBRARY_TYPE,
+    NONE,
     NPM,
+    NPM_VERSION,
+    PYTHON_VERSION,
     WEB_APPLICATION_TYPE,
 )
 from lib import (
@@ -188,6 +192,7 @@ async def test_load_repos_info(mocker):
                     "channel_name": "bootcamp-eng",
                     "project_type": WEB_APPLICATION_TYPE,
                     "web_application_type": DJANGO,
+                    "versioning_strategy": PYTHON_VERSION,
                 },
                 {
                     "name": "bootcamp-ecommerce-library",
@@ -195,6 +200,15 @@ async def test_load_repos_info(mocker):
                     "channel_name": "bootcamp-library",
                     "project_type": LIBRARY_TYPE,
                     "packaging_tool": NPM,
+                    "versioning_strategy": NPM_VERSION,
+                },
+                {
+                    "name": "ocw-hugo-projects",
+                    "repo_url": "https://github.com/mitodl/ocw-hugo-projects.git",
+                    "channel_name": "ocw-hugo-projects",
+                    "project_type": "library",
+                    "packaging_tool": "none",
+                    "versioning_strategy": FILE_VERSION,
                 },
             ]
         },
@@ -210,8 +224,9 @@ async def test_load_repos_info(mocker):
         project_type=WEB_APPLICATION_TYPE,
         web_application_type=DJANGO,
         packaging_tool=None,
+        versioning_strategy=PYTHON_VERSION,
     )
-    expected_library = RepoInfo(
+    expected_npm_library = RepoInfo(
         name="bootcamp-ecommerce-library",
         repo_url="https://github.com/mitodl/bootcamp-ecommerce-library.git",
         ci_hash_url=None,
@@ -221,6 +236,19 @@ async def test_load_repos_info(mocker):
         project_type=LIBRARY_TYPE,
         web_application_type=None,
         packaging_tool=NPM,
+        versioning_strategy=NPM_VERSION,
+    )
+    expected_file_library = RepoInfo(
+        name="ocw-hugo-projects",
+        repo_url="https://github.com/mitodl/ocw-hugo-projects.git",
+        ci_hash_url=None,
+        rc_hash_url=None,
+        prod_hash_url=None,
+        channel_id="ocw_hugo_channel_id",
+        project_type=LIBRARY_TYPE,
+        web_application_type=None,
+        packaging_tool=NONE,
+        versioning_strategy=FILE_VERSION,
     )
 
     assert (
@@ -228,9 +256,10 @@ async def test_load_repos_info(mocker):
             {
                 "bootcamp-eng": "bootcamp_channel_id",
                 "bootcamp-library": "bootcamp_library_channel_id",
+                "ocw-hugo-projects": "ocw_hugo_channel_id",
             }
         )
-        == [expected_web_application, expected_library]
+        == [expected_web_application, expected_npm_library, expected_file_library]
     )
     assert json_load.call_count == 1
 

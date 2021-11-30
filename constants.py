@@ -22,6 +22,12 @@ SETUPTOOLS = "setuptools"
 GO = "go"
 VALID_PACKAGING_TOOL_TYPES = [NONE, NPM, SETUPTOOLS, GO]
 
+# versioning strategies
+FILE_VERSION = "file"
+NPM_VERSION = "npm"
+PYTHON_VERSION = "python"
+VALID_VERSIONING_STRATEGIES = [FILE_VERSION, NPM_VERSION, PYTHON_VERSION]
+
 # deployment server types
 RC = "rc"
 CI = "ci"

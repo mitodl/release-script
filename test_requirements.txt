@@ -1,4 +1,4 @@
-black
+black==21.9b0
 codecov
 pdbpp
 pylint

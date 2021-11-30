@@ -13,10 +13,12 @@ from dateutil.parser import parse
 
 from async_subprocess import check_call, check_output
 from constants import (
+    FILE_VERSION,
     SCRIPT_DIR,
     LIBRARY_TYPE,
     WEB_APPLICATION_TYPE,
     VALID_PACKAGING_TOOL_TYPES,
+    VALID_VERSIONING_STRATEGIES,
     VALID_WEB_APPLICATION_TYPES,
 )
 from exception import ReleaseException
@@ -233,7 +235,7 @@ def url_with_access_token(github_access_token, repo_url):
     """
     Inserts the access token into the URL
 
-    Returns:
+    Returns:FILE_VERSION
         str: The URL formatted with an access token
     """
     org, repo = get_org_and_repo(repo_url)
@@ -337,6 +339,7 @@ def load_repos_info(channel_lookup):
             project_type=repo_info.get("project_type"),
             web_application_type=repo_info.get("web_application_type"),
             packaging_tool=repo_info.get("packaging_tool"),
+            versioning_strategy=repo_info.get("versioning_strategy", FILE_VERSION),
         )
         for repo_info in repos_info["repos"]
         if repo_info.get("repo_url")
@@ -354,6 +357,10 @@ def load_repos_info(channel_lookup):
                 raise Exception(
                     f"Unexpected packaging tool {info.packaging_tool} for {info.name}"
                 )
+        if info.versioning_strategy not in VALID_VERSIONING_STRATEGIES:
+            raise Exception(
+                f"Unexpected versioning strategy {info.versioning_strategy} for {info.name}"
+            )
 
     return infos
 
