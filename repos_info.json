@@ -9,7 +9,7 @@
       "channel_name": "micromasters-eng",
       "project_type": "web_application",
       "web_application_type": "django",
-      "versioning_strategy": "python"
+      "versioning_strategy": "file"
     },
     {
       "name": "bootcamp-ecommerce",
