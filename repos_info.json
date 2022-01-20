@@ -128,17 +128,6 @@
       "versioning_strategy": "npm"
     },
     {
-      "name": "ocw-www",
-      "repo_url": "https://github.com/mitodl/ocw-www.git",
-      "channel_name": "ocw-www",
-      "project_type": "web_application",
-      "web_application_type": "hugo",
-      "ci_hash_url": "https://ocw-next.netlify.app/static/ocw-www-hash.txt",
-      "rc_hash_url": "https://ocwnext-rc.odl.mit.edu/static/ocw-www-hash.txt",
-      "prod_hash_url": "https://ocwnext.odl.mit.edu/static/ocw-www-hash.txt",
-      "versioning_strategy": "npm"
-    },
-    {
       "name": "ocw-studio",
       "repo_url": "https://github.com/mitodl/ocw-studio.git",
       "channel_name": "ocw-studio",
@@ -155,9 +144,9 @@
       "channel_name": "ocw-hugo-themes",
       "project_type": "web_application",
       "web_application_type": "hugo",
-      "ci_hash_url": "https://ocw-next.netlify.app/static/ocw-hugo-themes-hash.txt",
-      "rc_hash_url": "https://ocwnext-rc.odl.mit.edu/static/ocw-hugo-themes-hash.txt",
-      "prod_hash_url": "https://ocwnext.odl.mit.edu/static/ocw-hugo-themes-hash.txt",
+      "ci_hash_url": "https://ocw-next.netlify.app/static/hash.txt",
+      "rc_hash_url": "https://ocwnext-rc.odl.mit.edu/static/hash.txt",
+      "prod_hash_url": "https://ocwnext.odl.mit.edu/static/hash.txt",
       "versioning_strategy": "npm"
     },
     {
