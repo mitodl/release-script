@@ -28,7 +28,7 @@
       "ci_hash_url": "https://discussions-ci.odl.mit.edu/static/hash.txt",
       "rc_hash_url": "https://discussions-rc.odl.mit.edu/static/hash.txt",
       "prod_hash_url": "https://discussions.odl.mit.edu/static/hash.txt",
-      "channel_name": "product-open",
+      "channel_name": "product-mit-open",
       "project_type": "web_application",
       "web_application_type": "django",
       "versioning_strategy": "python"
@@ -179,7 +179,7 @@
       "ci_hash_url": "https://mitxonline-ci.mitxonline.mit.edu/static/hash.txt",
       "rc_hash_url": "https://rc.mitxonline.mit.edu/static/hash.txt",
       "prod_hash_url": "https://mitxonline.mit.edu/static/hash.txt",
-      "channel_name": "product-mitxonline",
+      "channel_name": "product-mitx-online",
       "project_type": "web_application",
       "web_application_type": "django",
       "versioning_strategy": "python"
