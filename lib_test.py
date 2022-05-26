@@ -251,16 +251,13 @@ async def test_load_repos_info(mocker):
         versioning_strategy=FILE_VERSION,
     )
 
-    assert (
-        load_repos_info(
-            {
-                "bootcamp-eng": "bootcamp_channel_id",
-                "bootcamp-library": "bootcamp_library_channel_id",
-                "ocw-hugo-projects": "ocw_hugo_channel_id",
-            }
-        )
-        == [expected_web_application, expected_npm_library, expected_file_library]
-    )
+    assert load_repos_info(
+        {
+            "bootcamp-eng": "bootcamp_channel_id",
+            "bootcamp-library": "bootcamp_library_channel_id",
+            "ocw-hugo-projects": "ocw_hugo_channel_id",
+        }
+    ) == [expected_web_application, expected_npm_library, expected_file_library]
     assert json_load.call_count == 1
 
 
