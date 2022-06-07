@@ -74,21 +74,21 @@ def update_python_version_in_file(*, root, filename, new_version, readonly):
             updated_line = line
 
             if filename == "settings.py":
-                regex = fr"^VERSION = .*(?P<version>{VERSION_RE}).*$"
+                regex = rf"^VERSION = .*(?P<version>{VERSION_RE}).*$"
                 match = re.match(regex, line)
                 if match:
                     update_count += 1
                     old_version = match.group("version").strip()
                     updated_line = re.sub(regex, f'VERSION = "{new_version}"', line)
             elif filename == "__init__.py":
-                regex = fr"^__version__ ?=.*(?P<version>{VERSION_RE}).*"
+                regex = rf"^__version__ ?=.*(?P<version>{VERSION_RE}).*"
                 match = re.match(regex, line)
                 if match:
                     update_count += 1
                     old_version = match.group("version").strip()
                     updated_line = re.sub(regex, f'__version__ = "{new_version}"', line)
             elif filename == "setup.py":
-                regex = fr"(?P<spaces>\s*)version=(?P<quote>.*)(?P<version>{VERSION_RE})(?P<after>.*)"
+                regex = rf"(?P<spaces>\s*)version=(?P<quote>.*)(?P<version>{VERSION_RE})(?P<after>.*)"
                 match = re.match(regex, line)
                 if match:
                     update_count += 1
