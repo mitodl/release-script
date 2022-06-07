@@ -112,14 +112,6 @@
       "versioning_strategy": "python"
     },
     {
-      "name": "django-server-status",
-      "repo_url": "https://github.com/mitodl/django-server-status.git",
-      "channel_name": "doof-django-server-status",
-      "project_type": "library",
-      "packaging_tool": "setuptools",
-      "versioning_strategy": "python"
-    },
-    {
       "name": "ocw-to-hugo",
       "repo_url": "https://github.com/mitodl/ocw-to-hugo.git",
       "channel_name": "doof-ocw-to-hugo",
