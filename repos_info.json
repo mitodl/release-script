@@ -137,8 +137,8 @@
       "project_type": "web_application",
       "web_application_type": "hugo",
       "ci_hash_url": "https://ocw-next.netlify.app/static/hash.txt",
-      "rc_hash_url": "https://ocwnext-rc.odl.mit.edu/static/hash.txt",
-      "prod_hash_url": "https://ocwnext.odl.mit.edu/static/hash.txt",
+      "rc_hash_url": "https://live-qa.ocw.mit.edu/static/hash.txt",
+      "prod_hash_url": "https://ocw.mit.edu/static/hash.txt",
       "versioning_strategy": "npm"
     },
     {
