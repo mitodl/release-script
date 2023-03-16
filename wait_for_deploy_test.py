@@ -33,11 +33,14 @@ async def test_wait_for_deploy(mocker, test_repo_directory):
     token = "token"
     hash_url = "hash"
     watch_branch = "watch"
-    await wait_for_deploy(
-        github_access_token=token,
-        repo_url=repo_url,
-        hash_url=hash_url,
-        watch_branch=watch_branch,
+    assert (
+        await wait_for_deploy(
+            github_access_token=token,
+            repo_url=repo_url,
+            hash_url=hash_url,
+            watch_branch=watch_branch,
+        )
+        is True
     )
 
     check_output_patch.assert_called_once_with(

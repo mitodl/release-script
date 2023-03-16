@@ -443,6 +443,7 @@ async def test_release(
         repo_url=test_repo.repo_url,
         hash_url=test_repo.rc_hash_url,
         watch_branch="release-candidate",
+        timeout_seconds=3600,
     )
     assert doof.said("Now deploying to RC...")
     assert doof.said(
@@ -517,6 +518,7 @@ async def test_hotfix_release(
         repo_url=test_repo.repo_url,
         hash_url=test_repo.rc_hash_url,
         watch_branch="release-candidate",
+        timeout_seconds=3600,
     )
     assert doof.said("Now deploying to RC...")
     assert wait_for_checkboxes_sync_mock.called is True
@@ -1214,6 +1216,7 @@ async def test_wait_for_deploy_rc(
         repo_url=test_repo.repo_url,
         hash_url=test_repo.rc_hash_url,
         watch_branch="release-candidate",
+        timeout_seconds=3600,
     )
     get_unchecked.assert_called_once_with(
         github_access_token=GITHUB_ACCESS,
@@ -1262,6 +1265,7 @@ async def test_wait_for_deploy_prod(
         repo_url=test_repo.repo_url,
         hash_url=test_repo.prod_hash_url,
         watch_branch="release",
+        timeout_seconds=3600,
     )
 
 
