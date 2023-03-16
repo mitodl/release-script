@@ -454,18 +454,49 @@ class Bot:
             repo_info=repo_info, manager=manager, release_pr=release_pr
         )
 
+    async def _wait_for_deploy_with_alerts(
+        self, *, repo_info, release_pr, hash_url, watch_branch
+    ):
+        """
+        Wait for a deployment, but alert with a a timeout
+        """
+        repo_url = repo_info.repo_url
+        channel_id = repo_info.channel_id
+        timeout_seconds = 60 * 60
+
+        while True:
+            if await wait_for_deploy(
+                github_access_token=self.github_access_token,
+                repo_url=repo_url,
+                hash_url=hash_url,
+                watch_branch=watch_branch,
+                timeout_seconds=timeout_seconds,
+            ):
+                break
+
+            await self.say(
+                channel_id=channel_id,
+                text=(
+                    f"Release {release_pr.version} for {repo_info.name} hasn't deployed yet."
+                ),
+            )
+            # after the first failure, only alert every 24h
+            timeout_seconds = 60 * 60 * 24
+
     async def _wait_for_deploy_rc(self, *, repo_info, manager, release_pr):
         """
         Check hash values to wait for deployment for RC
         """
         repo_url = repo_info.repo_url
         channel_id = repo_info.channel_id
-        await wait_for_deploy(
-            github_access_token=self.github_access_token,
-            repo_url=repo_url,
+
+        await self._wait_for_deploy_with_alerts(
+            repo_info=repo_info,
+            release_pr=release_pr,
             hash_url=repo_info.rc_hash_url,
             watch_branch="release-candidate",
         )
+
         rc_server = remove_path_from_url(repo_info.rc_hash_url)
 
         await set_release_label(
@@ -499,12 +530,13 @@ class Bot:
             commit_hash="origin/release",
         )
 
-        await wait_for_deploy(
-            github_access_token=self.github_access_token,
-            repo_url=repo_url,
+        await self._wait_for_deploy_with_alerts(
+            repo_info=repo_info,
+            release_pr=release_pr,
             hash_url=repo_info.prod_hash_url,
             watch_branch="release",
         )
+
         await set_release_label(
             github_access_token=self.github_access_token,
             repo_url=repo_url,
@@ -513,6 +545,7 @@ class Bot:
         )
 
         prod_server = remove_path_from_url(repo_info.prod_hash_url)
+
         await self.say(
             channel_id=channel_id,
             text=(
