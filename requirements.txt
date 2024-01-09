@@ -1,5 +1,6 @@
 python-dateutil
 pytz
 requests
+sentry-sdk
 tornado
 virtualenv
