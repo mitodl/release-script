@@ -10,6 +10,7 @@ import json
 import re
 
 import pytz
+import sentry_sdk
 
 from client_wrapper import ClientWrapper
 from constants import (
@@ -1608,9 +1609,22 @@ def has_command(command_words, input_words):
     return command_words == input_words[: len(command_words)]
 
 
+def init_sentry():
+    """Initialize the Sentry SDK"""
+    sentry_dsn = os.environ.get("SENTRY_SDK", "")
+
+    if sentry_dsn:
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            send_default_pii=False,
+        )
+
+
 async def async_main():
     """async function for bot"""
     envs = get_envs()
+
+    init_sentry()
 
     channels_info = await get_channels_info(envs["SLACK_ACCESS_TOKEN"])
     doof_id = await get_doofs_id(envs["SLACK_ACCESS_TOKEN"])
