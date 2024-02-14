@@ -186,6 +186,14 @@
       "project_type": "web_application",
       "web_application_type": "django",
       "versioning_strategy": "python"
+    },
+    {
+      "name": "mit-open-login-button",
+      "repo_url": "https://github.com/mitodl/mit-open-login-button.git",
+      "channel_name": "doof-mit-open-login-button",
+      "project_type": "library",
+      "packaging_tool": "npm",
+      "versioning_strategy": "npm"
     }
   ]
 }
