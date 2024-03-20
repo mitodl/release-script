@@ -37,7 +37,7 @@
       "name": "mit-open",
       "repo_url": "https://github.com/mitodl/mit-open.git",
       "ci_hash_url": "https://mit-open-ci.odl.mit.edu/static/hash.txt",
-      "rc_hash_url": "https://mit-open-rc.odl.mit.edu/static/hash.txt",
+      "rc_hash_url": "https://mitopen-rc.odl.mit.edu/static/hash.txt",
       "prod_hash_url": "https://mitopen.odl.mit.edu/static/hash.txt",
       "channel_name": "product-mit-open-next",
       "project_type": "web_application",
