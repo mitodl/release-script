@@ -11,7 +11,7 @@ jobs:
         run: npm install
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5
         with:
           python-version: "3.9"
 
