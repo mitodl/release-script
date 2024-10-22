@@ -1030,7 +1030,7 @@ async def test_help(doof):
 @pytest.mark.parametrize("has_checkboxes", [True, False])
 async def test_wait_for_checkboxes(
     mocker, doof, sleep_sync_mock, test_repo, has_checkboxes, mock_labels
-):  # pylint: disable=unused-argument
+):  # pylint: disable=unused-argument,too-many-positional-arguments
     """wait_for_checkboxes should poll github, parse checkboxes and see if all are checked"""
     org, repo = get_org_and_repo(test_repo.repo_url)
     channel_id = test_repo.channel_id
@@ -1386,7 +1386,7 @@ async def test_start_new_releases(
     expected_version,
     has_release_pr,
     has_new_commits,
-):
+):  # pylint: disable=too-many-positional-arguments
     """start new releases command should iterate through releases and start ones without an existing PR"""
     old_version = "1.2.3"
     default_branch = "default"

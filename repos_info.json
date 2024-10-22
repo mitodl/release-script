@@ -35,7 +35,7 @@
     },
     {
       "name": "mit-learn",
-      "repo_url": "https://github.com/mitodl/mit-open.git",
+      "repo_url": "https://github.com/mitodl/mit-learn.git",
       "ci_hash_url": "https://api.ci.learn.mit.edu/static/hash.txt",
       "rc_hash_url": "https://api.rc.learn.mit.edu/static/hash.txt",
       "prod_hash_url": "https://api.learn.mit.edu/static/hash.txt",
