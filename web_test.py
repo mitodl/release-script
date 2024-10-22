@@ -129,7 +129,7 @@ class FinishReleaseTests(AsyncHTTPTestCase):
         )
 
 
-# pylint: disable=too-many-arguments
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 @pytest.mark.parametrize(
     "secret, timestamp, signature, body, expected",
     [
