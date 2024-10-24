@@ -1,3 +1,5 @@
 [user]
     name=Doof
     email=mitx-devops@mit.edu
+[init]
+  templateDir=/app/.apt/usr/share/git-core/templates

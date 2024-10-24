@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-
-TEMPLATE_DIR="/app/.apt/usr/share/git-core/templates"
-
-echo "Setting git config init.templateDir = $TEMPLATE_DIR"
-git config --global init.templateDir "$TEMPLATE_DIR"
