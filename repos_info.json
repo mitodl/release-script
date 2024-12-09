@@ -194,6 +194,17 @@
       "project_type": "library",
       "packaging_tool": "npm",
       "versioning_strategy": "npm"
+    },
+    {
+      "name": "unified-ecommerce",
+      "repo_url": "https://github.com/mitodl/unified-ecommerce.git",
+      "ci_hash_url": "https://api.pay-ci.ol.mit.edu/static/hash.txt",
+      "rc_hash_url": "https://api.pay-ci.ol.mit.edu/static/hash.txt",
+      "prod_hash_url": "https://api.pay.ol.mit.edu/static/hash.txt",
+      "channel_name": "product-unified-ecommerce",
+      "project_type": "web_application",
+      "web_application_type": "django",
+      "versioning_strategy": "python"
     }
   ]
 }
