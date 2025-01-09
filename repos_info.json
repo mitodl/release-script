@@ -215,7 +215,7 @@
       "channel_name": "doof-ue-frontend",
       "project_type": "web_application",
       "web_application_type": "django",
-      "versioning_strategy": "python"
+      "versioning_strategy": "npm"
     }
   ]
 }
