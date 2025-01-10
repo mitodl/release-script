@@ -169,14 +169,6 @@
       "versioning_strategy": "npm"
     },
     {
-      "name": "edx-username-changer",
-      "repo_url": "https://github.com/mitodl/edx-username-changer.git",
-      "channel_name": "doof-edx-username-changer",
-      "project_type": "library",
-      "packaging_tool": "setuptools",
-      "versioning_strategy": "python"
-    },
-    {
       "name": "mitxonline",
       "repo_url": "https://github.com/mitodl/mitxonline.git",
       "ci_hash_url": "https://mitxonline-ci.mitxonline.mit.edu/static/hash.txt",
@@ -215,7 +207,7 @@
       "channel_name": "doof-ue-frontend",
       "project_type": "web_application",
       "web_application_type": "django",
-      "versioning_strategy": "python"
+      "versioning_strategy": "npm"
     }
   ]
 }
