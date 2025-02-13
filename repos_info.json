@@ -208,6 +208,17 @@
       "project_type": "web_application",
       "web_application_type": "django",
       "versioning_strategy": "npm"
+    },
+    {
+      "name": "learn-ai",
+      "repo_url": "https://github.com/mitodl/learn-ai.git",
+      "ci_hash_url": "https://api-learn-ai-ci.ol.mit.edu/static/hash.txt",
+      "rc_hash_url": "https://api-learn-ai-qa.ol.mit.edu/static/hash.txt",
+      "prod_hash_url": "https://api-learn-ai.ol.mit.edu/static/hash.txt",
+      "channel_name": "product-learn-ai",
+      "project_type": "web_application",
+      "web_application_type": "django",
+      "versioning_strategy": "file"
     }
   ]
 }
