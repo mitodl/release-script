@@ -16,7 +16,7 @@ jobs:
           python-version: "3.9"
 
       - id: cache
-        uses: actions/cache@v1
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt', '**/test_requirements.txt') }}
