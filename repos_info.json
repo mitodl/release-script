@@ -218,7 +218,7 @@
       "channel_name": "product-learn-ai",
       "project_type": "web_application",
       "web_application_type": "django",
-      "versioning_strategy": "file"
+      "versioning_strategy": "python"
     }
   ]
 }
