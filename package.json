@@ -7,7 +7,7 @@
     "url": "https://github.com/mitodl/release-script.git"
   },
   "dependencies": {
-    "git-release-notes": "^2.1.0",
+    "git-release-notes": "^5.0.0",
     "yarn": "^1.22.10"
   }
 }
