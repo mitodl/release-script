@@ -4,7 +4,7 @@ import re
 import os
 from subprocess import CalledProcessError
 
-from packaging.version import parse
+from pkg_resources import parse_version
 
 from async_subprocess import (
     call,
@@ -235,7 +235,7 @@ async def release(
             working_dir=working_dir,
             readonly=False,
         )
-        if parse(old_version) >= parse(new_version):
+        if parse_version(old_version) >= parse_version(new_version):
             raise ReleaseException(
                 f"old version is {old_version} but the new version {new_version} is not newer"
             )
