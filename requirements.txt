@@ -4,3 +4,4 @@ requests
 sentry-sdk
 tornado
 virtualenv
+packaging
