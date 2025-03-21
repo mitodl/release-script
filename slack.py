@@ -1,4 +1,5 @@
 """functions for interacting with slack"""
+
 from client_wrapper import ClientWrapper
 
 

@@ -1,6 +1,5 @@
 """Constants used in unit test"""
 
-
 FAKE_RELEASE_PR_BODY = """
 
 ## Alice Pote

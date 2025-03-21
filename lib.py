@@ -1,4 +1,5 @@
 """Shared functions for release script Python files"""
+
 from collections import namedtuple
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone

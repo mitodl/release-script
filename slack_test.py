@@ -1,4 +1,5 @@
 """Tests for slack functions"""
+
 import pytest
 
 

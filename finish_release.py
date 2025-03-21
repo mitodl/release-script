@@ -1,4 +1,5 @@
 """Release script to finish the release"""
+
 import os
 import re
 from datetime import datetime

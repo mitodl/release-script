@@ -1,4 +1,5 @@
 """Make sure bot_local works"""
+
 import pytest
 
 from bot_local import async_main

@@ -1,4 +1,5 @@
 """Test version functions"""
+
 import json
 import os
 from pathlib import Path

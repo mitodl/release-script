@@ -1,4 +1,5 @@
 """Tests for lib"""
+
 from requests import Response, HTTPError
 import pytest
 

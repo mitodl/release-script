@@ -1,4 +1,5 @@
 """Wait for hash on server to match with deployed code"""
+
 import asyncio
 import time
 

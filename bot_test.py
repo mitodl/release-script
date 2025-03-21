@@ -1,4 +1,5 @@
 """Tests for Doof"""
+
 import asyncio
 from datetime import timedelta
 
@@ -1045,13 +1046,15 @@ async def test_wait_for_checkboxes(
     get_release_pr_mock = mocker.async_patch("bot.get_release_pr", return_value=pr)
     get_unchecked_patch = mocker.async_patch(
         "bot.get_unchecked_authors",
-        side_effect=[
-            {"author1", "author2", "author3"},
-            {"author2"},
-            set(),
-        ]
-        if has_checkboxes
-        else [set()],
+        side_effect=(
+            [
+                {"author1", "author2", "author3"},
+                {"author2"},
+                set(),
+            ]
+            if has_checkboxes
+            else [set()]
+        ),
     )
     doof.slack_users = [
         {"profile": {"real_name": name}, "id": username}
@@ -1403,15 +1406,17 @@ async def test_start_new_releases(
     )
     get_release_pr_mock = mocker.async_patch(
         "bot.get_release_pr",
-        return_value=ReleasePR(
-            version=old_version,
-            url="https://example.com",
-            body="...",
-            number=123,
-            open=False,
-        )
-        if has_release_pr
-        else None,
+        return_value=(
+            ReleasePR(
+                version=old_version,
+                url="https://example.com",
+                body="...",
+                number=123,
+                open=False,
+            )
+            if has_release_pr
+            else None
+        ),
     )
     release_notes = f"Release notes for {test_repo.repo_url}"
     get_project_version_mock = mocker.async_patch(

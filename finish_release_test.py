@@ -1,4 +1,5 @@
 """Tests for finish_release.py"""
+
 from datetime import datetime
 import re
 import os
