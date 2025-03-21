@@ -1,4 +1,5 @@
 """Exceptions for release script"""
+
 from subprocess import CalledProcessError
 
 

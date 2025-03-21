@@ -1,4 +1,5 @@
 """Information about repositories"""
+
 from collections import namedtuple
 
 RepoInfo = namedtuple(

@@ -1,4 +1,5 @@
 """Tests for wait_for_deploy"""
+
 import pytest
 
 from test_util import async_context_manager_yielder

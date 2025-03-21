@@ -1,4 +1,5 @@
 """Tests for github functions"""
+
 import json
 import os
 from urllib.parse import quote

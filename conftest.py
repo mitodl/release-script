@@ -1,4 +1,5 @@
 """Fixtures for tests"""
+
 import os
 
 import pytest
