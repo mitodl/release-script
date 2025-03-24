@@ -57,9 +57,11 @@ async def upload_with_twine(
     }
 
     python_path = os.path.join(virtualenv_dir, "bin", "python")
+    pip_path = os.path.join(virtualenv_dir, "bin", "pip")
     twine_path = os.path.join(virtualenv_dir, "bin", "twine")
 
     # Create source distribution and wheel.
+    await call([pip_path, "install", "setuptools"], env=environ, cwd=project_dir)
     await call([python_path, "setup.py", "sdist"], env=environ, cwd=project_dir)
     await call([python_path, "setup.py", "bdist_wheel"], env=environ, cwd=project_dir)
     dist_files = os.listdir(os.path.join(project_dir, "dist"))
