@@ -1,4 +1,5 @@
 """Constants"""
+
 import os
 
 

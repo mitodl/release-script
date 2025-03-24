@@ -1,4 +1,5 @@
 """Tests for the web server"""
+
 import asyncio
 import json
 from unittest.mock import patch

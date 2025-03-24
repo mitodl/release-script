@@ -1,4 +1,5 @@
 """Get release status of a repository"""
+
 from constants import (
     BLOCKER_LABELS,
     DEPLOYED_TO_PROD,
@@ -89,9 +90,11 @@ async def status_for_repo_new_commits(*, github_access_token, repo_info, release
         )
         default_branch = await get_default_branch(working_dir)
         return await any_commits_between_branches(
-            branch1="origin/release-candidate"
-            if release_pr and release_pr.open
-            else f"v{last_version}",
+            branch1=(
+                "origin/release-candidate"
+                if release_pr and release_pr.open
+                else f"v{last_version}"
+            ),
             branch2=default_branch,
             root=working_dir,
         )

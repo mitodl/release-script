@@ -1,6 +1,7 @@
 """
 Web server for handling slack webhooks
 """
+
 import hmac
 import json
 

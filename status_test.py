@@ -1,4 +1,5 @@
 """Tests for statuses"""
+
 import pytest
 
 
@@ -159,9 +160,11 @@ async def test_status_for_repo_new_commits(  # pylint: disable=too-many-argument
     )
     get_default_branch_mock.assert_called_once_with(test_repo_directory)
     any_commits_mock.assert_called_once_with(
-        branch1="origin/release-candidate"
-        if has_release_pr and is_open
-        else f"v{get_project_version_mock.return_value}",
+        branch1=(
+            "origin/release-candidate"
+            if has_release_pr and is_open
+            else f"v{get_project_version_mock.return_value}"
+        ),
         branch2=get_default_branch_mock.return_value,
         root=test_repo_directory,
     )
