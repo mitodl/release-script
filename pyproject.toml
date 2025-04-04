@@ -1,0 +1,28 @@
+[project]
+name = "doof"
+requires-python = "~=3.13"
+version = "0.0.1"
+dependencies = [
+    "python-dateutil",
+    "pytz",
+    "requests",
+    "sentry-sdk",
+    "setuptools>=78.1.0",
+    "tornado",
+    "virtualenv",
+]
+
+[dependency-groups]
+dev = [
+    "black==22.3.0",
+    "codecov",
+    "pdbpp",
+    "pylint",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-mock",
+]
+
+[tool.uv]
+package = false

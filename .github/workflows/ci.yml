@@ -2,7 +2,7 @@ name: CI
 on: [push]
 jobs:
   python-tests:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -10,30 +10,20 @@ jobs:
       - name: Set up JS requirements
         run: npm install
 
-      - name: Set up Python
-        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5.5.0
-        with:
-          python-version: "3.13"
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
 
-      - id: cache
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt', '**/test_requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt -r test_requirements.txt
+      - name: Install Python dependencies with uv
+        run: uv sync --locked
 
       - name: Lint
-        run: pylint *.py
+        run: uv run pylint *.py
 
       - name: Black
-        run: black --version && black . --check
+        run: uv run black --version && uv run black . --check
 
       - name: Tests
-        run: pytest . && coverage xml
+        run: uv run pytest . && uv run coverage xml
 
       # - name: Upload coverage to CodeCov
       #   uses: codecov/codecov-action@v1
