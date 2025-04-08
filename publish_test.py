@@ -55,7 +55,7 @@ async def test_upload_with_twine(
             virtualenv_dir=virtualenv_dir,
             environ=environ,
         )
-    assert call_mock.call_count == 1
+    assert call_mock.call_count == 5
 
 
 async def test_upload_to_npm(mocker, test_repo_directory, library_test_repo):

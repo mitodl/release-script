@@ -444,6 +444,7 @@ async def test_release(
         repo_url=test_repo.repo_url,
         hash_url=test_repo.rc_hash_url,
         watch_branch="release-candidate",
+        expected_version=pr.version,
         timeout_seconds=3600,
     )
     assert doof.said("Now deploying to RC...")
@@ -519,6 +520,7 @@ async def test_hotfix_release(
         repo_url=test_repo.repo_url,
         hash_url=test_repo.rc_hash_url,
         watch_branch="release-candidate",
+        expected_version=pr.version,
         timeout_seconds=3600,
     )
     assert doof.said("Now deploying to RC...")
@@ -1219,6 +1221,7 @@ async def test_wait_for_deploy_rc(
         repo_url=test_repo.repo_url,
         hash_url=test_repo.rc_hash_url,
         watch_branch="release-candidate",
+        expected_version=release_pr.version,
         timeout_seconds=3600,
     )
     get_unchecked.assert_called_once_with(
@@ -1239,26 +1242,17 @@ async def test_wait_for_deploy_prod(
 ):  # pylint: disable=unused-argument
     """Bot._wait_for_deploy_prod should wait until repo has been deployed to production"""
     wait_for_deploy_mock = mocker.async_patch("bot.wait_for_deploy")
-    version = "1.2.345"
-    get_version_tag_mock = mocker.async_patch(
-        "bot.get_version_tag", return_value=f"v{version}"
-    )
     channel_id = test_repo.channel_id
     release_pr = ReleasePR(
-        "version", "https://github.com/org/repo/pulls/123456", "body", 123456, False
+        "1.2.345", "https://github.com/org/repo/pulls/123456", "body", 123456, False
     )
 
     await doof._wait_for_deploy_prod(  # pylint: disable=protected-access
         repo_info=test_repo, manager="me", release_pr=release_pr
     )
 
-    get_version_tag_mock.assert_called_once_with(
-        github_access_token=GITHUB_ACCESS,
-        repo_url=test_repo.repo_url,
-        commit_hash="origin/release",
-    )
     assert doof.said(
-        f"My evil scheme v{version} for {test_repo.name} has been released "
+        f"My evil scheme {release_pr.version} for {test_repo.name} has been released "  # Use release_pr.version
         f"to production at {remove_path_from_url(test_repo.prod_hash_url)}. "
         "And by 'released', I mean completely...um...leased.",
         channel_id=channel_id,
@@ -1268,6 +1262,7 @@ async def test_wait_for_deploy_prod(
         repo_url=test_repo.repo_url,
         hash_url=test_repo.prod_hash_url,
         watch_branch="release",
+        expected_version=release_pr.version,  # Pass expected_version from PR
         timeout_seconds=3600,
     )
 

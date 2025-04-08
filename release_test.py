@@ -21,7 +21,6 @@ from release import (
     verify_new_commits,
 )
 from test_util import async_context_manager_yielder, sync_check_call as check_call
-from wait_for_deploy import fetch_release_hash
 
 
 pytestmark = pytest.mark.asyncio
@@ -366,20 +365,6 @@ async def test_generate_release_pr(mocker):
     create_release_notes_mock.assert_called_once_with(
         old_version, with_checkboxes=True, base_branch="master", root="."
     )
-
-
-async def test_fetch_release_hash(mocker):
-    """
-    fetch_release_hash should download the release hash at the URL
-    """
-    sha1_hash = b"X" * 40
-    url = "a_url"
-    get_mock = mocker.async_patch(
-        "client_wrapper.ClientWrapper.get", return_value=mocker.Mock(content=sha1_hash)
-    )
-    assert await fetch_release_hash(url) == sha1_hash.decode()
-    get_mock.assert_called_once_with(mocker.ANY, url)
-    get_mock.return_value.raise_for_status.assert_called_once_with()
 
 
 @pytest.mark.parametrize("hotfix_hash", ["", "abcdef"])

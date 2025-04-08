@@ -456,7 +456,7 @@ class Bot:
         )
 
     async def _wait_for_deploy_with_alerts(
-        self, *, repo_info, release_pr, hash_url, watch_branch
+        self, *, repo_info, release_pr, hash_url, watch_branch, expected_version
     ):
         """
         Wait for a deployment, but alert with a a timeout
@@ -471,6 +471,7 @@ class Bot:
                 repo_url=repo_url,
                 hash_url=hash_url,
                 watch_branch=watch_branch,
+                expected_version=expected_version,
                 timeout_seconds=timeout_seconds,
             ):
                 break
@@ -490,12 +491,15 @@ class Bot:
         """
         repo_url = repo_info.repo_url
         channel_id = repo_info.channel_id
+        # Get the expected version from the release PR title
+        expected_version = release_pr.version
 
         await self._wait_for_deploy_with_alerts(
             repo_info=repo_info,
             release_pr=release_pr,
             hash_url=repo_info.rc_hash_url,
             watch_branch="release-candidate",
+            expected_version=expected_version,
         )
 
         rc_server = remove_path_from_url(repo_info.rc_hash_url)
@@ -525,17 +529,15 @@ class Bot:
         """
         repo_url = repo_info.repo_url
         channel_id = repo_info.channel_id
-        version = await get_version_tag(
-            github_access_token=self.github_access_token,
-            repo_url=repo_url,
-            commit_hash="origin/release",
-        )
+        # Get the expected version from the release PR title (which should match the tag)
+        expected_version = release_pr.version
 
         await self._wait_for_deploy_with_alerts(
             repo_info=repo_info,
             release_pr=release_pr,
             hash_url=repo_info.prod_hash_url,
             watch_branch="release",
+            expected_version=expected_version,
         )
 
         await set_release_label(
@@ -550,7 +552,7 @@ class Bot:
         await self.say(
             channel_id=channel_id,
             text=(
-                f"My evil scheme {version} for {repo_info.name} has been released to production at {prod_server}. "
+                f"My evil scheme {expected_version} for {repo_info.name} has been released to production at {prod_server}. "
                 "And by 'released', I mean completely...um...leased."
             ),
         )

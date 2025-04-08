@@ -1,10 +1,8 @@
 """Functions for publishing"""
-
 import os
 from pathlib import Path
 
 from async_subprocess import (
-    call,
     check_call,
 )
 from constants import (
@@ -28,13 +26,6 @@ async def upload_to_pypi(project_dir):
         # Heroku has both Python 2 and 3 installed but the system libraries aren't configured for our use,
         # so make a virtualenv.
         async with virtualenv("python3", outer_environ) as (virtualenv_dir, environ):
-            # Use the virtualenv binaries to act within that environment
-            pip_path = os.path.join(virtualenv_dir, "bin", "pip")
-
-            # Install dependencies. wheel is needed for Python 2. twine uploads the package.
-            await check_call(
-                [pip_path, "install", "twine"], env=environ, cwd=project_dir
-            )
             await upload_with_twine(
                 project_dir=project_dir, virtualenv_dir=virtualenv_dir, environ=environ
             )
@@ -56,15 +47,18 @@ async def upload_with_twine(
         "TWINE_USERNAME": os.environ["PYPI_USERNAME"],
         "TWINE_PASSWORD": os.environ["PYPI_PASSWORD"],
     }
-
-    python_path = os.path.join(virtualenv_dir, "bin", "python")
+    # Use the virtualenv binaries to act within that environment
     pip_path = os.path.join(virtualenv_dir, "bin", "pip")
+    python_path = os.path.join(virtualenv_dir, "bin", "python")
+    # Install dependencies. wheel is needed for Python 2. twine uploads the package.
+    await check_call([pip_path, "install", "setuptools"], env=environ, cwd=project_dir)
+    await check_call([pip_path, "install", "build"], env=environ, cwd=project_dir)
+    await check_call([pip_path, "install", "twine"], env=environ, cwd=project_dir)
     twine_path = os.path.join(virtualenv_dir, "bin", "twine")
 
-    # Create source distribution and wheel.
-    await call([pip_path, "install", "setuptools"], env=environ, cwd=project_dir)
-    await call([python_path, "setup.py", "sdist"], env=environ, cwd=project_dir)
-    await call([python_path, "setup.py", "bdist_wheel"], env=environ, cwd=project_dir)
+    # Create source distribution and wheel using the virtualenv's python executable
+    # and explicitly passing the virtualenv's environment.
+    await check_call([python_path, "-m", "build", "."], env=environ, cwd=project_dir)
     dist_files = os.listdir(os.path.join(project_dir, "dist"))
     if len(dist_files) != 2:
         raise Exception("Expected to find one tarball and one wheel in directory")

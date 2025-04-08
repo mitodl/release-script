@@ -1,8 +1,0 @@
-black==25.1.0
-codecov
-pdbpp
-pylint
-pytest
-pytest-asyncio
-pytest-cov
-pytest-mock
