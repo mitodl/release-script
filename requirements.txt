@@ -1,7 +1,7 @@
-python-dateutil
-pytz
-requests
-sentry-sdk
-tornado
-virtualenv
-packaging
+packaging==25.0
+python-dateutil==2.9.0.post0
+pytz==2025.2
+requests==2.32.5
+sentry-sdk==2.35.1
+tornado==6.5.2
+virtualenv==20.34.0
