@@ -48,7 +48,7 @@ async def async_main():
         github_access_token=envs["GITHUB_ACCESS_TOKEN"],
         timezone=envs["TIMEZONE"],
         npm_token=envs["NPM_TOKEN"],
-        repos_info=repos_info
+        repos_info=repos_info,
     )
 
     await bot.startup()

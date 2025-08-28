@@ -58,7 +58,7 @@ class DoofSpoof(Bot):
             github_access_token=GITHUB_ACCESS,
             npm_token=NPM_TOKEN,
             timezone=pytz.timezone("America/New_York"),
-            repos_info=[WEB_TEST_REPO_INFO, LIBRARY_TEST_REPO_INFO]
+            repos_info=[WEB_TEST_REPO_INFO, LIBRARY_TEST_REPO_INFO],
         )
 
         self.slack_users = []

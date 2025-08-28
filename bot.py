@@ -130,7 +130,7 @@ class Bot:
         github_access_token,
         npm_token,
         timezone,
-        repos_info
+        repos_info,
     ):
         """
         Create the slack bot
