@@ -2,6 +2,7 @@
 Web server for handling slack webhooks
 """
 
+import asyncio
 import hmac
 import json
 
@@ -54,7 +55,7 @@ class ButtonHandler(RequestHandler):
         arguments = json.loads(
             self.get_argument("payload")
         )  # pylint: disable=no-value-for-parameter
-        self.bot.loop.create_task(self.bot.handle_webhook(webhook_dict=arguments))
+        asyncio.create_task(self.bot.handle_webhook(webhook_dict=arguments))
         await self.finish("")
 
 
@@ -87,7 +88,7 @@ class EventHandler(RequestHandler):
             await self.finish(challenge)
             return
 
-        self.bot.loop.create_task(self.bot.handle_event(webhook_dict=arguments))
+        asyncio.create_task(self.bot.handle_event(webhook_dict=arguments))
 
         await self.finish("")
 
