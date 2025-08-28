@@ -1645,6 +1645,7 @@ async def async_main():
 
     await bot.startup()
 
+
 def main():
     """main function for bot command"""
     tornado.ioloop.IOLoop.current().run_sync(async_main)
