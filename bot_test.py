@@ -50,7 +50,7 @@ NPM_TOKEN = "npm-token"
 class DoofSpoof(Bot):
     """Testing bot"""
 
-    def __init__(self, *, loop):
+    def __init__(self):
         """Since the testing bot isn't contacting slack or github we don't need these tokens here"""
         super().__init__(
             doof_id="Doofenshmirtz",
@@ -58,8 +58,7 @@ class DoofSpoof(Bot):
             github_access_token=GITHUB_ACCESS,
             npm_token=NPM_TOKEN,
             timezone=pytz.timezone("America/New_York"),
-            repos_info=[WEB_TEST_REPO_INFO, LIBRARY_TEST_REPO_INFO],
-            loop=loop,
+            repos_info=[WEB_TEST_REPO_INFO, LIBRARY_TEST_REPO_INFO]
         )
 
         self.slack_users = []
@@ -130,9 +129,9 @@ def sleep_sync_mock(mocker):
 
 
 @pytest.fixture
-def doof(event_loop, sleep_sync_mock):  # pylint: disable=unused-argument
+def doof(sleep_sync_mock):  # pylint: disable=unused-argument
     """Create a Doof"""
-    yield DoofSpoof(loop=event_loop)
+    yield DoofSpoof()
 
 
 @pytest.fixture

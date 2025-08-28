@@ -48,8 +48,7 @@ async def async_main():
         github_access_token=envs["GITHUB_ACCESS_TOKEN"],
         timezone=envs["TIMEZONE"],
         npm_token=envs["NPM_TOKEN"],
-        repos_info=repos_info,
-        loop=asyncio.get_event_loop(),
+        repos_info=repos_info
     )
 
     await bot.startup()
@@ -63,8 +62,7 @@ async def async_main():
 
 def main():
     """Main function"""
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(async_main())
+    asyncio.run(async_main())
 
 
 if __name__ == "__main__":

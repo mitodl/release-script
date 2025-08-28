@@ -21,8 +21,7 @@ class FinishReleaseTests(AsyncHTTPTestCase):
 
     def setUp(self):
         self.secret = uuid.uuid4().hex
-        self.loop = asyncio.get_event_loop()
-        self.doof = DoofSpoof(loop=self.loop)
+        self.doof = DoofSpoof()
         self.app = make_app(secret=self.secret, bot=self.doof)
 
         super().setUp()
