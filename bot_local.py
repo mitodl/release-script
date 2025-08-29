@@ -49,7 +49,6 @@ async def async_main():
         timezone=envs["TIMEZONE"],
         npm_token=envs["NPM_TOKEN"],
         repos_info=repos_info,
-        loop=asyncio.get_event_loop(),
     )
 
     await bot.startup()
@@ -63,8 +62,7 @@ async def async_main():
 
 def main():
     """Main function"""
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(async_main())
+    asyncio.run(async_main())
 
 
 if __name__ == "__main__":

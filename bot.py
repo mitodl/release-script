@@ -11,6 +11,7 @@ import re
 
 import pytz
 import sentry_sdk
+import tornado
 
 from client_wrapper import ClientWrapper
 from constants import (
@@ -131,7 +132,6 @@ class Bot:
         npm_token,
         timezone,
         repos_info,
-        loop,
     ):
         """
         Create the slack bot
@@ -143,7 +143,6 @@ class Bot:
             npm_token (str): The NPM token to publish npm packages
             timezone (tzinfo): The time zone of the team interacting with the bot
             repos_info (list of RepoInfo): Information about the repositories connected to channels
-            loop (asyncio.events.AbstractEventLoop): The asyncio event loop
         """
         self.doof_id = doof_id
         self.slack_access_token = slack_access_token
@@ -151,7 +150,6 @@ class Bot:
         self.npm_token = npm_token
         self.timezone = timezone
         self.repos_info = repos_info
-        self.loop = loop
         # Keep track of long running or scheduled tasks
         self.tasks = set()
         self.doof_boot = now_in_utc()
@@ -1038,7 +1036,7 @@ class Bot:
                     title=f"Starting release {version} with these commits",
                     text=release_notes,
                 )
-                self.loop.create_task(
+                asyncio.create_task(
                     self._new_release(
                         repo_info=repo_info,
                         version=version,
@@ -1549,7 +1547,7 @@ class Bot:
             if not release_pr:
                 continue
 
-            self.loop.create_task(
+            asyncio.create_task(
                 self.run_release_lifecycle(
                     repo_info=repo_info, manager=None, release_pr=release_pr
                 )
@@ -1640,7 +1638,6 @@ async def async_main():
         npm_token=envs["NPM_TOKEN"],
         timezone=pytz.timezone(envs["TIMEZONE"]),
         repos_info=repos_info,
-        loop=asyncio.get_event_loop(),
         doof_id=doof_id,
     )
     app = make_app(secret=envs["SLACK_SECRET"], bot=bot)
@@ -1651,9 +1648,7 @@ async def async_main():
 
 def main():
     """main function for bot command"""
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(async_main())
-    loop.run_forever()
+    tornado.ioloop.IOLoop.current().run_sync(async_main)
 
 
 if __name__ == "__main__":

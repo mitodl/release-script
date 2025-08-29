@@ -1,6 +1,5 @@
 """Tests for the web server"""
 
-import asyncio
 import json
 from unittest.mock import patch
 import urllib.parse
@@ -21,8 +20,7 @@ class FinishReleaseTests(AsyncHTTPTestCase):
 
     def setUp(self):
         self.secret = uuid.uuid4().hex
-        self.loop = asyncio.get_event_loop()
-        self.doof = DoofSpoof(loop=self.loop)
+        self.doof = DoofSpoof()
         self.app = make_app(secret=self.secret, bot=self.doof)
 
         super().setUp()
