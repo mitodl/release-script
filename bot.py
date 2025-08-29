@@ -11,7 +11,6 @@ import re
 
 import pytz
 import sentry_sdk
-import tornado
 
 from client_wrapper import ClientWrapper
 from constants import (
@@ -1646,10 +1645,11 @@ async def async_main():
     await bot.startup()
 
 
-def main():
+async def main():
     """main function for bot command"""
-    tornado.ioloop.IOLoop.current().run_sync(async_main)
+    await async_main()
+    await asyncio.Event().wait()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
