@@ -304,6 +304,37 @@ async def virtualenv(python_interpreter, env):
         )
 
 
+def _load_repo_info(channel_lookup, repo_info):
+    project_type = repo_info.get("project_type")
+    is_web_app = project_type == WEB_APPLICATION_TYPE
+    check_hash_urls = repo_info.get("check_hash_urls", True) if is_web_app else False
+    return RepoInfo(
+        name=repo_info["name"],
+        repo_url=repo_info["repo_url"],
+        ci_hash_url=(
+            repo_info["ci_hash_url"]
+            if check_hash_urls
+            else None
+        ),
+        rc_hash_url=(
+            repo_info["rc_hash_url"]
+            if check_hash_urls
+            else None
+        ),
+        prod_hash_url=(
+            repo_info["prod_hash_url"]
+            if check_hash_urls
+            else None
+        ),
+        channel_id=channel_lookup[repo_info["channel_name"]],
+        project_type=project_type,
+        web_application_type=repo_info.get("web_application_type"),
+        packaging_tool=repo_info.get("packaging_tool"),
+        versioning_strategy=repo_info.get("versioning_strategy", FILE_VERSION),
+        check_hash_urls=check_hash_urls,
+    )
+
+
 def load_repos_info(channel_lookup):
     """
     Load repo information from JSON and looks up channel ids for each repo
@@ -318,30 +349,7 @@ def load_repos_info(channel_lookup):
         repos_info = json.load(f)
 
     infos = [
-        RepoInfo(
-            name=repo_info["name"],
-            repo_url=repo_info["repo_url"],
-            ci_hash_url=(
-                repo_info["ci_hash_url"]
-                if repo_info.get("project_type") == WEB_APPLICATION_TYPE
-                else None
-            ),
-            rc_hash_url=(
-                repo_info["rc_hash_url"]
-                if repo_info.get("project_type") == WEB_APPLICATION_TYPE
-                else None
-            ),
-            prod_hash_url=(
-                repo_info["prod_hash_url"]
-                if repo_info.get("project_type") == WEB_APPLICATION_TYPE
-                else None
-            ),
-            channel_id=channel_lookup[repo_info["channel_name"]],
-            project_type=repo_info.get("project_type"),
-            web_application_type=repo_info.get("web_application_type"),
-            packaging_tool=repo_info.get("packaging_tool"),
-            versioning_strategy=repo_info.get("versioning_strategy", FILE_VERSION),
-        )
+        _load_repo_info(channel_lookup, repo_info)
         for repo_info in repos_info["repos"]
         if repo_info.get("repo_url")
     ]

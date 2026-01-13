@@ -15,5 +15,6 @@ RepoInfo = namedtuple(
         "web_application_type",
         "packaging_tool",
         "versioning_strategy",
+        "check_hash_urls",
     ],
 )
