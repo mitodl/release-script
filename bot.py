@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-# pylint: disable=too-many-lines
+
 """Slack bot for managing releases"""
+
 import asyncio
 from asyncio import sleep as async_sleep  # importing separately for simpler mocking
 from collections import namedtuple
@@ -118,7 +119,6 @@ def get_envs():
     return env_dict
 
 
-# pylint: disable=too-many-instance-attributes,too-many-arguments,too-many-public-methods
 class Bot:
     """Slack bot used to manage the release"""
 
@@ -179,7 +179,7 @@ class Bot:
             slack_users = await self.lookup_users()
             return {match_user(slack_users, author) for author in names}
 
-        except:  # pylint: disable=bare-except
+        except:  # noqa: E722
             log.exception(
                 "Exception during translate_slack_usernames, continuing with untranslated names..."
             )
@@ -982,7 +982,7 @@ class Bot:
                 ],
             )
 
-    async def start_new_releases(self, command_args):  # pylint: disable=too-many-locals
+    async def start_new_releases(self, command_args):
         """
         Start new releases for all projects with new commits
 
@@ -1314,7 +1314,6 @@ class Bot:
             ),
         ]
 
-    # pylint: disable=too-many-locals
     async def run_command(self, *, manager, channel_id, words):
         """
         Run a command
@@ -1339,7 +1338,7 @@ class Bot:
                 for arg, parser in zip(args, command.parsers):
                     try:
                         parsed_args.append(parser.func(arg))
-                    except:  # pylint: disable=bare-except
+                    except:  # noqa: E722
                         await self.say(
                             channel_id=channel_id,
                             text=(
@@ -1403,7 +1402,7 @@ class Bot:
         except (InputException, ReleaseException) as ex:
             log.exception("A BotException was raised:")
             await self.say(channel_id=channel_id, text=f"Oops! {ex}")
-        except:  # pylint: disable=bare-except
+        except:  # noqa: E722
             log.exception("Exception found when handling a message")
             await self.say(
                 channel_id=channel_id,

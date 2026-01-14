@@ -24,7 +24,6 @@ from test_util import async_context_manager_yielder
 pytestmark = pytest.mark.asyncio
 
 
-# pylint: disable=unused-argument, redefined-outer-name
 async def test_check_release_tag(test_repo_directory):
     """check_release_tag should error if the most recent release commit doesn't match the version given"""
     await check_call(
@@ -88,7 +87,6 @@ async def test_tag_release(mocker, test_repo_directory):
     )
 
 
-# pylint: disable=too-many-locals
 async def test_finish_release(mocker, timezone, test_repo_directory, test_repo):
     """finish_release should tag, merge and push the release"""
     token = "token"

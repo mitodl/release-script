@@ -16,11 +16,8 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Lint
-        run: uv run pylint *.py
-
-      - name: Black
-        run: uv run black --version && uv run black . --check
+      - name: Ruff
+        run: uv run ruff check
 
       - name: Tests
         run: uv run pytest .

@@ -46,7 +46,6 @@ SLACK_ACCESS = "slack"
 NPM_TOKEN = "npm-token"
 
 
-# pylint: disable=redefined-outer-name, too-many-lines
 class DoofSpoof(Bot):
     """Testing bot"""
 
@@ -129,7 +128,7 @@ def sleep_sync_mock(mocker):
 
 
 @pytest.fixture
-def doof(sleep_sync_mock):  # pylint: disable=unused-argument
+def doof(sleep_sync_mock):
     """Create a Doof"""
     yield DoofSpoof()
 
@@ -140,11 +139,11 @@ def mock_labels(mocker):
 
     _label = None
 
-    def _set_label(*args, label, **kwargs):  # pylint: disable=unused-argument
+    def _set_label(*args, label, **kwargs):
         nonlocal _label
         _label = label
 
-    def _get_label(*args, **kwargs):  # pylint: disable=unused-argument
+    def _get_label(*args, **kwargs):
         return _label
 
     mock_set = mocker.async_patch("bot.set_release_label", side_effect=_set_label)
@@ -392,11 +391,8 @@ async def test_hash(doof, test_repo, mocker, deployment_server_type, expected_ur
     )
 
 
-# pylint: disable=too-many-locals
 @pytest.mark.parametrize("command", ["release", "start release"])
-async def test_release(
-    doof, test_repo, mocker, command, mock_labels
-):  # pylint: disable=unused-argument
+async def test_release(doof, test_repo, mocker, command, mock_labels):
     """
     Doof should do a release when asked
     """
@@ -453,10 +449,9 @@ async def test_release(
     assert wait_for_checkboxes_sync_mock.called is True
 
 
-# pylint: disable=too-many-locals
 async def test_hotfix_release(
     doof, test_repo, test_repo_directory, mocker, mock_labels
-):  # pylint: disable=unused-argument
+):
     """
     Doof should do a hotfix when asked
     """
@@ -643,9 +638,7 @@ async def test_release_library(doof, library_test_repo, mocker):
 
 
 @pytest.mark.parametrize("project_type", [WEB_APPLICATION_TYPE, LIBRARY_TYPE])
-async def test_finish_release(
-    doof, mocker, project_type, mock_labels
-):  # pylint: disable=unused-argument
+async def test_finish_release(doof, mocker, project_type, mock_labels):
     """
     Doof should finish a release when asked
     """
@@ -736,10 +729,9 @@ async def test_webhook_different_callback_id(doof, mocker):
     assert finish_release_mock.called is False
 
 
-# pylint: disable=too-many-arguments
 async def test_webhook_finish_release(
     doof, mocker, test_repo, library_test_repo, mock_labels
-):  # pylint: disable=unused-argument
+):
     """
     Finish the release
     """
@@ -965,7 +957,7 @@ async def test_publish(doof, library_test_repo, mocker, packaging_tool):
         ["wait for checkboxes", LIBRARY_TYPE],
         ["publish 1.2.3", WEB_APPLICATION_TYPE],
     ],
-)  # pylint: disable=too-many-arguments
+)
 async def test_invalid_project_type(
     doof, test_repo, library_test_repo, command, project_type
 ):
@@ -1030,7 +1022,7 @@ async def test_help(doof):
 @pytest.mark.parametrize("has_checkboxes", [True, False])
 async def test_wait_for_checkboxes(
     mocker, doof, sleep_sync_mock, test_repo, has_checkboxes, mock_labels
-):  # pylint: disable=unused-argument,too-many-positional-arguments
+):
     """wait_for_checkboxes should poll github, parse checkboxes and see if all are checked"""
     org, repo = get_org_and_repo(test_repo.repo_url)
     channel_id = test_repo.channel_id
@@ -1114,10 +1106,10 @@ async def test_wait_for_checkboxes(
 
 async def test_wait_for_checkboxes_no_pr(
     mocker, doof, test_repo, mock_labels, sleep_sync_mock
-):  # pylint: disable=unused-argument
+):
     """wait_for_checkboxes should exit without error if the PR doesn't exist"""
     org, repo = get_org_and_repo(test_repo.repo_url)
-    mock_set, mock_get = mock_labels  # pylint: disable=unused-variable
+    mock_set, mock_get = mock_labels
     mock_set(label=WAITING_FOR_CHECKBOXES)
 
     pr = ReleasePR(
@@ -1139,7 +1131,6 @@ async def test_wait_for_checkboxes_no_pr(
     sleep_sync_mock.assert_called_once_with(10)
 
 
-# pylint: disable=too-many-arguments
 @pytest.mark.parametrize(
     "repo_info, has_release_pr, has_expected",
     [
@@ -1190,9 +1181,7 @@ async def test_startup(doof, mocker, repo_info, has_release_pr, has_expected):
         assert run_release_lifecycle_mock.called is False
 
 
-async def test_wait_for_deploy_rc(
-    doof, test_repo, mocker, mock_labels
-):  # pylint: disable=unused-argument
+async def test_wait_for_deploy_rc(doof, test_repo, mocker, mock_labels):
     """Bot._wait_for_deploy_prod should wait until repo has been deployed to RC"""
     wait_for_deploy_mock = mocker.async_patch("bot.wait_for_deploy")
     org, repo = get_org_and_repo(test_repo.repo_url)
@@ -1209,7 +1198,7 @@ async def test_wait_for_deploy_rc(
     )
     wait_for_checkboxes_sync_mock = mocker.async_patch("bot.Bot.wait_for_checkboxes")
 
-    await doof._wait_for_deploy_rc(  # pylint: disable=protected-access
+    await doof._wait_for_deploy_rc(
         repo_info=test_repo, manager="me", release_pr=release_pr
     )
 
@@ -1233,9 +1222,7 @@ async def test_wait_for_deploy_rc(
     )
 
 
-async def test_wait_for_deploy_prod(
-    doof, test_repo, mocker, mock_labels
-):  # pylint: disable=unused-argument
+async def test_wait_for_deploy_prod(doof, test_repo, mocker, mock_labels):
     """Bot._wait_for_deploy_prod should wait until repo has been deployed to production"""
     wait_for_deploy_mock = mocker.async_patch("bot.wait_for_deploy")
     version = "1.2.345"
@@ -1247,7 +1234,7 @@ async def test_wait_for_deploy_prod(
         "version", "https://github.com/org/repo/pulls/123456", "body", 123456, False
     )
 
-    await doof._wait_for_deploy_prod(  # pylint: disable=protected-access
+    await doof._wait_for_deploy_prod(
         repo_info=test_repo, manager="me", release_pr=release_pr
     )
 
@@ -1388,7 +1375,7 @@ async def test_start_new_releases(
     expected_version,
     has_release_pr,
     has_new_commits,
-):  # pylint: disable=too-many-positional-arguments
+):
     """start new releases command should iterate through releases and start ones without an existing PR"""
     old_version = "1.2.3"
     default_branch = "default"

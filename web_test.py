@@ -66,12 +66,10 @@ class FinishReleaseTests(AsyncHTTPTestCase):
             patch("web.is_authenticated", return_value=True),
         ):
 
-            async def fake_webhook(*args, **kwargs):  # pylint: disable=unused-argument
+            async def fake_webhook(*args, **kwargs):
                 pass
 
-            handle_webhook.return_value = (
-                fake_webhook()
-            )  # pylint: disable=assignment-from-no-return
+            handle_webhook.return_value = fake_webhook()
 
             response = self.fetch(
                 "/api/v0/buttons/",
@@ -112,12 +110,10 @@ class FinishReleaseTests(AsyncHTTPTestCase):
             patch("web.is_authenticated", return_value=True),
         ):
 
-            async def fake_event(*args, **kwargs):  # pylint: disable=unused-argument
+            async def fake_event(*args, **kwargs):
                 pass
 
-            handle_event.return_value = (
-                fake_event()
-            )  # pylint: disable=assignment-from-no-return
+            handle_event.return_value = fake_event()
 
             response = self.fetch(
                 "/api/v0/events/", method="POST", body=json.dumps(payload)
@@ -130,7 +126,6 @@ class FinishReleaseTests(AsyncHTTPTestCase):
         )
 
 
-# pylint: disable=too-many-arguments,too-many-positional-arguments
 @pytest.mark.parametrize(
     "secret, timestamp, signature, body, expected",
     [

@@ -58,7 +58,6 @@ WEB_TEST_REPO_INFO = RepoInfo(
 )
 
 
-# pylint: disable=redefined-outer-name, unused-argument
 @pytest.fixture
 def test_repo_directory():
     """Helper function to make a repo for testing"""
@@ -130,7 +129,7 @@ def timezone():
 
 
 @pytest.fixture
-def mocker(mocker):  # pylint: disable=redefined-outer-name
+def mocker(mocker):
     """Override to add async_patch"""
 
     def async_patch(*args, **kwargs):

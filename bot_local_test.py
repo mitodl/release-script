@@ -8,7 +8,6 @@ from bot_local import async_main
 pytestmark = pytest.mark.asyncio
 
 
-# pylint: disable=unused-argument
 async def test_bot_local(mocker, test_repo):
     """
     bot_local should execute a command

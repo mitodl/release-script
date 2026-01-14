@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Run the bot locally to test it out"""
+
 import asyncio
 import sys
 
@@ -14,9 +15,7 @@ from bot import (
 class ConsoleBot(Bot):
     """Fake console bot"""
 
-    async def say(
-        self, *, channel_id, text="", attachments=None, message_type=""
-    ):  # pylint: disable=unused-argument
+    async def say(self, *, channel_id, text="", attachments=None, message_type=""):
         """Print messages to stdout"""
         attachment_text = ""
         if attachments is not None:
