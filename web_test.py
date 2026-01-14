@@ -61,8 +61,9 @@ class FinishReleaseTests(AsyncHTTPTestCase):
         """
         payload = {}
 
-        with patch("bot.Bot.handle_webhook") as handle_webhook, patch(
-            "web.is_authenticated", return_value=True
+        with (
+            patch("bot.Bot.handle_webhook") as handle_webhook,
+            patch("web.is_authenticated", return_value=True),
         ):
 
             async def fake_webhook(*args, **kwargs):  # pylint: disable=unused-argument
@@ -106,8 +107,9 @@ class FinishReleaseTests(AsyncHTTPTestCase):
             "type": "not_a_challenge",
         }
 
-        with patch("bot.Bot.handle_event") as handle_event, patch(
-            "web.is_authenticated", return_value=True
+        with (
+            patch("bot.Bot.handle_event") as handle_event,
+            patch("web.is_authenticated", return_value=True),
         ):
 
             async def fake_event(*args, **kwargs):  # pylint: disable=unused-argument

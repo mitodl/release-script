@@ -9,34 +9,18 @@ jobs:
 
       - name: Set up JS requirements
         run: npm install
-
-      - name: Set up Python
-        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
-        with:
-          python-version: "3.14"
-
-      - id: cache
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt', '**/test_requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+        
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a7eac68fb9809dea845d802897dc5c723910fa3 # v7
 
       - name: Install dependencies
-        run: pip install -r requirements.txt -r test_requirements.txt
+        run: uv sync
 
       - name: Lint
-        run: pylint *.py
+        run: uv run pylint *.py
 
       - name: Black
-        run: black --version && black . --check
+        run: uv run black --version && uv run black . --check
 
       - name: Tests
-        run: pytest . && coverage xml
-
-      # - name: Upload coverage to CodeCov
-      #   uses: codecov/codecov-action@v1
-      #   with:
-      #     file: ./coverage.xml
-      #     fail_ci_if_error: true
+        run: uv run pytest .
