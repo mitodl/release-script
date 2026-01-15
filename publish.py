@@ -40,9 +40,7 @@ async def upload_to_pypi(project_dir):
             )
 
 
-async def upload_with_twine(
-    *, project_dir, virtualenv_dir, environ
-):  # pylint: disable=too-many-locals
+async def upload_with_twine(*, project_dir, virtualenv_dir, environ):
     """
     Upload a version of a project to PYPI
 

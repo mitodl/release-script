@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Release script for ODL projects"""
+
 import re
 import os
 from subprocess import CalledProcessError
@@ -176,7 +177,7 @@ async def build_release(*, root):
 
 async def generate_release_pr(
     *, github_access_token, repo_url, old_version, new_version, base_branch, root
-):  # pylint: disable=too-many-arguments
+):
     """
     Make a release pull request for the deployed release-candidate branch
 

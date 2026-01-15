@@ -21,7 +21,6 @@ from test_util import async_context_manager_yielder
 pytestmark = pytest.mark.asyncio
 
 
-# pylint: disable=unused-argument
 async def test_upload_with_twine(
     mocker, library_test_repo, library_test_repo_directory
 ):

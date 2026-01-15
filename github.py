@@ -86,9 +86,7 @@ def github_auth_headers(github_access_token):
     }
 
 
-async def create_pr(
-    *, github_access_token, repo_url, title, body, head, base
-):  # pylint: disable=too-many-arguments
+async def create_pr(*, github_access_token, repo_url, title, body, head, base):
     """
     Create a pull request
 

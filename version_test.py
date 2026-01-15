@@ -323,7 +323,6 @@ async def test_update_version_file(readonly):
             assert f.readline().strip() == old_version if readonly else new_version
 
 
-# pylint: disable=too-many-arguments,too-many-positional-arguments
 @pytest.mark.parametrize("readonly", [True, False])
 @pytest.mark.parametrize(
     "versioning_strategy, expected_python, expected_js, expected_version_file",

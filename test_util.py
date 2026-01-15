@@ -76,7 +76,7 @@ def async_context_manager_yielder(value):
     """Simple async context manager which yields a value"""
 
     @asynccontextmanager
-    async def async_context_manager(*args, **kwargs):  # pylint: disable=unused-argument
+    async def async_context_manager(*args, **kwargs):
         yield value
 
     return async_context_manager

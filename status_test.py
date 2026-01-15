@@ -97,7 +97,7 @@ async def test_status_for_repo_last_pr(
     is_open,
     labels,
     expected,
-):  # pylint: disable=too-many-arguments,too-many-positional-arguments
+):
     """status_for_repo_last_pr should get the status for the most recent PR for a project"""
     release_pr = (
         ReleasePR("1.2.3", "http://example.com", "body", 12, is_open)
@@ -127,7 +127,7 @@ async def test_status_for_repo_last_pr(
 @pytest.mark.parametrize("has_commits", [True, False])
 @pytest.mark.parametrize("has_release_pr", [True, False])
 @pytest.mark.parametrize("is_open", [True, False])
-async def test_status_for_repo_new_commits(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+async def test_status_for_repo_new_commits(
     mocker, test_repo, test_repo_directory, has_commits, has_release_pr, is_open
 ):
     """status_for_repo_new_commits should check if there are new commits"""

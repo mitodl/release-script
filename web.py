@@ -33,7 +33,7 @@ class ButtonHandler(RequestHandler):
     Handle button requests
     """
 
-    def initialize(self, secret, bot):  # pylint: disable=arguments-differ
+    def initialize(self, secret, bot):
         """
         Set variables
 
@@ -41,20 +41,18 @@ class ButtonHandler(RequestHandler):
             secret (str): The slack signing secret token used to authenticate
             bot (Bot): The bot
         """
-        # pylint: disable=attribute-defined-outside-init
+
         self.secret = secret
         self.bot = bot
 
-    async def post(self, *args, **kwargs):  # pylint: disable=unused-argument
+    async def post(self, *args, **kwargs):
         """Handle webhook POST"""
         if not is_authenticated(self.request, self.secret):
             self.set_status(401)
             await self.finish("")
             return
 
-        arguments = json.loads(
-            self.get_argument("payload")
-        )  # pylint: disable=no-value-for-parameter
+        arguments = json.loads(self.get_argument("payload"))
         asyncio.create_task(self.bot.handle_webhook(webhook_dict=arguments))
         await self.finish("")
 
@@ -62,7 +60,7 @@ class ButtonHandler(RequestHandler):
 class EventHandler(RequestHandler):
     """Handle events from Slack's events API"""
 
-    def initialize(self, secret, bot):  # pylint: disable=arguments-differ
+    def initialize(self, secret, bot):
         """
         Set variables
 
@@ -70,11 +68,11 @@ class EventHandler(RequestHandler):
             secret (str): The slack signing secret token used to authenticate
             bot (Bot): The bot
         """
-        # pylint: disable=attribute-defined-outside-init
+
         self.secret = secret
         self.bot = bot
 
-    async def post(self, *args, **kwargs):  # pylint: disable=unused-argument
+    async def post(self, *args, **kwargs):
         """Handle webhook POST"""
         if not is_authenticated(self.request, self.secret):
             self.set_status(401)

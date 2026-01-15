@@ -48,10 +48,7 @@ async def test_validate_dependencies_failure(mocker, dependency):
     dependency_exists_stub = mocker.async_patch("release.dependency_exists")
     # the cell-var-from-loop warning can be ignored because this function is executed
     # immediately after its definition
-    dependency_exists_stub.side_effect = (
-        lambda _dependency: _dependency
-        != dependency  # pylint: disable=cell-var-from-loop
-    )
+    dependency_exists_stub.side_effect = lambda _dependency: _dependency != dependency
 
     with pytest.raises(DependencyException):
         await validate_dependencies()
@@ -457,7 +454,7 @@ async def test_release_failed_cherry_pick(test_repo_directory, test_repo, mocker
     """release should raise an exception if the cherry pick fails"""
     commit_hash = "does_not_exist"
 
-    def fake_check_call(args, *, cwd):  # pylint: disable=unused-argument
+    def fake_check_call(args, *, cwd):
         if args[1] == "cherry-pick":
             raise CalledProcessError(128, "git")
 
