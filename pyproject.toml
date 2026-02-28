@@ -14,7 +14,7 @@ dependencies = [
     "requests==2.32.5",
     "sentry-sdk==2.53.0",
     "tornado==6.5.4",
-    "virtualenv==20.38.0",
+    "virtualenv==20.39.1",
 ]
 
 [dependency-groups]
