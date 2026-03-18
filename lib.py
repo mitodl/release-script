@@ -344,7 +344,7 @@ def load_repos_info(channel_lookup):
             versioning_strategy=repo_info.get("versioning_strategy", FILE_VERSION),
         )
         for repo_info in repos_info["repos"]
-        if repo_info.get("repo_url")
+        if repo_info.get("repo_url") and repo_info.get("channel_name") and channel_lookup.get(repo_info.get("channel_name"))
     ]
 
     # some basic validation for sanity checking
