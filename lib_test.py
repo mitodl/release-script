@@ -211,6 +211,21 @@ async def test_load_repos_info(mocker):
                     "packaging_tool": "none",
                     "versioning_strategy": FILE_VERSION,
                 },
+                {
+                    "name": "bad-no-channel",
+                    "repo_url": "https://github.com/mitodl/ocw-hugo-projects.git",
+                    "project_type": "library",
+                    "packaging_tool": "none",
+                    "versioning_strategy": FILE_VERSION,
+                },
+                {
+                    "name": "bad-nonexistant-channel",
+                    "repo_url": "https://github.com/mitodl/ocw-hugo-projects.git",
+                    "channel_name": "ghost-channel",
+                    "project_type": "library",
+                    "packaging_tool": "none",
+                    "versioning_strategy": FILE_VERSION,
+                },
             ]
         },
     )
