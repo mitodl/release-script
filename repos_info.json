@@ -137,14 +137,6 @@
       "versioning_strategy": "file"
     },
     {
-      "name": "course-search-utils",
-      "repo_url": "https://github.com/mitodl/course-search-utils.git",
-      "channel_name": "doof-course-search-utils",
-      "project_type": "library",
-      "packaging_tool": "npm",
-      "versioning_strategy": "npm"
-    },
-    {
       "name": "mitxonline",
       "repo_url": "https://github.com/mitodl/mitxonline.git",
       "ci_hash_url": "https://mitxonline-ci.mitxonline.mit.edu/static/hash.txt",
