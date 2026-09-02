@@ -84,11 +84,11 @@ Web application projects:
 ### Command line release process
 If Slack is down you may need to run releases from a shell using `bot_local.py`. To do that:
 
- - Create a virtualenv for this project and install dependencies from `requirements.txt`.
+ - Install dependencies with `uv sync` (see [Dependencies](#dependencies) below).
  - Set environment variables listed above. Until we make environment variable checks more fine
 grained it is probably easiest to fill in fake values for the values you don't need.
- - Start a release: `python3 bot_local.py micromasters-eng release 4.5.6` for example.
- - Merge the release: `python3 bot_local.py micromasters-eng finish release`.
+ - Start a release: `uv run python3 bot_local.py micromasters-eng release 4.5.6` for example.
+ - Merge the release: `uv run python3 bot_local.py micromasters-eng finish release`.
  
 Note that Doof and `bot_local.py` use temporary directories for all releases so none of your
 work in progress will be affected or will affect the release.
@@ -100,21 +100,25 @@ Git is available as a precompiled binary as well as from Homebrew on OSX:
 
     brew install git
 
-#### [Python 3.7+ - https://www.python.org/downloads/](https://www.python.org/downloads/)
+#### [Python 3.13 - https://www.python.org/downloads/](https://www.python.org/downloads/)
 
-Python 3.7+ is required.
+Python 3.13 is required (see `.python-version`). `uv` can install it for you.
 
 #### Python libraries
 
-All python dependencies are listed in `requirements.txt`. (For testing also install `test_requirements.txt`.)
+Python dependencies are managed with [uv](https://docs.astral.sh/uv/) and declared in
+`pyproject.toml`, with exact versions locked in `uv.lock`. Install
+[uv](https://docs.astral.sh/uv/getting-started/installation/), then:
 
-Create a virtualenv and install the Python dependencies. For example:
+    uv sync
 
-  - `virtualenv /tmp/release_venv -p /usr/bin/python3`
-  - `. /tmp/release_venv/bin/activate`
-  - `pip install -r requirements.txt -r test_requirements.txt`
+That creates the virtualenv and installs both the runtime dependencies and the `dev`
+dependency group (pytest and friends). Run project scripts through `uv run` so they use
+that environment, for example:
 
-Make sure to also run the various scripts from within the virtualenv.
+    uv run pytest .
+    uv run ruff check
+    uv run python3 bot_local.py micromasters-eng release 4.5.6
 
 #### Javascript libraries
 Make sure you have `npm` installed, then install any dependencies:
