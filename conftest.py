@@ -3,7 +3,6 @@
 import os
 
 import pytest
-import pytz
 
 from constants import (
     DJANGO,
@@ -120,12 +119,6 @@ def library_test_repo(library_test_repo_directory):
 def npm_library_test_repo(library_test_repo):
     """Create a repository"""
     yield NPM_TEST_REPO_INFO
-
-
-@pytest.fixture
-def timezone():
-    """Return a timezone object"""
-    yield pytz.timezone("America/New_York")
 
 
 @pytest.fixture

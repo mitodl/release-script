@@ -26,9 +26,6 @@
     "PORT": {
       "description": "Heroku port number to use for web server"
     },
-    "TIMEZONE": {
-      "description": "The time zone of the team"
-    },
     "SLACK_SECRET": {
       "description": "The secret to authenticate Slack requests to our APIs"
     }

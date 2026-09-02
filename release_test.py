@@ -5,10 +5,13 @@ from subprocess import CalledProcessError
 
 import pytest
 
+from constants import LIBRARY_TYPE, WEB_APPLICATION_TYPE
 from exception import ReleaseException
 from lib import url_with_access_token
+from repo_info import RepoInfo
 from release import (
     any_new_commits,
+    build_release,
     create_release_notes,
     dependency_exists,
     DependencyException,
@@ -379,9 +382,14 @@ async def test_fetch_release_hash(mocker):
     get_mock.return_value.raise_for_status.assert_called_once_with()
 
 
+@pytest.mark.parametrize("project_type", [WEB_APPLICATION_TYPE, LIBRARY_TYPE])
 @pytest.mark.parametrize("hotfix_hash", ["", "abcdef"])
-async def test_release(mocker, hotfix_hash, test_repo_directory, test_repo):
+async def test_release(
+    mocker, hotfix_hash, project_type, test_repo_directory, test_repo
+):
     """release should perform a release"""
+    test_repo = RepoInfo(**{**test_repo._asdict(), "project_type": project_type})
+    tag_upfront = project_type == WEB_APPLICATION_TYPE
     token = "token"
     old_version = "6.5.4"
     new_version = "9.8.7"
@@ -437,7 +445,7 @@ async def test_release(mocker, hotfix_hash, test_repo_directory, test_repo):
         check_call_mock.assert_any_call(
             ["git", "cherry-pick", hotfix_hash], cwd=test_repo_directory
         )
-    check_call_mock.assert_any_call(
+    plain_push = mocker.call(
         [
             "git",
             "push",
@@ -448,6 +456,113 @@ async def test_release(mocker, hotfix_hash, test_repo_directory, test_repo):
         ],
         cwd=test_repo_directory,
     )
+    atomic_push = mocker.call(
+        [
+            "git",
+            "push",
+            "--atomic",
+            "-q",
+            "origin",
+            "+release-candidate:release-candidate",
+            f"refs/tags/v{new_version}:refs/tags/v{new_version}",
+        ],
+        cwd=test_repo_directory,
+    )
+    assert (atomic_push in check_call_mock.mock_calls) is tag_upfront
+    assert (plain_push in check_call_mock.mock_calls) is not tag_upfront
+
+
+@pytest.mark.parametrize("rc_tag_version", [None, "1.2.3"])
+async def test_build_release(mocker, test_repo_directory, rc_tag_version):
+    """
+    build_release should push the branch on its own, or create the tag and push both in
+    one atomic push when the release candidate is tagged at cut time
+    """
+    check_call_mock = mocker.async_patch("release.check_call")
+
+    await build_release(root=test_repo_directory, rc_tag_version=rc_tag_version)
+
+    if rc_tag_version is None:
+        assert check_call_mock.mock_calls == [
+            mocker.call(
+                [
+                    "git",
+                    "push",
+                    "--force",
+                    "-q",
+                    "origin",
+                    "release-candidate:release-candidate",
+                ],
+                cwd=test_repo_directory,
+            )
+        ]
+    else:
+        tag = f"v{rc_tag_version}"
+        assert check_call_mock.mock_calls == [
+            mocker.call(
+                ["git", "tag", "-a", "-m", f"Release {rc_tag_version}", tag],
+                cwd=test_repo_directory,
+            ),
+            # only the branch ref is force-updated, so an existing remote tag rejects
+            # the whole push instead of silently moving
+            mocker.call(
+                [
+                    "git",
+                    "push",
+                    "--atomic",
+                    "-q",
+                    "origin",
+                    "+release-candidate:release-candidate",
+                    f"refs/tags/{tag}:refs/tags/{tag}",
+                ],
+                cwd=test_repo_directory,
+            ),
+        ]
+
+
+@pytest.mark.parametrize("project_type", [WEB_APPLICATION_TYPE, LIBRARY_TYPE])
+async def test_release_tag_already_exists(
+    mocker, project_type, test_repo_directory, test_repo
+):
+    """
+    release should refuse to cut a web application release over an existing tag, since
+    those are tagged now rather than when the release is finished and tags are immutable
+    """
+    new_version = "9.8.7"
+    test_repo = RepoInfo(**{**test_repo._asdict(), "project_type": project_type})
+    tag_upfront = project_type == WEB_APPLICATION_TYPE
+    check_call(["git", "tag", f"v{new_version}"], cwd=test_repo_directory)
+
+    mocker.async_patch("release.validate_dependencies")
+    mocker.async_patch("release.check_call")
+    mocker.async_patch("release.verify_new_commits")
+    mocker.async_patch("release.update_release_notes")
+    mocker.async_patch("release.update_version", return_value="6.5.4")
+    generate_mock = mocker.async_patch("release.generate_release_pr")
+    mocker.patch(
+        "release.init_working_dir",
+        side_effect=async_context_manager_yielder(test_repo_directory),
+    )
+
+    if tag_upfront:
+        with pytest.raises(ReleaseException) as exception:
+            await release(
+                github_access_token="token",
+                repo_info=test_repo,
+                new_version=new_version,
+            )
+        assert exception.value.args[0] == (
+            f"Tag v{new_version} already exists. Tags are immutable, so this release "
+            f"needs to be cut with a new version number."
+        )
+        generate_mock.assert_not_called()
+    else:
+        await release(
+            github_access_token="token",
+            repo_info=test_repo,
+            new_version=new_version,
+        )
+        generate_mock.assert_called_once()
 
 
 async def test_release_failed_cherry_pick(test_repo_directory, test_repo, mocker):

@@ -12,7 +12,7 @@ from urllib.parse import urlparse, urlunparse
 
 from dateutil.parser import parse
 
-from async_subprocess import check_call, check_output
+from async_subprocess import call, check_call, check_output
 from constants import (
     FILE_VERSION,
     SCRIPT_DIR,
@@ -395,6 +395,37 @@ async def get_default_branch(repository_path):
     ).decode()
     head_branch_line = [line for line in output.splitlines() if "HEAD branch" in line]
     return head_branch_line[0].rsplit(": ", maxsplit=1)[1]
+
+
+async def tag_exists(version, *, root):
+    """
+    Returns True if the release tag for this version already exists
+
+    Args:
+        version (str): The version of the release
+        root (str): The path to the repository
+    """
+    return (
+        await call(
+            ["git", "show-ref", "--verify", "--quiet", f"refs/tags/v{version}"],
+            cwd=root,
+        )
+        == 0
+    )
+
+
+async def get_commit_hash(ref, *, root):
+    """
+    Returns the commit hash a ref points at, dereferencing annotated tags
+
+    Args:
+        ref (str): A git ref, for example HEAD or a tag name
+        root (str): The path to the repository
+    """
+    output = await check_output(
+        ["git", "rev-parse", "--verify", f"{ref}^{{commit}}"], cwd=root
+    )
+    return output.decode().strip()
 
 
 @asynccontextmanager

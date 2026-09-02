@@ -15,6 +15,7 @@ from async_subprocess import (
 from constants import (
     GIT_RELEASE_NOTES_PATH,
     SCRIPT_DIR,
+    WEB_APPLICATION_TYPE,
     YARN_PATH,
 )
 from exception import (
@@ -25,6 +26,7 @@ from github import create_pr
 from lib import (
     get_default_branch,
     init_working_dir,
+    tag_exists,
 )
 from version import update_version
 
@@ -160,16 +162,45 @@ async def update_release_notes(old_version, new_version, *, base_branch, root):
     )
 
 
-async def build_release(*, root):
-    """Deploy the release candidate"""
+async def build_release(*, root, rc_tag_version=None):
+    """
+    Deploy the release candidate
+
+    Args:
+        root (str): The path to the repository
+        rc_tag_version (str): If set, the release tag is created and pushed in the same
+            atomic push as the branch, so the RC deploy can never see the branch without
+            the tag it consumes. Only the branch ref is force-updated, so an existing
+            remote tag rejects the whole push and the branch does not move.
+    """
+    if rc_tag_version is None:
+        await check_call(
+            [
+                "git",
+                "push",
+                "--force",
+                "-q",
+                "origin",
+                "release-candidate:release-candidate",
+            ],
+            cwd=root,
+        )
+        return
+
+    tag = f"v{rc_tag_version}"
+    await check_call(
+        ["git", "tag", "-a", "-m", f"Release {rc_tag_version}", tag], cwd=root
+    )
     await check_call(
         [
             "git",
             "push",
-            "--force",
+            "--atomic",
             "-q",
             "origin",
-            "release-candidate:release-candidate",
+            # `+` here is the equivalent of --force but ONLY for the branch, not the tag
+            "+release-candidate:release-candidate",
+            f"refs/tags/{tag}:refs/tags/{tag}",
         ],
         cwd=root,
     )
@@ -219,6 +250,14 @@ async def release(
     async with init_working_dir(
         github_access_token, repo_info.repo_url, branch=branch
     ) as working_dir:
+        # Web applications are tagged now rather than when the release is finished,
+        # because their release candidate deploy consumes the version tag
+        tag_upfront = repo_info.project_type == WEB_APPLICATION_TYPE
+        if tag_upfront and await tag_exists(new_version, root=working_dir):
+            raise ReleaseException(
+                f"Tag v{new_version} already exists. Tags are immutable, so this "
+                f"release needs to be cut with a new version number."
+            )
         default_branch = await get_default_branch(working_dir)
         await check_call(
             ["git", "checkout", "-qb", "release-candidate"], cwd=working_dir
@@ -245,7 +284,10 @@ async def release(
         await update_release_notes(
             old_version, new_version, base_branch=base_branch, root=working_dir
         )
-        await build_release(root=working_dir)
+        await build_release(
+            root=working_dir,
+            rc_tag_version=new_version if tag_upfront else None,
+        )
         return await generate_release_pr(
             github_access_token=github_access_token,
             repo_url=repo_info.repo_url,
