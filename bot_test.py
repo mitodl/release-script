@@ -4,7 +4,6 @@ import asyncio
 from datetime import timedelta
 
 import pytest
-import pytz
 
 from bot import (
     CommandArgs,
@@ -56,7 +55,6 @@ class DoofSpoof(Bot):
             slack_access_token=SLACK_ACCESS,
             github_access_token=GITHUB_ACCESS,
             npm_token=NPM_TOKEN,
-            timezone=pytz.timezone("America/New_York"),
             repos_info=[WEB_TEST_REPO_INFO, LIBRARY_TEST_REPO_INFO],
         )
 
@@ -675,7 +673,6 @@ async def test_finish_release(doof, mocker, project_type, mock_labels):
         github_access_token=GITHUB_ACCESS,
         repo_info=test_repo,
         version=version,
-        timezone=doof.timezone,
     )
     assert doof.said(f"Merged evil scheme {version} for {test_repo.name}!")
     if project_type == WEB_APPLICATION_TYPE:
@@ -776,7 +773,6 @@ async def test_webhook_finish_release(
         github_access_token=doof.github_access_token,
         repo_info=test_repo,
         version=pr_body.version,
-        timezone=doof.timezone,
     )
     assert doof.said("Merging...")
     assert not doof.said("Error")

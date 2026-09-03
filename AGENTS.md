@@ -4,8 +4,9 @@ Doof (Heinz Doofenshmirtz) is MIT Open Learning's Slack release bot. It listens 
 `@doof <command>` in Slack, maps each channel to a project via `repos_info.json`, and
 drives the ODL release lifecycle: release notes -> `release-candidate` branch with a
 version bump -> "Release X.Y.Z" PR with per-author checkboxes -> wait for RC deploy ->
-wait for checkbox sign-off -> merge to `release`, tag, verify prod. Library projects
-also publish to PyPI (twine) or npm.
+wait for checkbox sign-off -> merge to `release`, verify prod. Web applications are
+tagged when the release candidate is cut; libraries are tagged when the release is
+finished, then published to PyPI (twine) or npm.
 
 `README.md` is accurate and current - read it for the human-facing side this file
 does not cover: the full Doof command list, the release lifecycle in prose, and the
@@ -60,7 +61,7 @@ sibling `<module>_test.py`.
 | `bot_local.py` | `ConsoleBot` - run one command from a shell instead of Slack |
 | `web.py` | Tornado app: button/event handlers, HMAC `is_authenticated()` |
 | `release.py` | Cut the release: notes, version bump, `generate_release_pr` |
-| `finish_release.py` | Merge `release-candidate` -> `release`, tag, set release date |
+| `finish_release.py` | Merge `release-candidate` -> `release`, tag |
 | `publish.py` | `upload_to_pypi` (twine in a virtualenv), `upload_to_npm` |
 | `version.py` | Read/write versions per versioning strategy |
 | `github.py` | GitHub REST + GraphQL (`run_query`), PRs, labels |
@@ -83,7 +84,7 @@ sibling `<module>_test.py`.
 - **Never touch the working tree.** All repo work happens in a temp clone via the
   `init_working_dir` async context manager in `lib.py`.
 - **Keyword-only args** are the norm:
-  `async def finish_release(*, github_access_token, repo_info, version, timezone)`.
+  `async def finish_release(*, github_access_token, repo_info, version)`.
   Google-style docstrings (`Args:` / `Returns:`) on essentially every function.
 - **`namedtuple`, not dataclasses**, for structs (`RepoInfo`, `Command`, `Parser`,
   `ReleasePR`).
@@ -109,7 +110,7 @@ sibling `<module>_test.py`.
 - An autouse `log_exception` fixture makes `bot.log.exception` / `bot.log.error` raise,
   so a swallowed exception fails the test loudly. Expect that if you add broad excepts.
 - Repo fixtures in `conftest.py`: `test_repo`, `library_test_repo`,
-  `npm_library_test_repo`, `timezone`. They build **real git repos** by
+  `npm_library_test_repo`. They build **real git repos** by
   `git fast-import`-ing `test-repo.gz` (see `test_util.make_test_repo`).
 - No `responses` / `vcr` / `betamax`. Mock GitHub with
   `mocker.async_patch("github.run_query", return_value=<payload>)` using the canned
@@ -123,7 +124,7 @@ sibling `<module>_test.py`.
 
 `bot.get_envs()` hard-fails at startup unless all of these are set:
 `SLACK_ACCESS_TOKEN`, `BOT_ACCESS_TOKEN`, `GITHUB_ACCESS_TOKEN`, `NPM_TOKEN`,
-`SLACK_SECRET`, `TIMEZONE`, `PORT`, `PYPI_USERNAME`, `PYPI_PASSWORD`,
+`SLACK_SECRET`, `PORT`, `PYPI_USERNAME`, `PYPI_PASSWORD`,
 `PYPITEST_USERNAME`, `PYPITEST_PASSWORD`. Optional: `SENTRY_SDK` (the Sentry *DSN*,
 despite the name).
 

@@ -10,7 +10,6 @@ import logging
 import json
 import re
 
-import pytz
 import sentry_sdk
 
 from client_wrapper import ClientWrapper
@@ -103,7 +102,6 @@ def get_envs():
         "GITHUB_ACCESS_TOKEN",
         "NPM_TOKEN",
         "SLACK_SECRET",
-        "TIMEZONE",
         "PORT",
         "PYPI_USERNAME",
         "PYPI_PASSWORD",
@@ -129,7 +127,6 @@ class Bot:
         slack_access_token,
         github_access_token,
         npm_token,
-        timezone,
         repos_info,
     ):
         """
@@ -140,14 +137,12 @@ class Bot:
             slack_access_token (str): The OAuth access token used to interact with Slack
             github_access_token (str): The Github access token used to interact with Github
             npm_token (str): The NPM token to publish npm packages
-            timezone (tzinfo): The time zone of the team interacting with the bot
             repos_info (list of RepoInfo): Information about the repositories connected to channels
         """
         self.doof_id = doof_id
         self.slack_access_token = slack_access_token
         self.github_access_token = github_access_token
         self.npm_token = npm_token
-        self.timezone = timezone
         self.repos_info = repos_info
         # Keep track of long running or scheduled tasks
         self.tasks = set()
@@ -829,7 +824,6 @@ class Bot:
             github_access_token=self.github_access_token,
             repo_info=repo_info,
             version=version,
-            timezone=self.timezone,
         )
 
         if repo_info.project_type == WEB_APPLICATION_TYPE:
@@ -1634,7 +1628,6 @@ async def async_main():
         slack_access_token=envs["SLACK_ACCESS_TOKEN"],
         github_access_token=envs["GITHUB_ACCESS_TOKEN"],
         npm_token=envs["NPM_TOKEN"],
-        timezone=pytz.timezone(envs["TIMEZONE"]),
         repos_info=repos_info,
         doof_id=doof_id,
     )

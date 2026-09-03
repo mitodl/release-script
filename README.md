@@ -13,7 +13,6 @@ be all set.
   - `GITHUB_ACCESS_TOKEN` - Used to access information about github repos and to create new pull requests.
   - `NPM_TOKEN` - Used to publish NPM packages
   - `SLACK_SECRET` - Used to authenticate requests from Slack to Doof (ie the finish release button, events API.)
-  - `TIMEZONE` - The timezone of the team working with Doof
   - `PORT` - The port of the webserver, used for receiving webhooks from Slack
   - `PYPITEST_USERNAME` - The PyPI username to upload testing Python packages
   - `PYPITEST_PASSWORD` - The PyPI password to upload testing Python packages

@@ -14,7 +14,6 @@ async def test_bot_local(mocker, test_repo):
     """
     channel_name = "doof_channel"
     channel_id = "D1234567"
-    timezone = "America/New_York"
     slack_token = "slack token"
     github_token = "github_token"
     npm_token = "npm_token"
@@ -27,7 +26,6 @@ async def test_bot_local(mocker, test_repo):
             "SLACK_ACCESS_TOKEN": slack_token,
             "GITHUB_ACCESS_TOKEN": github_token,
             "NPM_TOKEN": npm_token,
-            "TIMEZONE": timezone,
         },
     )
     get_channels_info = mocker.async_patch(

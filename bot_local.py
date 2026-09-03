@@ -45,7 +45,6 @@ async def async_main():
         doof_id="console",
         slack_access_token=envs["SLACK_ACCESS_TOKEN"],
         github_access_token=envs["GITHUB_ACCESS_TOKEN"],
-        timezone=envs["TIMEZONE"],
         npm_token=envs["NPM_TOKEN"],
         repos_info=repos_info,
     )

@@ -25,10 +25,11 @@ from lib import (
     reformatted_full_name,
     ReleasePR,
     remove_path_from_url,
+    tag_exists,
     url_with_access_token,
 )
 from repo_info import RepoInfo
-from test_util import async_wrapper, sync_call as call
+from test_util import async_wrapper, sync_call as call, sync_check_call
 from test_constants import FAKE_RELEASE_PR_BODY, RELEASE_PR
 
 
@@ -327,6 +328,16 @@ def test_parse_text_matching_options_error():
     with pytest.raises(Exception) as ex:
         parse_text_matching_options(["abc", "xyz"])("def")
     assert ex.value.args[0] == "Unexpected option def. Valid options: abc, xyz"
+
+
+@pytest.mark.parametrize("tagged", [True, False])
+async def test_tag_exists(test_repo_directory, tagged):
+    """tag_exists should detect whether the release tag is already in the repository"""
+    if tagged:
+        sync_check_call(["git", "tag", "v1.2.3"], cwd=test_repo_directory)
+
+    assert await tag_exists("1.2.3", root=test_repo_directory) is tagged
+    assert await tag_exists("9.9.9", root=test_repo_directory) is False
 
 
 async def test_get_default_branch(test_repo_directory):
