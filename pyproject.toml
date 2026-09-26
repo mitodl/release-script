@@ -12,7 +12,7 @@ dependencies = [
     "python-dateutil==2.9.0.post0",
     "requests==2.34.2",
     "sentry-sdk==2.66.1",
-    "tornado==6.5.7",
+    "tornado==6.5.8",
     "virtualenv==20.39.1",
 ]
 
