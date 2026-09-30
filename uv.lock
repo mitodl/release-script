@@ -296,6 +296,18 @@ wheels = [
 ]
 
 [[package]]
+name = "python-discovery"
+version = "1.6.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "filelock" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/0c/57/250bd238b966cece44328235eb85290045d059265fdaf7527a3a958123db/python_discovery-1.6.1.tar.gz", hash = "sha256:cf87d3627dfb4412437fdd5b13eae402607722998d21567993aedbc59b23c15e", size = 84338, upload-time = "2026-09-18T01:31:53.971Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/16/7d/e9ffbadfbf89c93848412d04594135c4ae8c1d37d9e053b9c3ed718fabc4/python_discovery-1.6.1-py3-none-any.whl", hash = "sha256:d43fcdef879fe795352bd13ccf8d185ba5a9f86f36cfcd00529f596e737442b3", size = 38664, upload-time = "2026-09-18T01:31:52.448Z" },
+]
+
+[[package]]
 name = "release-script"
 version = "0.1.0"
 source = { virtual = "." }
@@ -326,7 +338,7 @@ requires-dist = [
     { name = "requests", specifier = "==2.34.2" },
     { name = "sentry-sdk", specifier = "==2.66.1" },
     { name = "tornado", specifier = "==6.5.7" },
-    { name = "virtualenv", specifier = "==20.39.1" },
+    { name = "virtualenv", specifier = "==21.7.10" },
 ]
 
 [package.metadata.requires-dev]
@@ -431,14 +443,15 @@ wheels = [
 
 [[package]]
 name = "virtualenv"
-version = "20.39.1"
+version = "21.7.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "distlib" },
     { name = "filelock" },
     { name = "platformdirs" },
+    { name = "python-discovery" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/08/28/3b1b939f7d7d1b370c86919fcbc7e44549aa5bd94254b5ca8f8cb10d8aef/virtualenv-20.39.1.tar.gz", hash = "sha256:c551ea1072d7717a273dd9a4a0adad8f45571af134b0f63a12430e85f6ac1c08", size = 5870061, upload-time = "2026-02-25T19:26:41.253Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/45/9d/5acd348310e0803c658c8cf7c4d928e2d22fc4f79c29098b651cd3edfdba/virtualenv-21.7.10.tar.gz", hash = "sha256:a7bf10f37ecc36f1942d6e469d6b59f5fe308f60ac711f66f51ef3bd8cb2c9aa", size = 5350247, upload-time = "2026-09-15T23:36:05.739Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f6/7f/89d7e8a397752826dbbb81127dfb8feab8286f4f1f91a820f646f04368fb/virtualenv-20.39.1-py3-none-any.whl", hash = "sha256:a00332e0b089ba64edefbf94ef34e6db33f45fe5184df0652cf0b754dcd36190", size = 5839941, upload-time = "2026-02-25T19:26:39.273Z" },
+    { url = "https://files.pythonhosted.org/packages/85/7c/b75957b57ef372d84628b1099c4a530b3c361878cc6c54a8dfc5071d371a/virtualenv-21.7.10-py3-none-any.whl", hash = "sha256:d7ac9669ba19e675ffadbb97fe8e887ef92fb1743fe9a0032be62b947657327a", size = 5324900, upload-time = "2026-09-15T23:36:03.751Z" },
 ]
