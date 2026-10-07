@@ -25,7 +25,7 @@ uv run pytest .        # full suite; coverage is auto-applied via pytest.ini
 
 uv run ruff format                           # format (not gated by CI)
 uv run pytest bot_test.py::test_release -x   # single test
-uv run python3 bot_local.py micromasters-eng release 4.5.6   # drive Doof from a shell
+uv run python3 bot_local.py product-mitx-online release 4.5.6   # drive Doof from a shell
 ```
 
 Never use `pip`, `poetry`, or a hand-rolled venv - always `uv`. Run everything through

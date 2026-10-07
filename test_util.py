@@ -36,6 +36,9 @@ def make_test_repo():
     """
     with TemporaryDirectory() as directory:
         sync_check_call(["git", "init", "--quiet"], cwd=directory)
+        # git commit spawns a detached `git maintenance run --auto` which can still be
+        # writing to .git when TemporaryDirectory cleans up, failing teardown
+        sync_check_call(["git", "config", "maintenance.auto", "false"], cwd=directory)
         with gzip.open(
             os.path.join(SCRIPT_DIR, "test-repo.gz"), "rb"
         ) as test_repo_file:
