@@ -33,8 +33,8 @@ Our bot Doof helps manage the release process by automating most parts of it and
 knows when a release is happening and what state it's in.
 
 Some Doof commands need to be run in a specific Slack channel. Doof ties each Slack channel to a project
-(see `repos_info.json`). If you type `@doof release 1.2.3` in the `#micromasters-eng` channel it will do a release
-for the micromasters project.
+(see `repos_info.json`). If you type `@doof release 1.2.3` in the `#product-mitx-online` channel it will do a release
+for the mitxonline project.
 
 Other Doof commands can be run in any channel. If you want to run a command but don't want to clutter the channel
 chat, you can communicate directly with Doof with a direct message.
@@ -86,8 +86,8 @@ If Slack is down you may need to run releases from a shell using `bot_local.py`.
  - Install dependencies with `uv sync` (see [Dependencies](#dependencies) below).
  - Set environment variables listed above. Until we make environment variable checks more fine
 grained it is probably easiest to fill in fake values for the values you don't need.
- - Start a release: `uv run python3 bot_local.py micromasters-eng release 4.5.6` for example.
- - Merge the release: `uv run python3 bot_local.py micromasters-eng finish release`.
+ - Start a release: `uv run python3 bot_local.py product-mitx-online release 4.5.6` for example.
+ - Merge the release: `uv run python3 bot_local.py product-mitx-online finish release`.
  
 Note that Doof and `bot_local.py` use temporary directories for all releases so none of your
 work in progress will be affected or will affect the release.
@@ -117,7 +117,7 @@ that environment, for example:
 
     uv run pytest .
     uv run ruff check
-    uv run python3 bot_local.py micromasters-eng release 4.5.6
+    uv run python3 bot_local.py product-mitx-online release 4.5.6
 
 #### Javascript libraries
 Make sure you have `npm` installed, then install any dependencies:
