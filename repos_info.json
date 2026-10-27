@@ -34,17 +34,6 @@
       "versioning_strategy": "python"
     },
     {
-      "name": "odl-video-service",
-      "repo_url": "https://github.com/mitodl/odl-video-service.git",
-      "ci_hash_url": "http://video-ci.odl.mit.edu/static/hash.txt",
-      "rc_hash_url": "https://video-rc.odl.mit.edu/static/hash.txt",
-      "prod_hash_url": "https://video.odl.mit.edu/static/hash.txt",
-      "channel_name": "product-ovs",
-      "project_type": "web_application",
-      "web_application_type": "django",
-      "versioning_strategy": "python"
-    },
-    {
       "name": "open-discussions-client",
       "repo_url": "https://github.com/mitodl/open-discussions-client.git",
       "channel_name": "doof-discussions-client",
