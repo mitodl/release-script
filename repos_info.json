@@ -31,17 +31,6 @@
       "versioning_strategy": "python"
     },
     {
-      "name": "ocw-studio",
-      "repo_url": "https://github.com/mitodl/ocw-studio.git",
-      "channel_name": "doof-ocw-studio",
-      "project_type": "web_application",
-      "web_application_type": "django",
-      "ci_hash_url": "https://ocw-studio-ci.odl.mit.edu/static/hash.txt",
-      "rc_hash_url": "https://ocw-studio-rc.odl.mit.edu/static/hash.txt",
-      "prod_hash_url": "https://ocw-studio.odl.mit.edu/static/hash.txt",
-      "versioning_strategy": "python"
-    },
-    {
       "name": "ocw-hugo-themes",
       "repo_url": "https://github.com/mitodl/ocw-hugo-themes.git",
       "channel_name": "doof-ocw-hugo-themes",
